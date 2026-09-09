@@ -1,0 +1,1229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ditto</title>
+<meta name="theme-color" content="#F2F5F6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F1518" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Ditto">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+</head>
+<body>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #F2F5F6;
+    --card: #FFFFFF;
+    --ink: #16262E;
+    --muted: #64808B;
+    --line: #D5DFE3;
+    --accent: #0E7C86;
+    --accent-ink: #FFFFFF;
+    --flash: #B9DFF5;
+    --folder: #D6EAF6;
+    --danger: #C0453F;
+    --danger-ink: #FFFFFF;
+    --scrim: rgba(22, 38, 46, 0.45);
+    --sheet: #FFFFFF;
+    --field: #F2F5F6;
+    --shadow: 0 1px 2px rgba(22, 38, 46, 0.06), 0 4px 14px rgba(22, 38, 46, 0.07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0F1518;
+      --card: #1A2429;
+      --ink: #E6EDEF;
+      --muted: #7E959E;
+      --line: #2C3A41;
+      --accent: #53B7C0;
+      --accent-ink: #08262A;
+      --flash: #3D6E8C;
+      --folder: #223D50;
+      --danger: #E06B64;
+      --danger-ink: #240B0A;
+      --scrim: rgba(0, 0, 0, 0.55);
+      --sheet: #1A2429;
+      --field: #0F1518;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 14px rgba(0, 0, 0, 0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0F1518;
+    --card: #1A2429;
+    --ink: #E6EDEF;
+    --muted: #7E959E;
+    --line: #2C3A41;
+    --accent: #53B7C0;
+    --accent-ink: #08262A;
+    --flash: #3D6E8C;
+    --folder: #223D50;
+    --danger: #E06B64;
+    --danger-ink: #240B0A;
+    --scrim: rgba(0, 0, 0, 0.55);
+    --sheet: #1A2429;
+    --field: #0F1518;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 14px rgba(0, 0, 0, 0.35);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", -apple-system, "Helvetica Neue", sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    min-height: 100dvh;
+  }
+
+  .wrap {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: calc(14px + env(safe-area-inset-top)) 16px calc(28px + env(safe-area-inset-bottom));
+  }
+
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 2px 2px;
+  }
+  .wordmark {
+    font-family: "Archivo", "IBM Plex Sans", sans-serif;
+    font-weight: 700;
+    font-size: 22px;
+    letter-spacing: -0.02em;
+  }
+  .wordmark span { color: var(--accent); }
+  .hint {
+    margin: 2px 2px 14px;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .arrange-btn {
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent);
+    background: none;
+    border: none;
+    padding: 8px 2px;
+    cursor: pointer;
+  }
+  .arrange-btn.on {
+    color: var(--accent-ink);
+    background: var(--accent);
+    border-radius: 999px;
+    padding: 6px 14px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 11px;
+  }
+
+  .sq {
+    aspect-ratio: 1;
+    border: none;
+    border-radius: 20px;
+    background: var(--card);
+    color: var(--ink);
+    box-shadow: var(--shadow);
+    font-family: "Archivo", "IBM Plex Sans", sans-serif;
+    font-weight: 600;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
+    transition: transform 0.1s ease;
+    overflow: hidden;
+  }
+  .sq:active { transform: scale(0.96); }
+  .sq .name {
+    font-size: 19px;
+    letter-spacing: -0.01em;
+    line-height: 1.15;
+    text-align: center;
+    word-break: break-word;
+    max-height: 100%;
+    overflow: hidden;
+  }
+  .sq .name.long { font-size: 14.5px; }
+  .sq.blank .name {
+    color: var(--muted);
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+  }
+  .sq.plus {
+    background: transparent;
+    box-shadow: none;
+    border: 1.5px dashed var(--line);
+    color: var(--muted);
+  }
+  .sq.plus .plus-sign {
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--accent);
+  }
+  .sq.plus .plus-label {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 11.5px;
+    font-weight: 500;
+  }
+
+  .sq.folder { background: var(--folder); }
+  .sq.folder .fcap {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    opacity: 0.75;
+  }
+
+  .folder-panel {
+    grid-column: 1 / -1;
+    background: var(--folder);
+    border-radius: 16px;
+    padding: 10px;
+    animation: panelin 0.16s ease;
+  }
+  @keyframes panelin {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: none; }
+  }
+  .folder-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 9px;
+  }
+  .folder-panel .sq { border-radius: 16px; }
+
+  @keyframes copyflash {
+    0% { background: var(--card); }
+    25% { background: var(--flash); }
+    100% { background: var(--card); }
+  }
+  .sq.flash { animation: copyflash 0.6s ease; }
+
+  /* arrange mode */
+  @keyframes wiggle {
+    0% { transform: rotate(-1.3deg); }
+    50% { transform: rotate(1.3deg); }
+    100% { transform: rotate(-1.3deg); }
+  }
+  .grid.arranging .sq:not(.plus) { animation: wiggle 0.35s ease-in-out infinite; touch-action: none; }
+  .grid.arranging .sq.plus { opacity: 0.25; pointer-events: none; }
+  .sq.drag-src { opacity: 0.35; animation: none; }
+  .ghost {
+    position: fixed;
+    z-index: 50;
+    pointer-events: none;
+    border-radius: 20px;
+    background: var(--card);
+    color: var(--ink);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Archivo", sans-serif;
+    font-weight: 600;
+    font-size: 18px;
+    transform: scale(1.06);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .grid.arranging .sq:not(.plus) { animation: none; outline: 2px dashed var(--accent); outline-offset: -2px; }
+    .sq.flash { animation: none; background: var(--flash); }
+    .folder-panel { animation: none; }
+  }
+
+  footer {
+    margin-top: 26px;
+    display: flex;
+    justify-content: center;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  footer button {
+    font-family: inherit;
+    font-size: 12.5px;
+    color: var(--muted);
+    background: none;
+    border: none;
+    padding: 6px;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  footer button#shareBtn { color: var(--accent); font-weight: 600; }
+
+  /* bottom sheet */
+  .scrim {
+    position: fixed;
+    inset: 0;
+    background: var(--scrim);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s ease;
+    z-index: 90;
+  }
+  .scrim.open { opacity: 1; pointer-events: auto; }
+  .sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 100;
+    background: var(--sheet);
+    border-radius: 22px 22px 0 0;
+    box-shadow: 0 -6px 30px rgba(0, 0, 0, 0.25);
+    transform: translateY(105%);
+    transition: transform 0.26s cubic-bezier(0.32, 0.72, 0.3, 1);
+    max-height: 88dvh;
+    overflow-y: auto;
+    padding: 0 18px calc(18px + env(safe-area-inset-bottom));
+  }
+  .sheet.open { transform: translateY(0); }
+  .sheet-head {
+    position: sticky;
+    top: 0;
+    background: var(--sheet);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 0 10px;
+  }
+  .sheet-title {
+    font-family: "Archivo", sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+  }
+  .sheet-head button {
+    font-family: inherit;
+    font-size: 15px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 8px 0;
+  }
+  .btn-cancel { color: var(--muted); }
+  .btn-save {
+    color: var(--accent-ink);
+    background: var(--accent) !important;
+    border-radius: 999px;
+    padding: 8px 18px !important;
+    font-weight: 600;
+  }
+  .sheet label:not(.opt-row) {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin: 14px 2px 6px;
+  }
+  .sheet input[type="text"], .sheet textarea {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--field);
+    color: var(--ink);
+    padding: 12px;
+    font-size: 16px;
+    font-family: "IBM Plex Sans", sans-serif;
+  }
+  .sheet textarea {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 14.5px;
+    line-height: 1.5;
+    min-height: 130px;
+    resize: vertical;
+  }
+  .sheet input:focus, .sheet textarea:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+  }
+  .seg {
+    display: flex;
+    background: var(--field);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 3px;
+    margin: 14px 0 2px;
+  }
+  .seg-btn {
+    flex: 1;
+    border: none;
+    background: none;
+    padding: 9px;
+    border-radius: 9px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .seg-btn.on {
+    background: var(--card);
+    color: var(--ink);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  }
+  .danger-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+  }
+  .danger-row button {
+    flex: 1;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 11px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .danger-row .btn-delete { color: var(--danger); border-color: var(--danger); }
+  .danger-row .btn-delete.confirm {
+    background: var(--danger);
+    color: var(--danger-ink);
+  }
+  .import-desc {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.55;
+    margin: 12px 2px 4px;
+  }
+
+  .opt-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 16px 0 6px;
+    cursor: pointer;
+  }
+  .opt-text { display: block; }
+  .opt-name { display: block; font-size: 15px; font-weight: 600; }
+  .opt-desc { display: block; font-size: 13px; color: var(--muted); line-height: 1.45; margin-top: 3px; }
+  .switch {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 51px;
+    height: 31px;
+    border-radius: 999px;
+    background: var(--line);
+    position: relative;
+    flex-shrink: 0;
+    margin: 0;
+    cursor: pointer;
+    transition: background 0.2s ease;
+  }
+  .switch::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 27px;
+    height: 27px;
+    border-radius: 50%;
+    background: #FFFFFF;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    transition: transform 0.2s ease;
+  }
+  .switch:checked { background: var(--accent); }
+  .switch:checked::after { transform: translateX(20px); }
+  .switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .version {
+    text-align: center;
+    color: var(--muted);
+    font-size: 11.5px;
+    margin-top: 18px;
+  }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(30px + env(safe-area-inset-bottom));
+    transform: translateX(-50%) translateY(20px);
+    background: var(--ink);
+    color: var(--bg);
+    font-size: 14px;
+    font-weight: 500;
+    padding: 10px 18px;
+    border-radius: 999px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 200;
+    max-width: 85vw;
+    text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="wordmark">Dit<span>to</span></div>
+    <button class="arrange-btn" id="arrangeBtn">Arrange</button>
+  </header>
+  <p class="hint">Tap a square to copy its text. Press and hold to edit.</p>
+  <div class="grid" id="grid"></div>
+  <footer>
+    <button id="shareBtn">Share my list</button>
+    <button id="optionsBtn">Options</button>
+    <button id="backupBtn">Back up</button>
+    <button id="restoreBtn">Restore</button>
+  </footer>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+<div class="sheet" id="editSheet">
+  <div class="sheet-head">
+    <button class="btn-cancel" id="editCancel">Cancel</button>
+    <div class="sheet-title" id="editTitle">Edit square</div>
+    <button class="btn-save" id="editSave">Save</button>
+  </div>
+  <div class="seg" id="typeSeg" hidden>
+    <button type="button" class="seg-btn on" id="segText">Text square</button>
+    <button type="button" class="seg-btn" id="segFolder">Folder</button>
+  </div>
+  <label for="nameInput" id="nameLabel">Name on the square</label>
+  <input type="text" id="nameInput" maxlength="40" autocomplete="off" autocapitalize="characters" placeholder="e.g. PNA">
+  <div id="textField">
+    <label for="textInput">Text to copy</label>
+    <textarea id="textInput" placeholder="e.g. Please order Rocephin 2 grams IV q8 for 7 days along with probiotic"></textarea>
+  </div>
+  <div class="danger-row" id="dangerRow">
+    <button id="clearBtn">Clear to "&hellip;"</button>
+    <button class="btn-delete" id="deleteBtn">Delete square</button>
+  </div>
+</div>
+
+<div class="sheet" id="restoreSheet">
+  <div class="sheet-head">
+    <button class="btn-cancel" id="restoreCancel">Cancel</button>
+    <div class="sheet-title">Restore backup</div>
+    <button class="btn-save" id="restoreDo">Restore</button>
+  </div>
+  <label for="restoreInput">Paste your backup here</label>
+  <textarea id="restoreInput" placeholder='Paste the backup text that "Back up" copied to your clipboard.'></textarea>
+</div>
+
+<div class="sheet" id="importSheet">
+  <div class="sheet-head">
+    <button class="btn-cancel" id="importCancel">Cancel</button>
+    <div class="sheet-title">Shared list</div>
+    <button class="btn-save" id="importAdd">Add to my board</button>
+  </div>
+  <p class="import-desc" id="importDesc"></p>
+  <div class="danger-row">
+    <button class="btn-delete" id="importReplace">Replace my whole board</button>
+  </div>
+</div>
+
+<div class="sheet" id="optionsSheet">
+  <div class="sheet-head">
+    <div class="sheet-title">Options</div>
+    <button class="btn-save" id="optionsDone">Done</button>
+  </div>
+  <label class="opt-row" for="combineToggle">
+    <span class="opt-text">
+      <span class="opt-name">Combine quick taps</span>
+      <span class="opt-desc">Tap another square within 5 seconds and its text is added to what's on your clipboard, separated by a blank line. Keep tapping to chain more squares.</span>
+    </span>
+    <input type="checkbox" class="switch" id="combineToggle">
+  </label>
+  <div class="version">Ditto v3.0</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  var KEY = "tapcopy.v1";
+  var state = null;
+
+  function uid() { return "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  function isFolder(sq) { return !!(sq && sq.type === "folder"); }
+  function isSet(sq) { return !!(sq && (sq.name || sq.text || isFolder(sq))); }
+
+  function freshState() {
+    var squares = [];
+    for (var i = 0; i < 11; i++) squares.push({ id: uid() });
+    return { squares: squares, options: { combineTaps: false } };
+  }
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (!raw) return null;
+      var parsed = JSON.parse(raw);
+      if (!parsed || !Array.isArray(parsed.squares)) return null;
+      return parsed;
+    } catch (e) { return null; }
+  }
+
+  function save() {
+    chain = { ids: [], texts: [], last: 0 };
+    try { localStorage.setItem(KEY, JSON.stringify(state)); }
+    catch (e) { showToast("Couldn't save — storage unavailable"); }
+  }
+
+  state = load() || freshState();
+  if (!state.options) state.options = { combineTaps: false };
+
+  var grid = document.getElementById("grid");
+  var toastEl = document.getElementById("toast");
+  var toastTimer = null;
+  var openFolderId = null;
+
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove("show"); }, 1800);
+  }
+
+  /* ---------- sanitizing (shared by restore + import) ---------- */
+
+  function cleanEntry(sq) {
+    if (!sq || typeof sq !== "object") return { id: uid() };
+    if (sq.type === "folder") {
+      var f = { id: uid(), type: "folder", name: (typeof sq.name === "string" && sq.name) ? sq.name : "Folder", items: [] };
+      if (Array.isArray(sq.items)) {
+        sq.items.forEach(function (it) {
+          if (!it || typeof it !== "object") return;
+          var iname = (typeof it.name === "string") ? it.name : "";
+          var itext = (typeof it.text === "string") ? it.text : "";
+          if (!iname && !itext) return;
+          f.items.push({ id: uid(), name: iname || itext.slice(0, 12), text: itext });
+        });
+      }
+      return f;
+    }
+    var name = (typeof sq.name === "string") ? sq.name : "";
+    var text = (typeof sq.text === "string") ? sq.text : "";
+    if (!name && !text) return { id: uid() };
+    return { id: uid(), name: name || text.slice(0, 12), text: text };
+  }
+
+  /* ---------- rendering ---------- */
+
+  function labelDiv(sq) {
+    var name = document.createElement("div");
+    name.className = "name";
+    var label = sq.name || (sq.text || "").slice(0, 12);
+    name.textContent = label;
+    if (label.length > 8) name.classList.add("long");
+    return name;
+  }
+
+  function render() {
+    grid.innerHTML = "";
+    state.squares.forEach(function (sq, i) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.dataset.index = i;
+      if (isFolder(sq)) {
+        b.className = "sq folder";
+        b.appendChild(labelDiv(sq));
+        var cap = document.createElement("div");
+        cap.className = "fcap";
+        var n = sq.items.length;
+        cap.textContent = n + (n === 1 ? " text " : " texts ") + (openFolderId === sq.id ? "▴" : "▾");
+        b.appendChild(cap);
+        b.setAttribute("aria-label", "Folder " + (sq.name || "") + ", " + n + " texts");
+      } else if (isSet(sq)) {
+        b.className = "sq";
+        b.appendChild(labelDiv(sq));
+        b.setAttribute("aria-label", "Copy " + (sq.name || ""));
+      } else {
+        b.className = "sq blank";
+        var dots = document.createElement("div");
+        dots.className = "name";
+        dots.textContent = "…";
+        b.appendChild(dots);
+        b.setAttribute("aria-label", "Empty square — tap to set up");
+      }
+      attachPressEvents(b, i,
+        function (el) { onSquareTap(i, el); },
+        function () { openEditor({ kind: "square", index: i }); });
+      grid.appendChild(b);
+    });
+
+    var plus = document.createElement("button");
+    plus.type = "button";
+    plus.className = "sq plus";
+    plus.setAttribute("aria-label", "Add another square");
+    plus.innerHTML = '<div class="plus-sign">+</div><div class="plus-label">Add square</div>';
+    plus.addEventListener("click", function () {
+      state.squares.push({ id: uid() });
+      save();
+      render();
+    });
+    grid.appendChild(plus);
+
+    if (openFolderId !== null && !arranging) {
+      var fIdx = -1;
+      state.squares.forEach(function (sq, i) { if (sq.id === openFolderId) fIdx = i; });
+      if (fIdx < 0 || !isFolder(state.squares[fIdx])) { openFolderId = null; return; }
+      var panel = buildFolderPanel(fIdx);
+      var after = grid.children[Math.floor(fIdx / 3) * 3 + 3] || null;
+      grid.insertBefore(panel, after);
+    }
+  }
+
+  function buildFolderPanel(fIdx) {
+    var folder = state.squares[fIdx];
+    var panel = document.createElement("div");
+    panel.className = "folder-panel";
+    var inner = document.createElement("div");
+    inner.className = "folder-grid";
+    folder.items.forEach(function (item, j) {
+      var t = document.createElement("button");
+      t.type = "button";
+      t.className = "sq";
+      t.appendChild(labelDiv(item));
+      t.setAttribute("aria-label", "Copy " + (item.name || ""));
+      attachPressEvents(t, null,
+        function (el) { copySquare(item, el); },
+        function () { openEditor({ kind: "item", folder: fIdx, item: j }); });
+      inner.appendChild(t);
+    });
+    var add = document.createElement("button");
+    add.type = "button";
+    add.className = "sq plus";
+    add.setAttribute("aria-label", "Add a text to this folder");
+    add.innerHTML = '<div class="plus-sign">+</div><div class="plus-label">Add text</div>';
+    add.addEventListener("click", function () {
+      openEditor({ kind: "item", folder: fIdx, item: -1 });
+    });
+    inner.appendChild(add);
+    panel.appendChild(inner);
+    return panel;
+  }
+
+  function onSquareTap(index, el) {
+    var sq = state.squares[index];
+    if (isFolder(sq)) {
+      openFolderId = (openFolderId === sq.id) ? null : sq.id;
+      render();
+    } else if (isSet(sq)) {
+      copySquare(sq, el);
+    } else {
+      openEditor({ kind: "square", index: index });
+    }
+  }
+
+  /* ---------- copy ---------- */
+
+  function fallbackCopy(text) {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.top = "0";
+    ta.style.left = "0";
+    ta.style.opacity = "0";
+    ta.style.fontSize = "16px";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try { ta.setSelectionRange(0, ta.value.length); } catch (e) {}
+    var ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    return ok;
+  }
+
+  var chain = { ids: [], texts: [], last: 0 };
+  var CHAIN_MS = 5000;
+
+  function copySquare(sq, el) {
+    var now = Date.now();
+    var combine = state.options && state.options.combineTaps;
+    // advance the chain before writing, so one failed write can't kill the chain
+    if (combine && chain.texts.length && now - chain.last <= CHAIN_MS) {
+      // repeat tap on the same square refreshes the timer without duplicating it
+      if (chain.ids[chain.ids.length - 1] !== sq.id) {
+        chain.texts.push(sq.text || "");
+        chain.ids.push(sq.id);
+      }
+    } else {
+      chain = { ids: [sq.id], texts: [sq.text || ""], last: 0 };
+    }
+    chain.last = now;
+    var payload = chain.texts.join("\n\n");
+    var count = chain.texts.length;
+    var done = function () {
+      el.classList.remove("flash");
+      void el.offsetWidth;
+      el.classList.add("flash");
+      if (count > 1) showToast("Copied " + count + " squares together");
+    };
+    var fail = function () { showToast("Couldn't copy — try tapping again"); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload).then(done, function () {
+        if (fallbackCopy(payload)) done();
+        else fail();
+      });
+    } else if (fallbackCopy(payload)) {
+      done();
+    } else {
+      fail();
+    }
+  }
+
+  /* ---------- tap vs long-press vs drag ---------- */
+
+  var LP_MS = 450;
+  var arranging = false;
+
+  function attachPressEvents(el, index, onTap, onHold) {
+    var lpTimer = null;
+    var longPressed = false;
+    var startX = 0, startY = 0;
+
+    el.addEventListener("pointerdown", function (e) {
+      if (arranging) { if (index !== null) startDrag(e, el, index); return; }
+      longPressed = false;
+      startX = e.clientX; startY = e.clientY;
+      lpTimer = setTimeout(function () {
+        longPressed = true;
+        onHold();
+      }, LP_MS);
+    });
+    el.addEventListener("pointermove", function (e) {
+      if (lpTimer && (Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10)) {
+        clearTimeout(lpTimer); lpTimer = null;
+      }
+    });
+    ["pointerup", "pointercancel", "pointerleave"].forEach(function (ev) {
+      el.addEventListener(ev, function () { clearTimeout(lpTimer); lpTimer = null; });
+    });
+    el.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+    el.addEventListener("click", function () {
+      if (longPressed) { longPressed = false; return; }
+      if (arranging) return;
+      onTap(el);
+    });
+  }
+
+  /* ---------- arrange mode ---------- */
+
+  var arrangeBtn = document.getElementById("arrangeBtn");
+  arrangeBtn.addEventListener("click", function () {
+    arranging = !arranging;
+    if (arranging) openFolderId = null;
+    grid.classList.toggle("arranging", arranging);
+    arrangeBtn.textContent = arranging ? "Done" : "Arrange";
+    arrangeBtn.classList.toggle("on", arranging);
+    render();
+  });
+
+  var ghost = null;
+
+  function startDrag(e, el, index) {
+    if (el.classList.contains("plus")) return;
+    e.preventDefault();
+    var rect = el.getBoundingClientRect();
+    var offX = e.clientX - rect.left;
+    var offY = e.clientY - rect.top;
+    var fromIndex = index;
+
+    ghost = document.createElement("div");
+    ghost.className = "ghost";
+    ghost.style.width = rect.width + "px";
+    ghost.style.height = rect.height + "px";
+    ghost.textContent = el.textContent;
+    document.body.appendChild(ghost);
+    el.classList.add("drag-src");
+    positionGhost(e);
+
+    function positionGhost(ev) {
+      ghost.style.left = (ev.clientX - offX) + "px";
+      ghost.style.top = (ev.clientY - offY) + "px";
+    }
+
+    function onMove(ev) {
+      positionGhost(ev);
+      ghost.style.display = "none";
+      var under = document.elementFromPoint(ev.clientX, ev.clientY);
+      ghost.style.display = "";
+      var target = under && under.closest ? under.closest(".sq") : null;
+      if (target && !target.classList.contains("plus") && grid.contains(target)) {
+        var toIndex = parseInt(target.dataset.index, 10);
+        if (!isNaN(toIndex) && toIndex !== fromIndex) {
+          var moved = state.squares.splice(fromIndex, 1)[0];
+          state.squares.splice(toIndex, 0, moved);
+          fromIndex = toIndex;
+          renderOrderOnly();
+        }
+      }
+    }
+
+    function renderOrderOnly() {
+      render();
+      var tiles = grid.querySelectorAll(".sq");
+      if (tiles[fromIndex]) tiles[fromIndex].classList.add("drag-src");
+    }
+
+    function onUp(ev) {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      if (ghost) { ghost.remove(); ghost = null; }
+      save();
+      render();
+    }
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+  }
+
+  /* ---------- editor sheet ---------- */
+
+  var scrim = document.getElementById("scrim");
+  var editSheet = document.getElementById("editSheet");
+  var restoreSheet = document.getElementById("restoreSheet");
+  var importSheet = document.getElementById("importSheet");
+  var optionsSheet = document.getElementById("optionsSheet");
+  var nameInput = document.getElementById("nameInput");
+  var textInput = document.getElementById("textInput");
+  var textField = document.getElementById("textField");
+  var editTitle = document.getElementById("editTitle");
+  var dangerRow = document.getElementById("dangerRow");
+  var clearBtn = document.getElementById("clearBtn");
+  var deleteBtn = document.getElementById("deleteBtn");
+  var typeSeg = document.getElementById("typeSeg");
+  var segText = document.getElementById("segText");
+  var segFolder = document.getElementById("segFolder");
+  var editTarget = null;
+  var editType = "text";
+  var deleteArmed = false;
+
+  function openSheet(sheet) {
+    scrim.classList.add("open");
+    sheet.classList.add("open");
+  }
+  function closeSheets() {
+    scrim.classList.remove("open");
+    editSheet.classList.remove("open");
+    restoreSheet.classList.remove("open");
+    importSheet.classList.remove("open");
+    optionsSheet.classList.remove("open");
+    disarmDelete();
+    importReplace.classList.remove("confirm");
+    importReplace.textContent = "Replace my whole board";
+  }
+  scrim.addEventListener("click", closeSheets);
+
+  function disarmDelete() {
+    deleteArmed = false;
+    deleteBtn.classList.remove("confirm");
+  }
+
+  function setEditType(t) {
+    editType = t;
+    segText.classList.toggle("on", t === "text");
+    segFolder.classList.toggle("on", t === "folder");
+    textField.hidden = (t === "folder");
+    nameInput.placeholder = (t === "folder") ? "e.g. IVF" : "e.g. PNA";
+  }
+  segText.addEventListener("click", function () { setEditType("text"); });
+  segFolder.addEventListener("click", function () { setEditType("folder"); });
+
+  function getEditSquare() {
+    if (!editTarget) return null;
+    if (editTarget.kind === "square") return state.squares[editTarget.index];
+    var folder = state.squares[editTarget.folder];
+    if (!folder || !isFolder(folder)) return null;
+    return editTarget.item >= 0 ? folder.items[editTarget.item] : null;
+  }
+
+  function openEditor(target) {
+    editTarget = target;
+    disarmDelete();
+    var sq = getEditSquare();
+    var isNewItem = target.kind === "item" && target.item < 0;
+
+    typeSeg.hidden = true;
+    textField.hidden = false;
+    clearBtn.hidden = false;
+    dangerRow.hidden = false;
+    nameInput.placeholder = "e.g. PNA";
+
+    if (target.kind === "square") {
+      if (!isSet(sq)) {
+        editTitle.textContent = "Set up square";
+        typeSeg.hidden = false;
+        setEditType("text");
+        clearBtn.textContent = 'Clear to "…"';
+        deleteBtn.textContent = "Delete square";
+      } else if (isFolder(sq)) {
+        editTitle.textContent = "Edit folder";
+        textField.hidden = true;
+        clearBtn.hidden = true;
+        deleteBtn.textContent = "Delete folder";
+        nameInput.placeholder = "e.g. IVF";
+      } else {
+        editTitle.textContent = "Edit square";
+        clearBtn.textContent = 'Clear to "…"';
+        deleteBtn.textContent = "Delete square";
+      }
+    } else {
+      editTitle.textContent = isNewItem ? "Add text" : "Edit text";
+      clearBtn.hidden = true;
+      deleteBtn.textContent = "Delete text";
+      if (isNewItem) dangerRow.hidden = true;
+    }
+
+    nameInput.value = (sq && sq.name) || "";
+    textInput.value = (sq && sq.text) || "";
+    openSheet(editSheet);
+    if ((target.kind === "square" && !isSet(sq)) || isNewItem) {
+      setTimeout(function () { nameInput.focus(); }, 280);
+    }
+  }
+
+  document.getElementById("editCancel").addEventListener("click", closeSheets);
+
+  document.getElementById("editSave").addEventListener("click", function () {
+    if (!editTarget) return;
+    var name = nameInput.value.trim();
+    var text = textInput.value.trim();
+
+    if (editTarget.kind === "square") {
+      var sq = state.squares[editTarget.index];
+      if (!isSet(sq) && editType === "folder") {
+        if (name) {
+          sq.name = name;
+          sq.type = "folder";
+          sq.items = [];
+        }
+      } else if (isFolder(sq)) {
+        if (name) sq.name = name;
+      } else if (!name && !text) {
+        delete sq.name; delete sq.text;
+      } else {
+        sq.name = name || text.slice(0, 12);
+        sq.text = text;
+      }
+    } else {
+      var folder = state.squares[editTarget.folder];
+      if (folder && isFolder(folder)) {
+        if (editTarget.item < 0) {
+          if (name || text) folder.items.push({ id: uid(), name: name || text.slice(0, 12), text: text });
+        } else if (!name && !text) {
+          folder.items.splice(editTarget.item, 1);
+        } else {
+          var it = folder.items[editTarget.item];
+          it.name = name || text.slice(0, 12);
+          it.text = text;
+        }
+      }
+    }
+    save();
+    render();
+    closeSheets();
+  });
+
+  clearBtn.addEventListener("click", function () {
+    if (!editTarget || editTarget.kind !== "square") return;
+    var sq = state.squares[editTarget.index];
+    delete sq.name; delete sq.text; delete sq.type; delete sq.items;
+    save();
+    render();
+    closeSheets();
+  });
+
+  deleteBtn.addEventListener("click", function () {
+    if (!editTarget) return;
+    if (!deleteArmed) {
+      deleteArmed = true;
+      deleteBtn.classList.add("confirm");
+      deleteBtn.textContent = "Tap again to delete";
+      return;
+    }
+    if (editTarget.kind === "square") {
+      var sq = state.squares[editTarget.index];
+      if (sq && isFolder(sq) && sq.id === openFolderId) openFolderId = null;
+      state.squares.splice(editTarget.index, 1);
+      if (state.squares.length === 0) state.squares.push({ id: uid() });
+    } else if (editTarget.item >= 0) {
+      var folder = state.squares[editTarget.folder];
+      if (folder && isFolder(folder)) folder.items.splice(editTarget.item, 1);
+    }
+    save();
+    render();
+    closeSheets();
+  });
+
+  /* ---------- share / import ---------- */
+
+  function encodeShare(obj) {
+    var b = btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+    return b.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+  function decodeShare(s) {
+    s = s.replace(/-/g, "+").replace(/_/g, "/");
+    while (s.length % 4) s += "=";
+    return JSON.parse(decodeURIComponent(escape(atob(s))));
+  }
+
+  document.getElementById("shareBtn").addEventListener("click", function () {
+    var nonBlank = state.squares.filter(isSet);
+    if (!nonBlank.length) { showToast("Nothing to share yet"); return; }
+    var url = location.origin + location.pathname + "#share=" + encodeShare({ app: "tapcopy", v: 3, squares: nonBlank });
+    var copied = function () { showToast("Share link copied — send it to a friend"); };
+    if (navigator.share) {
+      navigator.share({ title: "Ditto list", url: url }).catch(function () {});
+    } else if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(copied, function () {
+        if (fallbackCopy(url)) copied(); else showToast("Couldn't copy the link");
+      });
+    } else if (fallbackCopy(url)) {
+      copied();
+    } else {
+      showToast("Couldn't copy the link");
+    }
+  });
+
+  var pendingImport = null;
+  var importReplace = document.getElementById("importReplace");
+  var importDesc = document.getElementById("importDesc");
+
+  function checkShareHash() {
+    var m = (location.hash || "").match(/^#share=([A-Za-z0-9\-_]+)$/);
+    if (!m) return;
+    try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+    var payload = null;
+    try { payload = decodeShare(m[1]); } catch (e) { payload = null; }
+    if (!payload || !Array.isArray(payload.squares) || !payload.squares.length) {
+      showToast("Couldn't read that shared link");
+      return;
+    }
+    pendingImport = payload.squares.map(cleanEntry).filter(isSet);
+    if (!pendingImport.length) { showToast("That shared list was empty"); return; }
+    var nf = pendingImport.filter(isFolder).length;
+    var ns = pendingImport.length - nf;
+    var names = pendingImport.slice(0, 6).map(function (s) { return s.name; }).join(", ");
+    importDesc.textContent = "Someone shared " +
+      (ns ? ns + " square" + (ns === 1 ? "" : "s") : "") +
+      (ns && nf ? " and " : "") +
+      (nf ? nf + " folder" + (nf === 1 ? "" : "s") : "") +
+      " with you: " + names + (pendingImport.length > 6 ? "…" : "") +
+      ". Add them to the end of your board, or replace everything you have.";
+    openSheet(importSheet);
+  }
+
+  document.getElementById("importCancel").addEventListener("click", function () {
+    pendingImport = null;
+    closeSheets();
+  });
+  document.getElementById("importAdd").addEventListener("click", function () {
+    if (!pendingImport) return;
+    state.squares = state.squares.concat(pendingImport);
+    var n = pendingImport.length;
+    pendingImport = null;
+    save();
+    render();
+    closeSheets();
+    showToast("Added " + n + " to your board");
+  });
+  importReplace.addEventListener("click", function () {
+    if (!pendingImport) return;
+    if (!importReplace.classList.contains("confirm")) {
+      importReplace.classList.add("confirm");
+      importReplace.textContent = "Tap again to replace everything";
+      return;
+    }
+    state.squares = pendingImport.slice();
+    pendingImport = null;
+    openFolderId = null;
+    save();
+    render();
+    closeSheets();
+    showToast("Board replaced");
+  });
+
+  /* ---------- options ---------- */
+
+  var combineToggle = document.getElementById("combineToggle");
+  document.getElementById("optionsBtn").addEventListener("click", function () {
+    combineToggle.checked = !!state.options.combineTaps;
+    openSheet(optionsSheet);
+  });
+  document.getElementById("optionsDone").addEventListener("click", closeSheets);
+  combineToggle.addEventListener("change", function () {
+    state.options.combineTaps = combineToggle.checked;
+    save();
+  });
+
+  /* ---------- backup / restore ---------- */
+
+  document.getElementById("backupBtn").addEventListener("click", function () {
+    var payload = JSON.stringify({ app: "tapcopy", version: 3, squares: state.squares });
+    var done = function () { showToast("Backup copied — paste it somewhere safe"); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload).then(done, function () {
+        if (fallbackCopy(payload)) done(); else showToast("Couldn't copy the backup");
+      });
+    } else if (fallbackCopy(payload)) done();
+    else showToast("Couldn't copy the backup");
+  });
+
+  var restoreInput = document.getElementById("restoreInput");
+  document.getElementById("restoreBtn").addEventListener("click", function () {
+    restoreInput.value = "";
+    openSheet(restoreSheet);
+  });
+  document.getElementById("restoreCancel").addEventListener("click", closeSheets);
+  document.getElementById("restoreDo").addEventListener("click", function () {
+    var parsed = null;
+    try { parsed = JSON.parse(restoreInput.value); } catch (e) { parsed = null; }
+    if (!parsed || !Array.isArray(parsed.squares)) {
+      showToast("That doesn't look like a Ditto backup");
+      return;
+    }
+    state.squares = parsed.squares.map(cleanEntry);
+    if (state.squares.length === 0) state.squares = freshState().squares;
+    openFolderId = null;
+    save();
+    render();
+    closeSheets();
+    showToast("Backup restored");
+  });
+
+  render();
+  checkShareHash();
+})();
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("sw.js").catch(function () {});
+  });
+}
+</script>
+</body>
+</html>
