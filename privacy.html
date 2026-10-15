@@ -28,7 +28,9 @@ us or to anyone else.</p>
 <h2>What we collect</h2>
 <p>Nothing. Ditto has no accounts, no sign-up, no analytics, no advertising,
 and no tracking of any kind. The iPhone app, the Android app and their keyboards
-make no network requests. We do not collect any information whatsoever.</p>
+make no network requests of their own (on Android, Google Play's billing library
+talks to Google Play only to process a purchase). We do not collect any
+information whatsoever.</p>
 
 <h2>The Ditto keyboard</h2>
 <p>The Ditto keyboard shows your squares inside other apps and types a square's
@@ -42,8 +44,9 @@ only to decide whether to add a blank line before the next snippet.</p>
 
 <h2>Ditto on Android</h2>
 <p>The Android app works the same way: your squares live in the app's private
-storage on your device, and the app does not even hold Android's internet
-permission, so it has no way to send anything anywhere. The Ditto keyboard on
+storage on your device, and Ditto's own code makes no network requests at all —
+the only networking component inside the app is Google Play's billing library,
+which Google uses to process a Ditto Pro purchase. The Ditto keyboard on
 Android reads only your own squares and types a square's text when you tap it.
 Android shows a standard notice ("this input method may be able to collect all
 the text you type") for every keyboard that is not Google's own; in Ditto's case
