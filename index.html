@@ -99,7 +99,7 @@
     font-size: 22px;
     letter-spacing: -0.02em;
   }
-  .wordmark span { color: var(--accent); }
+  .wordmark span { color: inherit; }
   .hint {
     margin: 2px 2px 14px;
     font-size: 12.5px;
@@ -488,9 +488,10 @@
   <footer>
     <button id="shareBtn">Share my list</button>
     <button id="optionsBtn">Options</button>
-    <button id="backupBtn">Back up</button>
-    <button id="restoreBtn">Restore</button>
+    <button id="backupBtn">Copy backup</button>
+    <button id="restoreBtn">Restore backup</button>
   </footer>
+  <p class="hint" style="margin-top:10px">Your squares are saved in this browser on this device only. <b>Copy backup</b> puts them on your clipboard as text you can keep in Notes or an email; <b>Restore backup</b> pastes that text back here or on another device.</p>
 </div>
 
 <div class="scrim" id="scrim"></div>
@@ -524,7 +525,7 @@
     <button class="btn-save" id="restoreDo">Restore</button>
   </div>
   <label for="restoreInput">Paste your backup here</label>
-  <textarea id="restoreInput" placeholder='Paste the backup text that "Back up" copied to your clipboard.'></textarea>
+  <textarea id="restoreInput" placeholder='Paste the text that "Copy backup" put on your clipboard.'></textarea>
 </div>
 
 <div class="sheet" id="importSheet">
@@ -1183,7 +1184,7 @@
 
   document.getElementById("backupBtn").addEventListener("click", function () {
     var payload = JSON.stringify({ app: "tapcopy", version: 3, squares: state.squares });
-    var done = function () { showToast("Backup copied — paste it somewhere safe"); };
+    var done = function () { showToast("Backup copied — paste it into Notes or an email to keep it"); };
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(payload).then(done, function () {
         if (fallbackCopy(payload)) done(); else showToast("Couldn't copy the backup");

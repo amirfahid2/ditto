@@ -1,4 +1,4 @@
-var CACHE = "ditto-v1";
+var CACHE = "ditto-v2";
 
 self.addEventListener("install", function (e) {
   e.waitUntil(
