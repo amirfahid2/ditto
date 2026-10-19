@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ditto — Tap a square, paste anywhere</title>
+<meta name="description" content="Ditto is a board of big, tappable squares for the text you use again and again — and a keyboard that types them into any app. No account, no tracking: your squares never leave your phone.">
+<meta name="apple-itunes-app" content="app-id=6810430522">
+<meta property="og:title" content="Ditto — Tap a square, paste anywhere">
+<meta property="og:description" content="Big, tappable squares for the text you use again and again. Ditto collects nothing.">
+<meta property="og:image" content="https://dittotap.com/icon-512.png">
+<meta property="og:url" content="https://dittotap.com/about/">
+<meta name="theme-color" content="#F2F5F6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F1518" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="../icon-180.png">
+<link rel="apple-touch-icon" href="../icon-180.png">
+<style>
+  :root {
+    --bg: #F2F5F6;
+    --surface: #FFFFFF;
+    --ink: #16262E;
+    --muted: #4F6A75;
+    --line: #D5DFE3;
+    --accent: #0E7C86;
+    --accent-ink: #FFFFFF;
+    --flash: #B9DFF5;
+    --folder: #D6EAF6;
+    --plain: #EEF2F4;
+    --store: #16262E;
+    --store-ink: #FFFFFF;
+    --kb: #D3D8DE;
+    --frame: #0B1114;
+    --bubble-in: #E9E9EB;
+    --bubble-out: #1F8BFF;
+    --shadow: 0 1px 2px rgba(22, 38, 46, 0.06), 0 8px 28px rgba(22, 38, 46, 0.08);
+    --sq-teal: #0E7C86; --sq-mustard: #C78A1E; --sq-navy: #1F3B66; --sq-rose: #B5495B;
+    --sq-green: #2E7D4F; --sq-slate: #5A6B78; --sq-purple: #6B4FA0;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0F1518;
+      --surface: #1A2429;
+      --ink: #E6EDEF;
+      --muted: #93A8B0;
+      --line: #2C3A41;
+      --accent: #53B7C0;
+      --accent-ink: #08262A;
+      --flash: #3D6E8C;
+      --folder: #223D50;
+      --plain: #24323A;
+      --store: #E6EDEF;
+      --store-ink: #0F1518;
+      --kb: #2A2D31;
+      --frame: #2A363C;
+      --bubble-in: #26252A;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px rgba(0, 0, 0, 0.4);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0F1518;
+    --surface: #1A2429;
+    --ink: #E6EDEF;
+    --muted: #93A8B0;
+    --line: #2C3A41;
+    --accent: #53B7C0;
+    --accent-ink: #08262A;
+    --flash: #3D6E8C;
+    --folder: #223D50;
+    --plain: #24323A;
+    --store: #E6EDEF;
+    --store-ink: #0F1518;
+    --kb: #2A2D31;
+    --frame: #2A363C;
+    --bubble-in: #26252A;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px rgba(0, 0, 0, 0.4);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    font-size: 17px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+  @media (min-width: 720px) { .wrap { padding: 0 32px; } }
+
+  /* top bar */
+  .top { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; }
+  .wordmark { font-weight: 700; font-size: 24px; letter-spacing: -0.03em; color: var(--ink); text-decoration: none; }
+  .top nav { display: flex; gap: 20px; font-size: 15px; }
+  .top nav a { color: var(--muted); text-decoration: none; }
+  .top nav a:hover { color: var(--ink); }
+  @media (max-width: 420px) { .top nav .opt { display: none; } }
+
+  /* hero */
+  .hero {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 40px;
+    align-items: center;
+    padding: 28px 0 64px;
+  }
+  @media (min-width: 880px) { .hero { grid-template-columns: 1.1fr 0.9fr; padding: 48px 0 88px; } }
+  .eyebrow { font-size: 14px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin: 0 0 14px; }
+  h1 {
+    font-size: clamp(40px, 7vw, 64px);
+    line-height: 1.04;
+    letter-spacing: -0.035em;
+    margin: 0 0 20px;
+    font-weight: 700;
+    text-wrap: balance;
+  }
+  .lede { font-size: 19px; color: var(--muted); margin: 0 0 30px; max-width: 34em; }
+  .ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 22px; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 50px; padding: 0 24px; border-radius: 999px;
+    font-size: 16px; font-weight: 600; text-decoration: none;
+    border: 1.5px solid transparent;
+    transition: transform 0.12s ease;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-store { background: var(--store); color: var(--store-ink); }
+  .btn-store small { display: block; font-size: 11px; font-weight: 500; opacity: 0.8; line-height: 1.1; }
+  .btn-store span { display: block; line-height: 1.15; }
+  .btn-store .stack { text-align: left; }
+  .btn-ghost { border-color: var(--line); color: var(--ink); background: var(--surface); }
+  .fine { font-size: 15px; color: var(--muted); margin: 0; }
+  .fine b { color: var(--ink); font-weight: 600; }
+
+  /* phone */
+  .demo { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .seg { display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
+  .seg button {
+    font: inherit; font-size: 14px; font-weight: 600; color: var(--muted);
+    background: none; border: 0; border-radius: 999px; padding: 7px 18px; cursor: pointer;
+  }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+  .phone {
+    width: 300px; height: 620px; max-width: 100%;
+    border-radius: 48px; padding: 10px;
+    background: var(--frame);
+    box-shadow: var(--shadow), 0 30px 60px rgba(22, 38, 46, 0.18);
+  }
+  .screen {
+    position: relative; height: 100%; border-radius: 38px; overflow: hidden;
+    background: var(--bg); display: flex; flex-direction: column;
+    font-size: 13px; line-height: 1.3;
+  }
+  .status { display: flex; justify-content: space-between; align-items: center; padding: 14px 28px 4px; font-size: 13px; font-weight: 600; flex: none; }
+  .bat { width: 22px; height: 11px; border: 1.5px solid currentColor; border-radius: 3px; position: relative; opacity: 0.9; }
+  .bat::after { content: ""; position: absolute; inset: 1.5px; right: 4px; background: currentColor; border-radius: 1px; }
+  .view { flex: 1; min-height: 0; display: none; flex-direction: column; }
+  .view.on { display: flex; }
+  .demo-hint { font-size: 14px; color: var(--muted); margin: 0; }
+
+  /* board view */
+  .b-title { text-align: center; font-weight: 600; font-size: 16px; padding: 8px 0 4px; }
+  .b-hint { color: var(--muted); font-size: 10.5px; padding: 0 14px 8px; }
+  .b-grid { flex: 1; overflow-y: auto; padding: 0 12px 16px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; align-content: start; scrollbar-width: none; }
+  .b-grid::-webkit-scrollbar { display: none; }
+  .sq {
+    aspect-ratio: 1; border-radius: 16px; border: 0; padding: 6px;
+    font: inherit; font-size: 12px; font-weight: 600; color: #fff;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    cursor: pointer; transition: transform 0.1s ease, filter 0.15s ease;
+    text-align: center; line-height: 1.15;
+    box-shadow: inset 0 0 0 1.5px var(--ink); /* the app's automatic border on filled squares */
+  }
+  .sq:active { transform: scale(0.95); }
+  .sq.flash { filter: brightness(1.35) saturate(0.8); }
+  .sq.plain { background: var(--plain); color: var(--ink); }
+  .sq.folder { background: var(--folder); color: var(--ink); }
+  .sq .sub { font-size: 9.5px; font-weight: 500; opacity: 0.75; }
+  .sq.add { background: none; color: var(--muted); box-shadow: inset 0 0 0 1.5px var(--line); border-radius: 16px; cursor: default; font-weight: 500; }
+  .sq.add::before { content: "+"; font-size: 22px; font-weight: 400; color: var(--accent); line-height: 1; }
+  .panel { grid-column: 1 / -1; background: var(--folder); border-radius: 18px; padding: 8px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+  .c-teal { background: var(--sq-teal); } .c-mustard { background: var(--sq-mustard); } .c-navy { background: var(--sq-navy); }
+  .c-rose { background: var(--sq-rose); } .c-green { background: var(--sq-green); } .c-slate { background: var(--sq-slate); }
+  .c-purple { background: var(--sq-purple); }
+  .toast {
+    position: absolute; left: 50%; bottom: 22px; transform: translate(-50%, 8px);
+    background: var(--ink); color: var(--bg); font-size: 12px; font-weight: 600;
+    padding: 8px 14px; border-radius: 999px; white-space: nowrap; max-width: 86%;
+    overflow: hidden; text-overflow: ellipsis;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* keyboard view */
+  .k-head { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px 0 8px; border-bottom: 1px solid var(--line); flex: none; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(#9AA6D6, #6E7DBE); color: #fff; font-weight: 600; font-size: 14px; display: grid; place-items: center; }
+  .k-name { font-size: 11px; font-weight: 500; }
+  .thread { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; scrollbar-width: none; }
+  .thread::-webkit-scrollbar { display: none; }
+  .bub { max-width: 78%; padding: 7px 11px; border-radius: 17px; white-space: pre-wrap; font-size: 12.5px; }
+  .bub.in { align-self: flex-start; background: var(--bubble-in); color: var(--ink); }
+  .bub.out { align-self: flex-end; background: var(--bubble-out); color: #fff; }
+  .compose { display: flex; align-items: flex-end; gap: 6px; padding: 6px 10px 8px; flex: none; }
+  .field {
+    flex: 1; min-height: 32px; max-height: 84px; overflow-y: auto;
+    border: 1px solid var(--line); border-radius: 17px; background: var(--surface);
+    padding: 7px 11px; font-size: 12.5px; white-space: pre-wrap; color: var(--ink);
+  }
+  .field:empty::before { content: "iMessage"; color: var(--muted); opacity: 0.7; }
+  .send {
+    width: 30px; height: 30px; border-radius: 50%; border: 0; flex: none;
+    background: var(--bubble-out); color: #fff; font-size: 16px; font-weight: 700; cursor: pointer;
+    display: grid; place-items: center;
+  }
+  .send:disabled { opacity: 0.35; cursor: default; }
+  .kb { background: var(--kb); padding: 8px 8px 20px; flex: none; }
+  .kb-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; }
+  .pill { background: var(--sq-navy); color: #fff; border-radius: 999px; padding: 4px 11px; font-size: 11px; font-weight: 600; border: 0; font-family: inherit; }
+  button.pill { cursor: pointer; }
+  .kb-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .key { aspect-ratio: auto; height: 40px; border-radius: 8px; font-size: 11px; box-shadow: inset 0 0 0 1.2px var(--ink); }
+
+  /* sections */
+  section { padding: 56px 0; }
+  .band { background: var(--surface); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  h2 { font-size: clamp(28px, 4.4vw, 40px); line-height: 1.12; letter-spacing: -0.03em; margin: 0 0 14px; font-weight: 700; text-wrap: balance; }
+  .sec-lede { color: var(--muted); font-size: 18px; margin: 0 0 36px; max-width: 36em; }
+  .features { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  @media (min-width: 640px) { .features { grid-template-columns: 1fr 1fr; } }
+  @media (min-width: 960px) { .features { grid-template-columns: 1fr 1fr 1fr; } }
+  .feat { background: var(--bg); border: 1px solid var(--line); border-radius: 20px; padding: 22px 22px 20px; }
+  .feat .dot { width: 34px; height: 34px; border-radius: 10px; margin-bottom: 14px; }
+  .feat h3 { font-size: 18px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  .feat p { margin: 0; color: var(--muted); font-size: 15.5px; }
+  .tok { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.92em; color: var(--ink); }
+
+  .privacy { display: grid; grid-template-columns: 1fr; gap: 28px; align-items: start; }
+  @media (min-width: 880px) { .privacy { grid-template-columns: 1fr 1fr; gap: 56px; } }
+  .privacy h2 { font-size: clamp(36px, 6vw, 56px); }
+  .nolist { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+  .nolist li { display: flex; gap: 12px; align-items: baseline; font-size: 17px; }
+  .nolist li::before { content: "✕"; color: var(--accent); font-weight: 700; flex: none; width: 1em; }
+  .privacy p { color: var(--muted); margin: 0 0 14px; }
+
+  .langs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .langs span { background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 5px 13px; font-size: 15px; }
+
+  .split { display: grid; grid-template-columns: 1fr; gap: 20px; }
+  @media (min-width: 880px) { .split { grid-template-columns: 1fr 1fr; gap: 56px; } }
+  .card { background: var(--bg); border: 1px solid var(--line); border-radius: 22px; padding: 26px; }
+  .card h3 { font-size: 22px; margin: 0 0 8px; letter-spacing: -0.02em; }
+  .card p { color: var(--muted); margin: 0 0 18px; }
+  .card .btn { min-height: 44px; font-size: 15px; }
+  .returning { display: none; margin: 0 0 18px; font-size: 15px; color: var(--ink); background: var(--folder); border-radius: 12px; padding: 10px 14px; }
+  .returning.on { display: block; }
+
+  footer { padding: 36px 0 48px; color: var(--muted); font-size: 14px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 10px 24px; justify-content: space-between; }
+  footer nav { display: flex; gap: 20px; flex-wrap: wrap; }
+  footer a { color: var(--muted); }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="top">
+    <a class="wordmark" href="./" aria-label="Ditto home">Ditto</a>
+    <nav aria-label="Site">
+      <a class="opt" href="#features">Features</a>
+      <a href="#privacy">Privacy</a>
+      <a href="../">Web app</a>
+    </nav>
+  </div>
+
+  <main>
+    <div class="hero">
+      <div>
+        <p class="eyebrow">Ditto for iPhone</p>
+        <h1>Tap a square, paste anywhere.</h1>
+        <p class="lede">Ditto is a board of big, tappable squares. Each square holds a piece of text you use again and again — an order set, a template, an address, a reply you type ten times a day. Tap it and the text is ready to paste, or type it straight into any app with the Ditto keyboard.</p>
+        <div class="ctas">
+          <a class="btn btn-store" href="https://apps.apple.com/app/id6810430522">
+            <span class="stack"><small>Download on the</small><span>App Store</span></span>
+          </a>
+          <a class="btn btn-ghost" href="../">Try it in your browser</a>
+        </div>
+        <p class="fine"><b>No account. No tracking.</b> Your squares never leave your phone.</p>
+      </div>
+
+      <div class="demo">
+        <div class="seg" role="group" aria-label="Demo view">
+          <button type="button" data-view="board" aria-pressed="true">The board</button>
+          <button type="button" data-view="keyboard" aria-pressed="false">The keyboard</button>
+        </div>
+        <div class="phone">
+          <div class="screen">
+            <div class="status"><span>9:41</span><span class="bat" aria-hidden="true"></span></div>
+
+            <div class="view on" id="boardView">
+              <div class="b-title">Ditto</div>
+              <div class="b-hint">Tap a square to copy its text.</div>
+              <div class="b-grid" id="boardGrid"></div>
+            </div>
+
+            <div class="view" id="keyboardView">
+              <div class="k-head"><div class="avatar" aria-hidden="true">KB</div><div class="k-name">Kim</div></div>
+              <div class="thread" id="thread">
+                <div class="bub in">Hi! What's the address again?</div>
+              </div>
+              <div class="compose">
+                <div class="field" id="field" aria-live="polite"></div>
+                <button class="send" id="send" type="button" aria-label="Send" disabled>↑</button>
+              </div>
+              <div class="kb">
+                <div class="kb-top"><span class="pill" id="kbLabel">Ditto</span></div>
+                <div class="kb-grid" id="kbGrid"></div>
+              </div>
+            </div>
+
+            <div class="toast" id="toast" role="status" aria-live="polite"></div>
+          </div>
+        </div>
+        <p class="demo-hint" id="demoHint">Try it: tap a square, or a few in a row.</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<section class="band" id="features">
+  <div class="wrap">
+    <h2>The text you type every day, one tap away.</h2>
+    <p class="sec-lede">Squares as big as your thumb — three across, as many as you need.</p>
+    <div class="features">
+      <div class="feat">
+        <div class="dot c-navy"></div>
+        <h3>The Ditto keyboard</h3>
+        <p>Your squares inside Messages or any app. Tap one and the text is typed straight in, no copying. It works with “Full Access” left off.</p>
+      </div>
+      <div class="feat">
+        <div class="dot" style="background: var(--folder); box-shadow: inset 0 0 0 1.5px var(--ink);"></div>
+        <h3>Folders inside folders</h3>
+        <p>Group related texts. Tap a folder and it drops open right where it is.</p>
+      </div>
+      <div class="feat">
+        <div class="dot c-teal"></div>
+        <h3>Combine quick taps</h3>
+        <p>Tap several squares within 5 seconds and they're copied together, separated by a blank line.</p>
+      </div>
+      <div class="feat">
+        <div class="dot c-mustard"></div>
+        <h3>Make each square yours</h3>
+        <p>Colors, borders, emoji or photos on any square, so you find the right one without reading.</p>
+      </div>
+      <div class="feat">
+        <div class="dot c-green"></div>
+        <h3>Dates that fill themselves in</h3>
+        <p><span class="tok">[TODAY]</span>, <span class="tok">[TOMORROW]</span> and <span class="tok">[TIME]</span> become the real date or time when copied.</p>
+      </div>
+      <div class="feat">
+        <div class="dot c-rose"></div>
+        <h3>Chat buttons</h3>
+        <p>A square that jumps straight into a Messages conversation.</p>
+      </div>
+      <div class="feat">
+        <div class="dot c-purple"></div>
+        <h3>Arrange like your home screen</h3>
+        <p>Press and hold to arrange. Drag squares around, into folders and back out again.</p>
+      </div>
+      <div class="feat">
+        <div class="dot c-slate"></div>
+        <h3>Light and dark</h3>
+        <p>Follows your phone's appearance, or pick the one you like.</p>
+      </div>
+      <div class="feat">
+        <div class="dot" style="background: var(--plain); box-shadow: inset 0 0 0 1.5px var(--line);"></div>
+        <h3>In 17 languages</h3>
+        <p>Choose Ditto's language at the top of Options, separate from your phone's.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="privacy">
+  <div class="wrap privacy">
+    <div>
+      <h2>We collect nothing.</h2>
+      <p>Ditto collects no information whatsoever. The app makes zero network requests. Your squares live only on your phone.</p>
+      <p>The keyboard works with “Full Access” left off and never uses the internet, so nothing you type can leave your device.</p>
+      <p><a href="../privacy.html">Read the privacy policy</a></p>
+    </div>
+    <ul class="nolist" aria-label="What Ditto does not have">
+      <li>No account or sign-up</li>
+      <li>No analytics</li>
+      <li>No tracking</li>
+      <li>No ads</li>
+      <li>No internet access</li>
+    </ul>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <h2>Speaks your language.</h2>
+    <p class="sec-lede">The app and the keyboard, translated into 17 languages, right to left included.</p>
+    <div class="langs" aria-label="Languages">
+      <span lang="en">English</span><span lang="zh-Hans">简体中文</span><span lang="hi">हिन्दी</span>
+      <span lang="es">Español</span><span lang="fr">Français</span><span lang="ar" dir="rtl">العربية</span>
+      <span lang="bn">বাংলা</span><span lang="pt-BR">Português (Brasil)</span><span lang="ru">Русский</span>
+      <span lang="ur" dir="rtl">اردو</span><span lang="fa" dir="rtl">فارسی</span><span lang="de">Deutsch</span>
+      <span lang="ja">日本語</span><span lang="id">Bahasa Indonesia</span><span lang="vi">Tiếng Việt</span>
+      <span lang="mr">मराठी</span><span lang="he" dir="rtl">עברית</span>
+    </div>
+  </div>
+</section>
+
+<section id="web">
+  <div class="wrap split">
+    <div class="card">
+      <h3>Ditto in your browser</h3>
+      <p class="returning" id="returning">Your web board is saved in this browser. Pick up where you left off.</p>
+      <p>The web version keeps your squares in this browser on this device. Copy a backup as text, and restore it here or on any other device.</p>
+      <a class="btn btn-ghost" href="../">Open the web app</a>
+    </div>
+    <div class="card">
+      <h3>Questions or ideas?</h3>
+      <p>Ditto is made by Pentapillars, LLC. Write to us any time.</p>
+      <a class="btn btn-ghost" href="mailto:amirfahid@gmail.com?subject=Ditto">Email support</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Pentapillars, LLC</span>
+    <nav aria-label="Footer">
+      <a href="../privacy.html">Privacy Policy</a>
+      <a href="../">Web app</a>
+      <a href="mailto:amirfahid@gmail.com?subject=Ditto">Support</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+(function () {
+  try { if (localStorage.getItem("tapcopy.v1")) document.getElementById("returning").classList.add("on"); } catch (e) {}
+
+  var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  var CLINIC = { name: "Clinic", folder: true, items: [
+    { name: "Hours", color: "teal", text: "We're open Monday to Friday, 8 am – 5 pm." },
+    { name: "Refill", color: "navy", text: "Your refill request is in. Please allow 2 business days." },
+    { name: "Bring", color: "green", text: "Please bring a photo ID and your insurance card to your visit." },
+    { name: "Fax", color: "slate", text: "Fax: (555) 010-0199" }
+  ] };
+  var BOARD = [
+    { name: "Address", color: "teal", text: "742 Evergreen Terrace\nSpringfield, IL 62704" },
+    CLINIC,
+    { name: "Running late", color: "mustard", text: "Running about 10 minutes late, sorry! Be there soon." },
+    { name: "Signature", color: "slate", text: "Best,\nSam" },
+    { name: "Wi-Fi", color: "purple", text: "Network: Guest\nPassword: sunflower-42" },
+    { name: "Directions", color: "green", text: "Park in the back lot and use the side door. Suite 210 is on the second floor." },
+    { name: "Thank you", color: "rose", text: "Thank you so much, I really appreciate it!" },
+    { name: "Review", color: "navy", text: "If you have a minute, a quick review would mean a lot. Thank you!" },
+    { name: "Out of office", color: "plain", text: "I'm out of the office until [TOMORROW] and will reply when I'm back." }
+  ];
+
+  function expand(text) {
+    var now = new Date();
+    var tomorrow = new Date(now.getTime() + 864e5);
+    var day = { weekday: "long", month: "long", day: "numeric" };
+    return text
+      .replace(/\[TODAY\]/g, now.toLocaleDateString("en-US", day))
+      .replace(/\[TOMORROW\]/g, tomorrow.toLocaleDateString("en-US", day))
+      .replace(/\[TIME\]/g, now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }));
+  }
+
+  function square(item, cls) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = cls + " " + (item.folder ? "folder" : item.color === "plain" ? "plain" : "c-" + item.color);
+    var label = document.createElement("span");
+    label.textContent = item.name;
+    b.appendChild(label);
+    if (item.folder && cls === "sq") {
+      var sub = document.createElement("span");
+      sub.className = "sub";
+      sub.textContent = item.items.length + " texts " + (openFolder === item ? "▴" : "▾");
+      b.appendChild(sub);
+    }
+    return b;
+  }
+
+  // toast inside the phone
+  var toastEl = document.getElementById("toast"), toastTimer;
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove("show"); }, 1800);
+  }
+
+  // ---- board view ----
+  var grid = document.getElementById("boardGrid");
+  var openFolder = null;
+  var combo = [], comboAt = 0;
+
+  function copySquare(item, el) {
+    var now = Date.now();
+    if (now - comboAt > 5000) combo = [];
+    combo.push(expand(item.text));
+    comboAt = now;
+    el.classList.add("flash");
+    setTimeout(function () { el.classList.remove("flash"); }, 260);
+    toast(combo.length > 1 ? "Copied " + combo.length + " squares together" : "Copied “" + item.name + "”");
+  }
+
+  function renderBoard() {
+    grid.textContent = "";
+    var items = BOARD.slice();
+    var folderIndex = items.indexOf(openFolder);
+    var panelAfter = folderIndex < 0 ? -1 : Math.min(items.length, Math.floor(folderIndex / 3) * 3 + 3) - 1;
+    items.forEach(function (item, i) {
+      var el = square(item, "sq");
+      el.addEventListener("click", function () {
+        if (item.folder) { openFolder = openFolder === item ? null : item; renderBoard(); return; }
+        copySquare(item, el);
+      });
+      grid.appendChild(el);
+      if (i === panelAfter) {
+        var panel = document.createElement("div");
+        panel.className = "panel";
+        openFolder.items.forEach(function (child) {
+          var c = square(child, "sq");
+          c.addEventListener("click", function () { copySquare(child, c); });
+          panel.appendChild(c);
+        });
+        grid.appendChild(panel);
+      }
+    });
+    var add = document.createElement("div");
+    add.className = "sq add";
+    add.textContent = "Add square";
+    add.setAttribute("aria-hidden", "true");
+    grid.appendChild(add);
+  }
+
+  // ---- keyboard view ----
+  var kbGrid = document.getElementById("kbGrid");
+  var kbLabel = document.getElementById("kbLabel");
+  var field = document.getElementById("field");
+  var send = document.getElementById("send");
+  var thread = document.getElementById("thread");
+  var kbFolder = null, typing = null;
+
+  function finishTyping() {
+    if (!typing) return;
+    clearInterval(typing.timer);
+    field.textContent = typing.full;
+    typing = null;
+  }
+
+  function typeIn(text) {
+    finishTyping();
+    var start = field.textContent;
+    var full = start ? start + (/\s$/.test(start) ? "" : " ") + text : text;
+    send.disabled = false;
+    if (reduceMotion) { field.textContent = full; return; }
+    var i = start.length;
+    typing = { full: full, timer: setInterval(function () {
+      i = Math.min(full.length, i + 2);
+      field.textContent = full.slice(0, i);
+      field.scrollTop = field.scrollHeight;
+      if (i >= full.length) { clearInterval(typing.timer); typing = null; }
+    }, 16) };
+  }
+
+  function renderKeyboard() {
+    kbGrid.textContent = "";
+    var list = kbFolder ? kbFolder.items : BOARD;
+    if (kbFolder) {
+      kbLabel.outerHTML = '<button type="button" class="pill" id="kbLabel">‹ ' + kbFolder.name + "</button>";
+    } else {
+      kbLabel.outerHTML = '<span class="pill" id="kbLabel">Ditto</span>';
+    }
+    kbLabel = document.getElementById("kbLabel");
+    if (kbFolder) kbLabel.addEventListener("click", function () { kbFolder = null; renderKeyboard(); });
+    list.forEach(function (item) {
+      var el = square(item, "sq key");
+      el.addEventListener("click", function () {
+        if (item.folder) { kbFolder = item; renderKeyboard(); return; }
+        el.classList.add("flash");
+        setTimeout(function () { el.classList.remove("flash"); }, 200);
+        typeIn(expand(item.text));
+      });
+      kbGrid.appendChild(el);
+    });
+  }
+
+  send.addEventListener("click", function () {
+    finishTyping();
+    var text = field.textContent.trim();
+    if (!text) return;
+    var b = document.createElement("div");
+    b.className = "bub out";
+    b.textContent = text;
+    thread.appendChild(b);
+    field.textContent = "";
+    send.disabled = true;
+    thread.scrollTop = thread.scrollHeight;
+  });
+
+  // ---- view switch ----
+  var hint = document.getElementById("demoHint");
+  document.querySelectorAll(".seg button").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var v = btn.getAttribute("data-view");
+      document.querySelectorAll(".seg button").forEach(function (b) { b.setAttribute("aria-pressed", String(b === btn)); });
+      document.getElementById("boardView").classList.toggle("on", v === "board");
+      document.getElementById("keyboardView").classList.toggle("on", v === "keyboard");
+      hint.textContent = v === "board" ? "Try it: tap a square, or a few in a row." : "Try it: tap a square to type it in, then send.";
+    });
+  });
+
+  renderBoard();
+  renderKeyboard();
+
+})();
+</script>
+</body>
+</html>
