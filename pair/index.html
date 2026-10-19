@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>Ditto — Scan from the app</title>
+<style>
+  :root { --bg: #F2F5F6; --ink: #16262E; --muted: #4F6A75; --accent: #0E7C86; --card: #FFFFFF; --line: #D5DFE3; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #0F1518; --ink: #E6EDEF; --muted: #93A8B0; --accent: #53B7C0; --card: #1A2429; --line: #2C3A41; }
+  }
+  :root[data-theme="dark"] { --bg: #0F1518; --ink: #E6EDEF; --muted: #93A8B0; --accent: #53B7C0; --card: #1A2429; --line: #2C3A41; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.5; }
+  main { max-width: 520px; margin: 0 auto; padding: 56px 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 28px 24px; }
+  img { width: 64px; height: 64px; border-radius: 15px; display: block; margin-bottom: 18px; }
+  h1 { font-size: 26px; line-height: 1.15; letter-spacing: -0.02em; margin: 0 0 12px; }
+  p { color: var(--muted); margin: 0 0 14px; }
+  ol { margin: 0 0 16px; padding-left: 1.3em; display: grid; gap: 6px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <div class="card">
+    <img src="../icon-180.png" alt="">
+    <h1>Scan this code from inside Ditto.</h1>
+    <p>This code links your iPhone to the Ditto editor in a web browser. Your phone's Camera app can't use it.</p>
+    <ol>
+      <li>Open Ditto on your iPhone.</li>
+      <li>Go to Settings (the gear at the top right) ▸ Link to the web.</li>
+      <li>Point your phone at the code on the computer screen.</li>
+    </ol>
+    <p><a href="../about/">About Ditto</a></p>
+  </div>
+</main>
+</body>
+</html>
