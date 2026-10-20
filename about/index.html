@@ -131,9 +131,11 @@
   }
   .btn:active { transform: scale(0.97); }
   .btn-store { background: var(--store); color: var(--store-ink); }
-  .btn-store small { display: block; font-size: 11px; font-weight: 500; opacity: 0.8; line-height: 1.1; }
-  .btn-store span { display: block; line-height: 1.15; }
-  .btn-store .stack { text-align: left; }
+  .btn-store small, .btn-soon small { display: block; font-size: 11px; font-weight: 500; opacity: 0.8; line-height: 1.1; }
+  .btn-store span, .btn-soon span { display: block; line-height: 1.15; }
+  .btn-store .stack, .btn-soon .stack { text-align: left; }
+  .btn-soon { border-color: var(--line); color: var(--muted); cursor: default; }
+  .btn-soon:active { transform: none; }
   .btn-ghost { border-color: var(--line); color: var(--ink); background: var(--surface); }
   .fine { font-size: 15px; color: var(--muted); margin: 0; }
   .fine b { color: var(--ink); font-weight: 600; }
@@ -292,6 +294,9 @@
           <a class="btn btn-store" href="https://apps.apple.com/app/id6810430522">
             <span class="stack"><small>Download on the</small><span>App Store</span></span>
           </a>
+          <span class="btn btn-soon" aria-label="Ditto for Android is coming soon to Google Play">
+            <span class="stack"><small>Coming soon for Android</small><span>Google Play</span></span>
+          </span>
           <a class="btn btn-ghost" href="../">Try it in your browser</a>
         </div>
         <p class="fine"><b>No account. No tracking.</b> Your squares never leave your phone.</p>
