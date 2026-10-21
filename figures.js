@@ -5,8 +5,11 @@
  * outer top edges of boxes (the real rounded shapes, not their bounding boxes), grab
  * rounded corners as they fall, pull themselves up, crawl under low ceilings, climb
  * ladders beside the board and leave through one glowing EXIT door at the bottom right.
- * The canvas has pointer-events: none; clicks are read with a passive document listener
- * that never calls preventDefault.
+ * The doors are the controls: the blue entrance is shut by default; a click opens it (and
+ * the exit) and they start coming out; while open, each click lets one more out. Click the
+ * exit to shut it; with the exit shut, a click on the entrance closes it and they all go.
+ * The canvas has pointer-events: none; clicks on figures are read with a passive document
+ * listener that never calls preventDefault.
  *
  * <script src="figures.js" defer data-boxes=".sq, .wordmark" data-sky=".wordmark"></script>
  *   data-boxes        boxes figures must never enter; their top edges are platforms
@@ -44,10 +47,11 @@
 
   var W = { width: 0, height: 0, ground: 0, boxes: [], ladders: [], door: null, entry: null };
   var figs = [], effects = [];
-  var enabled = false, dirty = true, raf = 0, last = 0, nextId = 1, fadeOut = 0;
+  var enabled = false, dirty = true, raf = 0, last = 0, nextId = 1;
   var pending = 0, lastArrival = 0, lastRelease = 0, history = [];
   var colors = { ink: "#16262E", muted: "#64808B", accent: "#0E7C86" };
-  var canvas, ctx, ui, toggle, counter, dpr = 1, cw = 0, ch = 0, shownCount = null, timeScale = 1;
+  var canvas, ctx, ui, entryBtn, exitBtn, dpr = 1, cw = 0, ch = 0, timeScale = 1;
+  var entryOpen = false, exitOpen = false, entryK = 0, exitK = 0, sceneK = 0;   // the doors: shut by default
   var dbg = null;                // jump/relocation log, only on a local preview
 
   function rand(a, b) { return a + Math.random() * (b - a); }
@@ -147,7 +151,7 @@
       if (f.climbAfter) f.climbAfter = sameLadder(f.climbAfter);
     });
     readColors();
-    placeUi();
+    placeDoors();
     dirty = false;
   }
 
@@ -380,7 +384,7 @@
 
   function chooseGoal(f) {
     var ladders = W.ladders.filter(function (L) { return Math.abs(L.bottom - W.ground) < 2; });
-    if (W.door && (Math.random() < EXIT_CHANCE || !ladders.length)) return { exit: true };
+    if (W.door && exitOpen && (Math.random() < EXIT_CHANCE || !ladders.length)) return { exit: true };
     if (!ladders.length) return { wander: true };
     var best = ladders[0];
     ladders.forEach(function (L) { if (Math.abs(L.x - f.x) < Math.abs(best.x - f.x)) best = L; });
@@ -499,7 +503,7 @@
     }
     if (onGround(f)) {
       if (f.bounce <= 0) {
-        if (!f.goal || (f.goal.ladder && W.ladders.indexOf(f.goal.ladder) < 0) || (f.goal.exit && !W.door)) f.goal = chooseGoal(f);
+        if (!f.goal || (f.goal.ladder && W.ladders.indexOf(f.goal.ladder) < 0) || (f.goal.exit && (!W.door || !exitOpen))) f.goal = chooseGoal(f);
         if (f.goal.ladder) {
           var L = f.goal.ladder, dx = L.x - f.x;
           if (Math.abs(dx) < 0.8) { f.x = L.x; f.state = "climb"; f.ladder = L; f.goal = null; return; }
@@ -511,6 +515,7 @@
       }
       var nx = f.x + f.dir * step;
       if (W.door && (Math.abs(nx - W.door.x) < 1.5 || (f.x - W.door.x) * (nx - W.door.x) < 0)) {
+        if (!exitOpen) { f.dir = -f.dir; f.goal = { wander: true }; f.bounce = 0.8; return; }   // shut: turn around
         f.state = "exit"; f.exitT = 0; f.door = W.door;
         return;
       }
@@ -913,56 +918,75 @@
     ctx.restore();
   }
 
-  function glowDoor(dx, dy, t, warm) {
+  // A door in its frame: the glowing doorway behind, the panel swinging open on its hinge
+  // (k = 0 shut, 1 wide open). The entrance is blue, the exit warm.
+  function drawDoor(dx, dy, k, warm, t) {
     var w = 9, h = 14, pulse = 0.75 + 0.25 * Math.sin(t / 380);
-    ctx.save();
-    ctx.shadowColor = colors.accent;
-    ctx.shadowBlur = 8 * pulse;
-    var g = ctx.createLinearGradient(dx, dy - h, dx, dy);
-    if (warm) {
-      g.addColorStop(0, "rgba(255, 236, 160, " + (0.55 * pulse) + ")");
-      g.addColorStop(1, "rgba(255, 196, 80, " + (0.95 * pulse) + ")");
-    } else {
-      g.addColorStop(0, "rgba(170, 236, 240, " + (0.55 * pulse) + ")");
-      g.addColorStop(1, "rgba(83, 183, 192, " + (0.95 * pulse) + ")");
+    if (k > 0.02) {
+      ctx.save();
+      ctx.shadowColor = colors.accent;
+      ctx.shadowBlur = 8 * pulse * k;
+      var g = ctx.createLinearGradient(dx, dy - h, dx, dy);
+      if (warm) {
+        g.addColorStop(0, "rgba(255, 236, 160, " + (0.55 * pulse * k) + ")");
+        g.addColorStop(1, "rgba(255, 196, 80, " + (0.95 * pulse * k) + ")");
+      } else {
+        g.addColorStop(0, "rgba(170, 236, 240, " + (0.55 * pulse * k) + ")");
+        g.addColorStop(1, "rgba(83, 183, 192, " + (0.95 * pulse * k) + ")");
+      }
+      ctx.fillStyle = g;
+      ctx.fillRect(dx - w / 2, dy - h, w, h);
+      ctx.restore();
     }
-    ctx.fillStyle = g;
-    ctx.fillRect(dx - w / 2, dy - h, w, h);
-    ctx.restore();
     ctx.save();
     ctx.strokeStyle = colors.ink;
     ctx.lineWidth = 1;
-    ctx.strokeRect(dx - w / 2 - 0.5, dy - h - 0.5, w + 1, h + 0.5);
+    var pw = w * (1 - 0.82 * k);                          // the panel narrows toward its hinge as it opens
+    ctx.fillStyle = warm ? "#C98A2B" : "#53B7C0";
+    ctx.fillRect(dx - w / 2, dy - h, pw, h);
+    ctx.strokeRect(dx - w / 2 + 0.5, dy - h + 0.5, Math.max(0.5, pw - 1), h - 1);
+    if (k < 0.5) {                                        // the knob, while it's mostly shut
+      ctx.beginPath();
+      ctx.arc(dx - w / 2 + pw - 2, dy - h / 2, 0.8, 0, Math.PI * 2);
+      ctx.fillStyle = colors.ink;
+      ctx.fill();
+    }
+    ctx.strokeRect(dx - w / 2 - 0.5, dy - h - 0.5, w + 1, h + 0.5);   // the frame
     ctx.restore();
   }
 
-  // The way in (top left, with its ramp) and the way out (bottom right, with a flickering sign).
-  function drawDoors(t) {
+  // The way in (top left, with its ramp once it's open) and the way out (bottom right, shown while
+  // the figures are about, with a flickering sign).
+  function drawDoors(t, scene) {
     var E = W.entry;
     if (E) {
-      glowDoor(E.x, E.y, t, false);
-      ctx.save();
-      ctx.strokeStyle = colors.muted;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(E.x - 5, E.y + 0.5); ctx.lineTo(E.x + 5, E.y + 0.5); ctx.lineTo(E.endX, E.endY + 0.5);
-      ctx.moveTo(E.endX - 6, E.endY + 0.5); ctx.lineTo(E.endX - 6, E.endY + 3.5);   // a post under the end of the ramp
-      ctx.stroke();
-      ctx.restore();
+      drawDoor(E.x, E.y, entryK, false, t);
+      if (entryK > 0.01) {
+        ctx.save();
+        ctx.globalAlpha = entryK;
+        ctx.strokeStyle = colors.muted;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(E.x - 5, E.y + 0.5); ctx.lineTo(E.x + 5, E.y + 0.5); ctx.lineTo(E.endX, E.endY + 0.5);
+        ctx.moveTo(E.endX - 6, E.endY + 0.5); ctx.lineTo(E.endX - 6, E.endY + 3.5);   // a post under the end of the ramp
+        ctx.stroke();
+        ctx.restore();
+      }
     }
     var D = W.door;
-    if (D) {
-      glowDoor(D.x, D.y, t, true);
+    if (D && scene > 0.01) {
       ctx.save();
+      ctx.globalAlpha = scene;
+      drawDoor(D.x, D.y, exitK, true, t);
       ctx.strokeStyle = colors.ink;
       ctx.lineWidth = 1;
       ctx.beginPath();                                    // door mat
       ctx.moveTo(D.x - 7, D.y + 0.5); ctx.lineTo(D.x + 7, D.y + 0.5);
       ctx.stroke();
-      ctx.globalAlpha *= Math.random() < 0.07 ? 0.2 : 1;  // the sign flickers
+      ctx.globalAlpha *= exitK > 0.5 && Math.random() < 0.07 ? 0.2 : 1;   // the sign flickers while it's open
       ctx.fillStyle = "#E5484D";
       ctx.shadowColor = "#E5484D";
-      ctx.shadowBlur = 3;
+      ctx.shadowBlur = exitK > 0.5 ? 3 : 0;
       ctx.font = "bold 5px -apple-system, system-ui, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "bottom";
@@ -1012,35 +1036,45 @@
     effects = effects.filter(function (e) { return !e.done; });
   }
 
-  function draw(t, dt, fade) {
+  function draw(t, dt, scene) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, cw, ch);
     ctx.translate(-window.scrollX, -window.scrollY);
-    ctx.globalAlpha = fade;
-    drawLadders();
-    drawDoors(t);
-    var top = window.scrollY - 30, bottom = window.scrollY + ch + 30;
-    figs.forEach(function (f) { if (f.y > top && f.y - H < bottom) drawFigure(f, t); });
-    drawEffects(dt, fade);
-    ctx.globalAlpha = 1;
+    drawDoors(t, scene);
+    if (scene > 0.01) {
+      ctx.globalAlpha = scene;
+      drawLadders();
+      var top = window.scrollY - 30, bottom = window.scrollY + ch + 30;
+      figs.forEach(function (f) { if (f.y > top && f.y - H < bottom) drawFigure(f, t); });
+      drawEffects(dt, scene);
+      ctx.globalAlpha = 1;
+    }
   }
 
   /* ---------------- loop ---------------- */
 
   function frame(t) {
-    raf = requestAnimationFrame(frame);
+    raf = 0;
     var dt = last ? Math.min(0.05, (t - last) / 1000) * timeScale : 0;
     last = t;
     var de = document.documentElement;
     if (de.clientWidth !== cw || de.clientHeight !== ch) { resizeCanvas(); dirty = true; }
     if (dirty) computeWorld();
     var now = performance.now();
-    var fade = 1;
-    if (fadeOut) {
-      fade = 1 - (now - fadeOut) / 300;
-      if (fade <= 0) { stopLoop(true); return; }
+    // the doors swing toward open or shut; the scene fades in and out with the entrance
+    var step = dt * 2.5 || 0.05;
+    entryK = clamp(entryK + (entryOpen ? step : -step), 0, 1);
+    exitK = clamp(exitK + (exitOpen ? step : -step), 0, 1);
+    sceneK = clamp(sceneK + (enabled ? dt / 0.3 : -dt / 0.3), 0, 1);
+    var doorsMoving = entryK !== (entryOpen ? 1 : 0) || exitK !== (exitOpen ? 1 : 0);
+    if (!enabled && sceneK === 0 && (figs.length || effects.length || pending)) { figs = []; effects = []; pending = 0; }
+    if (!enabled && sceneK === 0) {
+      draw(t, dt, 0);                                  // shut: only the door to draw
+      if (doorsMoving && !document.hidden) raf = requestAnimationFrame(frame); else last = 0;
+      return;
     }
-    if (!fadeOut && pending > 0 && now - lastArrival > ARRIVAL_GAP_MS / timeScale) admitOne(now);
+    raf = requestAnimationFrame(frame);
+    if (enabled && pending > 0 && entryK > 0.6 && now - lastArrival > ARRIVAL_GAP_MS / timeScale) admitOne(now);
     if (dbg) figs.forEach(function (f) { f._px = f.x; f._py = f.y; f._ps = f.state; });
     figs.forEach(function (f) {
       if (f.wave > 0) f.wave -= dt;
@@ -1061,7 +1095,7 @@
       else if (f.state === "ramp") rampWalk(f, dt);
       else if (f.state === "exit") exitStep(f, dt);
     });
-    if (!fadeOut) collide(now);
+    if (enabled) collide(now);
     figs.forEach(function (f) { settle(f, false); });
     figs.forEach(function (f) {
       var standing = f.state === "walk" || f.state === "crawl";
@@ -1078,7 +1112,7 @@
     });
     if (dbg && dbg.length > 300) dbg.splice(0, dbg.length - 300);
     figs = figs.filter(function (f) { return !f.dead; });
-    if (!fadeOut) {
+    if (enabled) {
       // the door: one more, at most every 10 s, only if the count is no higher than 10 s ago
       var span = STALL_MS / timeScale;
       if (!history.length || now - history[history.length - 1].t > 250) history.push({ t: now, n: figs.length });
@@ -1089,53 +1123,30 @@
         lastRelease = now;
       }
     }
-    draw(t, dt, fade);
-    updateCounter();
+    draw(t, dt, sceneK);
   }
 
-  function startLoop() {
-    if (raf || !enabled || document.hidden) return;
-    last = 0;
-    raf = requestAnimationFrame(frame);
+  // Draw again soon: a layout change, a scroll, a door click.
+  function kick() {
+    if (!raf && !document.hidden) raf = requestAnimationFrame(frame);
   }
 
-  function stopLoop(clear) {
-    if (raf) cancelAnimationFrame(raf);
-    raf = 0;
-    if (clear) {
-      figs = []; effects = []; fadeOut = 0; pending = 0;
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      updateCounter();
-    }
-  }
-
-  /* ---------------- toggle, counter, clicks ---------------- */
-
-  var FIGURE_SVG =
-    '<svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" ' +
-    'stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="4" r="2.2"/><path d="M10 6.4v6M10 12.4l-3.2 5M10 12.4l3.2 5' +
-    'M10 8.2l-3.6 2.6M10 8.2l3.6 2.6"/><path class="sf-slash" d="M3 17L17 3" stroke-width="1.8"/></svg>';
+  /* ---------------- the doors are the controls ---------------- */
 
   function injectCss() {
     var css =
       ".sf-canvas{position:fixed;left:0;top:0;pointer-events:none;z-index:40}" +
-      ".sf-ui{position:absolute;top:10px;right:10px;z-index:45;display:flex;align-items:center;gap:3px;" +
-      "font:600 12px/1 -apple-system,BlinkMacSystemFont,system-ui,sans-serif}" +
-      ".sf-toggle{position:relative;width:28px;height:28px;padding:0;border-radius:9px;border:1px solid transparent;" +
-      "background:transparent;color:var(--accent,#0E7C86);cursor:pointer;display:grid;place-items:center;" +
-      "transition:background .15s,border-color .15s,color .15s}" +
-      ".sf-toggle:hover,.sf-toggle:focus-visible{background:rgba(14,124,134,.13);border-color:rgba(14,124,134,.3);outline:none}" +
-      ".sf-toggle[aria-pressed=false]{color:#9AA9AF}" +
-      ".sf-toggle .sf-slash{display:none}.sf-toggle[aria-pressed=false] .sf-slash{display:inline}" +
-      ".sf-toggle::after{content:attr(data-tip);position:absolute;top:calc(100% + 6px);right:0;white-space:nowrap;" +
-      "background:#16262E;color:#fff;font:500 12px/1 -apple-system,BlinkMacSystemFont,system-ui,sans-serif;" +
-      "padding:6px 8px;border-radius:7px;opacity:0;transform:translateY(-3px);pointer-events:none;" +
-      "transition:opacity .15s,transform .15s;z-index:1}" +
-      ".sf-toggle:hover::after,.sf-toggle:focus-visible::after{opacity:1;transform:none}" +
-      ".sf-count{color:var(--muted,#64808B);min-width:2.4em;font-variant-numeric:tabular-nums;pointer-events:none}" +
-      ".sf-count[hidden]{display:none}" +
-      "@media (prefers-reduced-motion:reduce){.sf-toggle,.sf-toggle::after{transition:none}}";
+      ".sf-ui{position:absolute;left:0;top:0;width:0;height:0;z-index:45}" +
+      ".sf-door{position:absolute;padding:0;margin:0;border:0;border-radius:3px;background:transparent;cursor:pointer}" +
+      ".sf-door:focus-visible{outline:2px solid var(--accent,#0E7C86);outline-offset:2px}" +
+      ".sf-door[hidden]{display:none}" +
+      ".sf-door::after{content:attr(data-tip);position:absolute;white-space:nowrap;background:#16262E;color:#fff;" +
+      "font:500 12px/1 -apple-system,BlinkMacSystemFont,system-ui,sans-serif;padding:6px 8px;border-radius:7px;" +
+      "opacity:0;transform:translateY(-3px);pointer-events:none;transition:opacity .15s,transform .15s}" +
+      ".sf-door:hover::after,.sf-door:focus-visible::after{opacity:1;transform:none}" +
+      ".sf-entry::after{left:0;top:calc(100% + 6px)}" +
+      ".sf-exit::after{right:0;bottom:calc(100% + 6px)}" +
+      "@media (prefers-reduced-motion:reduce){.sf-door::after{transition:none}}";
     var style = document.createElement("style");
     style.textContent = css;
     document.head.appendChild(style);
@@ -1148,74 +1159,75 @@
     ctx = canvas.getContext("2d");
     ui = document.createElement("div");
     ui.className = "sf-ui";
-    toggle = document.createElement("button");
-    toggle.type = "button";
-    toggle.className = "sf-toggle";
-    toggle.innerHTML = FIGURE_SVG;
-    counter = document.createElement("span");
-    counter.className = "sf-count";
-    counter.setAttribute("aria-hidden", "true");
-    ui.appendChild(toggle);
-    ui.appendChild(counter);
+    entryBtn = document.createElement("button");
+    entryBtn.type = "button";
+    entryBtn.className = "sf-door sf-entry";
+    exitBtn = document.createElement("button");
+    exitBtn.type = "button";
+    exitBtn.className = "sf-door sf-exit";
+    ui.appendChild(entryBtn);
+    ui.appendChild(exitBtn);
     document.body.appendChild(canvas);
     document.body.appendChild(ui);
-    toggle.addEventListener("click", function () { setEnabled(!enabled, true); });
+    entryBtn.addEventListener("click", onEntryClick);
+    exitBtn.addEventListener("click", onExitClick);
     resizeCanvas();
   }
 
-  // Top-right of the page, nudged left of anything clickable it would cover (e.g. Arrange).
-  function placeUi() {
-    if (!ui) return;
-    var sx = window.scrollX;
-    ui.style.right = "10px";
-    var others = document.querySelectorAll("a, button, input, select, textarea, [role=button], " + BOX_SELECTOR);
-    for (var pass = 0; pass < 6; pass++) {
-      var u = ui.getBoundingClientRect(), moved = false;
-      for (var i = 0; i < others.length; i++) {
-        var el = others[i];
-        if (ui.contains(el)) continue;
-        var r = el.getBoundingClientRect();
-        if (r.width === 0 || getComputedStyle(el).position === "fixed") continue;
-        if (r.right + 6 > u.left && r.left - 6 < u.right && r.bottom + 4 > u.top && r.top - 4 < u.bottom) {
-          ui.style.right = (W.width - (r.left + sx) + 8) + "px";
-          moved = true;
-          break;
-        }
-      }
-      if (!moved) break;
+  // Invisible buttons over the drawn doors: keyboard reachable, with a tooltip saying what a click does.
+  function placeDoors() {
+    if (!entryBtn) return;
+    var E = W.entry, D = W.door;
+    entryBtn.hidden = !E;
+    if (E) {
+      entryBtn.style.left = (E.x - 7) + "px"; entryBtn.style.top = (E.y - 17) + "px";
+      entryBtn.style.width = "14px"; entryBtn.style.height = "19px";
     }
+    exitBtn.hidden = !D || !enabled;
+    if (D) {
+      exitBtn.style.left = (D.x - 7) + "px"; exitBtn.style.top = (D.y - 23) + "px";
+      exitBtn.style.width = "14px"; exitBtn.style.height = "25px";
+    }
+    var entryTip = !enabled ? "Open the door" : exitOpen ? "Let one more out" : "Close the door";
+    var exitTip = exitOpen ? "Close the exit" : "Open the exit";
+    entryBtn.setAttribute("data-tip", entryTip); entryBtn.setAttribute("aria-label", entryTip + " (stick figures)");
+    exitBtn.setAttribute("data-tip", exitTip); exitBtn.setAttribute("aria-label", exitTip + " (stick figures)");
   }
 
-  function updateCounter() {
-    var n = enabled ? figs.length : -1;
-    if (n === shownCount) return;
-    shownCount = n;
-    counter.hidden = !enabled;
-    counter.textContent = "×" + Math.max(0, n);
+  function save(on) { try { localStorage.setItem(STORE_KEY, on ? "on" : "off"); } catch (e) {} }
+
+  // Shut: open it and they start coming out. Open: one more each click, unless the exit is
+  // closed, in which case this click closes the entrance too and they all go.
+  function onEntryClick() {
+    if (!enabled) openUp(true);
+    else if (!exitOpen) shutDown();
+    else releaseOne();
+    placeDoors();
+    kick();
   }
 
-  function setEnabled(on, save) {
-    if (save) { try { localStorage.setItem(STORE_KEY, on ? "on" : "off"); } catch (e) {} }
-    enabled = on;
-    toggle.setAttribute("aria-pressed", on ? "true" : "false");
-    var tip = on ? "Turn off stick figures" : "Turn on stick figures";
-    toggle.setAttribute("data-tip", tip);
-    toggle.setAttribute("aria-label", tip);
-    if (on) {
-      fadeOut = 0;
-      dirty = true;
-      computeWorld();
-      if (!figs.length && !pending) arrive(START);
-      lastRelease = performance.now();
-      history = [];
-      startLoop();
-    } else if (raf) {
-      fadeOut = performance.now();   // the loop fades everything out, then stops
-      pending = 0;
-    } else {
-      stopLoop(true);
-    }
-    updateCounter();
+  function onExitClick() {
+    if (!enabled) return;
+    exitOpen = !exitOpen;
+    placeDoors();
+    kick();
+  }
+
+  function openUp(animate) {
+    enabled = true; entryOpen = true; exitOpen = true;
+    if (!animate) { entryK = exitK = sceneK = 1; }
+    save(true);
+    dirty = true;
+    if (!figs.length && !pending) arrive(START);
+    lastArrival = performance.now();
+    lastRelease = performance.now();
+    history = [];
+  }
+
+  function shutDown() {
+    enabled = false; entryOpen = false;
+    pending = 0;
+    save(false);
   }
 
   function figureAt(clientX, clientY) {
@@ -1234,11 +1246,6 @@
     return !!(target && target.closest && target.closest(IGNORE));
   }
 
-  function onEntryDoor(clientX, clientY) {
-    var E = W.entry, x = clientX + window.scrollX, y = clientY + window.scrollY;
-    return !!E && Math.abs(x - E.x) <= 8 && y >= E.y - 17 && y <= E.y + 3;
-  }
-
   // Clicking the entrance door lets one more through (the oldest goes poof at the cap).
   function releaseOne() {
     var alive = figs.filter(function (f) { return !f.dead; });
@@ -1250,8 +1257,7 @@
   }
 
   function onClick(e) {
-    if (!enabled || fadeOut || isInteractive(e.target)) return;
-    if (onEntryDoor(e.clientX, e.clientY)) { releaseOne(); return; }
+    if (!enabled || isInteractive(e.target)) return;
     var f = figureAt(e.clientX, e.clientY);
     if (!f || (f.state !== "walk" && f.state !== "crawl")) return;
     if (f.state === "crawl") { f.crawlLeft = 0; return; }   // a crawler stands up as soon as there's room
@@ -1262,15 +1268,14 @@
   var cursorSet = false;
   function onPointerMove(e) {
     if (e.pointerType && e.pointerType !== "mouse") return;
-    var over = enabled && !fadeOut && !isInteractive(e.target) &&
-      (figureAt(e.clientX, e.clientY) || onEntryDoor(e.clientX, e.clientY));
+    var over = enabled && !isInteractive(e.target) && figureAt(e.clientX, e.clientY);
     if (over && !cursorSet) { document.documentElement.style.cursor = "pointer"; cursorSet = true; }
     else if (!over && cursorSet) { document.documentElement.style.cursor = ""; cursorSet = false; }
   }
 
   /* ---------------- start ---------------- */
 
-  function markDirty() { dirty = true; }
+  function markDirty() { dirty = true; kick(); }
 
   function init() {
     injectCss();
@@ -1278,8 +1283,9 @@
     computeWorld();
     var saved = null;
     try { saved = localStorage.getItem(STORE_KEY); } catch (e) {}
-    var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
-    setEnabled(saved ? saved === "on" : !reduce, false);
+    if (saved === "on") openUp(false);                 // the door stays as the visitor left it; shut by default
+    placeDoors();
+    kick();
 
     window.addEventListener("resize", function () { resizeCanvas(); markDirty(); }, { passive: true });
     window.addEventListener("scroll", markDirty, { passive: true });
@@ -1292,8 +1298,8 @@
       if (mq.addEventListener) mq.addEventListener("change", markDirty);
     }
     document.addEventListener("visibilitychange", function () {
-      if (document.hidden) { if (raf) { cancelAnimationFrame(raf); raf = 0; } }
-      else startLoop();
+      if (document.hidden) { if (raf) { cancelAnimationFrame(raf); raf = 0; } last = 0; }
+      else kick();
     });
     document.addEventListener("click", onClick);
     document.addEventListener("pointermove", onPointerMove, { passive: true });
@@ -1303,7 +1309,8 @@
       window.__dittoFigures = {
         log: function () { return dbg; },
         figs: function () { return figs; }, world: function () { return W; }, cap: CAP,
-        arrive: arrive, releaseOne: releaseOne, pending: function () { return pending; }, setSpeed: function (k) { timeScale = k; },
+        arrive: arrive, releaseOne: releaseOne, pending: function () { return pending; },
+        doors: function () { return { enabled: enabled, entryOpen: entryOpen, exitOpen: exitOpen, entryK: entryK, exitK: exitK, sceneK: sceneK }; }, setSpeed: function (k) { timeScale = k; },
         hitsBox: hitsBox, extents: extents, setGrabChance: function (p) { GRAB_CHANCE = p; }
       };
     }
