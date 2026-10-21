@@ -228,6 +228,11 @@
   .grid.arranging .sq:not(.plus) { animation: wiggle 0.35s ease-in-out infinite; touch-action: none; }
   .grid.arranging .sq.plus { opacity: 0.25; pointer-events: none; }
   .sq.drag-src { opacity: 0.35; animation: none; }
+  .grid.arranging .sq.drop-into { animation: none; transform: scale(1.07); outline: 3px solid var(--accent); outline-offset: 2px; }
+  .folder-panel.drop-into { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .ghost { transition: transform 0.12s ease, opacity 0.12s ease; }
+  .ghost.over-target { transform: scale(0.62); opacity: 0.85; }
+  .grid.arranging .sq.drop-before { box-shadow: -7px 0 0 -2px var(--accent), var(--shadow); }
   .ghost {
     position: fixed;
     z-index: 50;
@@ -493,7 +498,7 @@
     <div class="wordmark">Dit<span>to</span></div>
     <button class="arrange-btn" id="arrangeBtn">Arrange</button>
   </header>
-  <p class="hint">Tap a square to copy its text. Press and hold to edit.</p>
+  <p class="hint" id="mainHint">Tap a square to copy its text. Press and hold to edit.</p>
   <div class="grid" id="grid"></div>
   <footer>
     <button id="shareBtn">Share my list</button>
@@ -679,7 +684,7 @@
         b.appendChild(dots);
         b.setAttribute("aria-label", "Empty square — tap to set up");
       }
-      attachPressEvents(b, i,
+      attachPressEvents(b, { kind: "top", index: i },
         function (el) { onSquareTap(i, el); },
         function () { openEditor({ kind: "square", index: i }); });
       grid.appendChild(b);
@@ -697,7 +702,7 @@
     });
     grid.appendChild(plus);
 
-    if (openFolderId !== null && !arranging) {
+    if (openFolderId !== null) {
       var fIdx = -1;
       state.squares.forEach(function (sq, i) { if (sq.id === openFolderId) fIdx = i; });
       if (fIdx < 0 || !isFolder(state.squares[fIdx])) { openFolderId = null; return; }
@@ -719,7 +724,9 @@
       t.className = "sq";
       t.appendChild(labelDiv(item));
       t.setAttribute("aria-label", "Copy " + (item.name || ""));
-      attachPressEvents(t, null,
+      t.dataset.folder = fIdx;
+      t.dataset.item = j;
+      attachPressEvents(t, { kind: "item", folder: fIdx, item: j },
         function (el) { copySquare(item, el); },
         function () { openEditor({ kind: "item", folder: fIdx, item: j }); });
       inner.appendChild(t);
@@ -813,13 +820,13 @@
   var LP_MS = 450;
   var arranging = false;
 
-  function attachPressEvents(el, index, onTap, onHold) {
+  function attachPressEvents(el, ref, onTap, onHold) {
     var lpTimer = null;
     var longPressed = false;
     var startX = 0, startY = 0;
 
     el.addEventListener("pointerdown", function (e) {
-      if (arranging) { if (index !== null) startDrag(e, el, index); return; }
+      if (arranging) { startArrangePress(e, el, ref); return; }
       longPressed = false;
       startX = e.clientX; startY = e.clientY;
       lpTimer = setTimeout(function () {
@@ -846,74 +853,201 @@
   /* ---------- arrange mode ---------- */
 
   var arrangeBtn = document.getElementById("arrangeBtn");
+  var mainHint = document.getElementById("mainHint");
+  var HINT_TAP = mainHint.textContent;
+  var HINT_ARRANGE = "Drag squares to move them. Drop one on the middle of a folder to put it inside. Tap a folder to open it and drag its texts out.";
   arrangeBtn.addEventListener("click", function () {
     arranging = !arranging;
     if (arranging) openFolderId = null;
     grid.classList.toggle("arranging", arranging);
     arrangeBtn.textContent = arranging ? "Done" : "Arrange";
     arrangeBtn.classList.toggle("on", arranging);
+    mainHint.textContent = arranging ? HINT_ARRANGE : HINT_TAP;
     render();
   });
 
-  var ghost = null;
+  var DRAG_START_PX = 6;    // a press that moves less than this is a tap
+  var EDGE_DWELL_MS = 350;  // resting on a folder's edge this long moves the square past it
 
-  function startDrag(e, el, index) {
+  // While arranging, a press that moves is a drag; one that doesn't opens or closes a folder.
+  function startArrangePress(e, el, ref) {
     if (el.classList.contains("plus")) return;
     e.preventDefault();
-    var rect = el.getBoundingClientRect();
-    var offX = e.clientX - rect.left;
-    var offY = e.clientY - rect.top;
-    var fromIndex = index;
+    var sx = e.clientX, sy = e.clientY;
+    var drag = null;
+    function stop() {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onCancel);
+    }
+    function onMove(ev) {
+      if (!drag) {
+        if (Math.abs(ev.clientX - sx) < DRAG_START_PX && Math.abs(ev.clientY - sy) < DRAG_START_PX) return;
+        drag = beginDrag(el, ref, sx, sy);
+      }
+      drag.move(ev);
+    }
+    function onUp() {
+      stop();
+      if (drag) { drag.drop(); return; }
+      var sq = ref.kind === "top" ? state.squares[ref.index] : null;
+      if (isFolder(sq)) {
+        openFolderId = (openFolderId === sq.id) ? null : sq.id;
+        render();
+      }
+    }
+    function onCancel() {
+      stop();
+      if (drag) drag.cancel();
+    }
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onCancel);
+  }
 
-    ghost = document.createElement("div");
+  function indexById(id) {
+    for (var i = 0; i < state.squares.length; i++) if (state.squares[i].id === id) return i;
+    return -1;
+  }
+
+  // ref = { kind: "top", index } for a board square, { kind: "item", folder, item } for a text in a folder.
+  function beginDrag(el, ref, sx, sy) {
+    var rect = el.getBoundingClientRect();
+    var offX = sx - rect.left, offY = sy - rect.top;
+    var fromIndex = ref.kind === "top" ? ref.index : -1;
+    var dragged = ref.kind === "top" ? state.squares[ref.index] : state.squares[ref.folder].items[ref.item];
+    var srcFolderId = ref.kind === "item" ? state.squares[ref.folder].id : null;
+    // folders hold texts only (no folders inside folders, no empty "…" slots)
+    var fitsInFolder = ref.kind === "item" || (isSet(dragged) && !isFolder(dragged));
+    var drop = null;          // { into: folderId, at: index|null } or { out: boardIndex }
+    var edgeTimer = null, edgeIndex = -1;
+
+    var ghost = document.createElement("div");
     ghost.className = "ghost";
     ghost.style.width = rect.width + "px";
     ghost.style.height = rect.height + "px";
-    ghost.textContent = el.textContent;
+    var label = el.querySelector(".name");
+    ghost.textContent = label ? label.textContent : el.textContent;
     document.body.appendChild(ghost);
-    el.classList.add("drag-src");
-    positionGhost(e);
+    markSource();
 
-    function positionGhost(ev) {
-      ghost.style.left = (ev.clientX - offX) + "px";
-      ghost.style.top = (ev.clientY - offY) + "px";
+    function markSource() {
+      var src = ref.kind === "top"
+        ? grid.querySelector('.sq[data-index="' + fromIndex + '"]')
+        : grid.querySelector('.sq[data-folder="' + ref.folder + '"][data-item="' + ref.item + '"]');
+      if (src) src.classList.add("drag-src");
+    }
+    function clearMarks() {
+      Array.prototype.forEach.call(grid.querySelectorAll(".drop-into, .drop-before"), function (n) {
+        n.classList.remove("drop-into", "drop-before");
+      });
+    }
+    function clearEdge() { clearTimeout(edgeTimer); edgeTimer = null; edgeIndex = -1; }
+    function reorderTo(toIndex) {
+      var moved = state.squares.splice(fromIndex, 1)[0];
+      state.squares.splice(toIndex, 0, moved);
+      fromIndex = toIndex;
+      render();
+      markSource();
     }
 
-    function onMove(ev) {
-      positionGhost(ev);
+    function move(ev) {
+      ghost.style.left = (ev.clientX - offX) + "px";
+      ghost.style.top = (ev.clientY - offY) + "px";
       ghost.style.display = "none";
       var under = document.elementFromPoint(ev.clientX, ev.clientY);
       ghost.style.display = "";
-      var target = under && under.closest ? under.closest(".sq") : null;
-      if (target && !target.classList.contains("plus") && grid.contains(target)) {
-        var toIndex = parseInt(target.dataset.index, 10);
-        if (!isNaN(toIndex) && toIndex !== fromIndex) {
-          var moved = state.squares.splice(fromIndex, 1)[0];
-          state.squares.splice(toIndex, 0, moved);
-          fromIndex = toIndex;
-          renderOrderOnly();
+      clearMarks();
+      drop = null;
+      ghost.classList.remove("over-target");
+      if (!under || !grid.contains(under)) { clearEdge(); return; }
+      var tile = under.closest(".sq");
+      var panel = under.closest(".folder-panel");
+      var top = tile && tile.dataset.index !== undefined ? parseInt(tile.dataset.index, 10) : NaN;
+
+      if (!isNaN(top)) {
+        var target = state.squares[top];
+        if (isFolder(target) && fitsInFolder && top !== fromIndex) {
+          var r = tile.getBoundingClientRect();
+          var fx = (ev.clientX - r.left) / r.width, fy = (ev.clientY - r.top) / r.height;
+          if (fx > 0.18 && fx < 0.82 && fy > 0.18 && fy < 0.82) {
+            clearEdge();
+            if (target.id !== srcFolderId) { tile.classList.add("drop-into"); ghost.classList.add("over-target"); drop = { into: target.id, at: null }; }
+            return;
+          }
+          if (ref.kind === "top") {
+            if (edgeIndex !== top) {
+              clearEdge();
+              edgeIndex = top;
+              edgeTimer = setTimeout(function () {
+                edgeTimer = null;
+                if (edgeIndex === top) { edgeIndex = -1; reorderTo(top); }
+              }, EDGE_DWELL_MS);
+            }
+            return;
+          }
         }
+        clearEdge();
+        if (ref.kind === "top") { if (top !== fromIndex) reorderTo(top); return; }
+        // a text dragged out of its folder lands in front of this square
+        tile.classList.add("drop-before");
+        drop = { out: top };
+        return;
       }
+      clearEdge();
+      if (panel) {
+        var at = tile && tile.dataset.item !== undefined ? parseInt(tile.dataset.item, 10) : null;
+        if (ref.kind === "top") {
+          if (fitsInFolder) { panel.classList.add("drop-into"); drop = { into: openFolderId, at: at }; }
+        } else if (at !== ref.item) {
+          if (tile && at !== null) tile.classList.add("drop-before");
+          drop = { into: openFolderId, at: at };
+        }
+        return;
+      }
+      // empty space on the board, e.g. the "Add square" row: a text goes to the end
+      if (ref.kind === "item") drop = { out: state.squares.length };
     }
 
-    function renderOrderOnly() {
-      render();
-      var tiles = grid.querySelectorAll(".sq");
-      if (tiles[fromIndex]) tiles[fromIndex].classList.add("drag-src");
+    function finish() {
+      clearEdge();
+      ghost.remove();
     }
 
-    function onUp(ev) {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      window.removeEventListener("pointercancel", onUp);
-      if (ghost) { ghost.remove(); ghost = null; }
+    function dropHere() {
+      finish();
+      if (drop && drop.into != null) {
+        var folder = state.squares[indexById(drop.into)];
+        if (!folder) { render(); return; }
+        var entry, at = drop.at;
+        if (ref.kind === "top") {
+          var sq = state.squares.splice(fromIndex, 1)[0];
+          entry = { id: sq.id, name: sq.name || (sq.text || "").slice(0, 12), text: sq.text || "" };
+        } else {
+          var src = state.squares[ref.folder];
+          entry = src.items.splice(ref.item, 1)[0];
+          if (src === folder && at !== null && at > ref.item) at -= 1;
+        }
+        if (at === null || at > folder.items.length) folder.items.push(entry);
+        else folder.items.splice(at, 0, entry);
+        if (folder.id !== srcFolderId) showToast("Moved into “" + (folder.name || "Folder") + "”");
+        openFolderId = folder.id;
+      } else if (drop && drop.out != null) {
+        var from = state.squares[ref.folder];
+        var it = from.items.splice(ref.item, 1)[0];
+        state.squares.splice(drop.out, 0, { id: it.id, name: it.name, text: it.text });
+        showToast("Moved out of “" + (from.name || "Folder") + "”");
+      }
       save();
       render();
     }
 
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointercancel", onUp);
+    function cancel() {
+      finish();
+      render();
+    }
+
+    return { move: move, drop: dropHere, cancel: cancel };
   }
 
   /* ---------- editor sheet ---------- */
