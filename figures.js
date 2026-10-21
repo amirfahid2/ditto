@@ -36,16 +36,16 @@
   var HC = 8.4, HALF_WC = 5;     // crawling on hands and knees
   var SHOULDER = 10.4;           // feet to shoulders
   var GRAVITY = 700, CLIMB = 26, WALK_MIN = 15, WALK_MAX = 24, CRAWL_MIN = 8, CRAWL_MAX = 12;
-  var START = 2, COOLDOWN = 2000, EXIT_CHANCE = 0.3, GRAB_CHANCE = 0.35, RESPAWN_MS = 4000;
-  var STALL_MS = 15000, ARRIVAL_GAP_MS = 900;
+  var START = 2, COOLDOWN = 2000, EXIT_CHANCE = 0.3, GRAB_CHANCE = 0.35;
+  var STALL_MS = 10000, ARRIVAL_GAP_MS = 900;   // the door: one more only if the count hasn't grown in 10 s
   // a phone (by its screen, so a narrow window on a computer still gets the full cast)
   var SMALL = Math.min(screen.width || 9999, screen.height || 9999) < 500;
   var CAP = SMALL ? 5 : (parseInt(ds.cap, 10) || 50);
 
   var W = { width: 0, height: 0, ground: 0, boxes: [], ladders: [], door: null, entry: null };
   var figs = [], effects = [];
-  var enabled = false, dirty = true, raf = 0, last = 0, nextId = 1, emptySince = 0, fadeOut = 0;
-  var pending = 0, lastArrival = 0, lastGrowth = 0, lastCount = 0;
+  var enabled = false, dirty = true, raf = 0, last = 0, nextId = 1, fadeOut = 0;
+  var pending = 0, lastArrival = 0, lastRelease = 0, history = [];
   var colors = { ink: "#16262E", muted: "#64808B", accent: "#0E7C86" };
   var canvas, ctx, ui, toggle, counter, dpr = 1, cw = 0, ch = 0, shownCount = null, timeScale = 1;
   var dbg = null;                // jump/relocation log, only on a local preview
@@ -769,20 +769,22 @@
         left.goal = right.goal = null;
         if (now - a.lastHit > COOLDOWN && now - b.lastHit > COOLDOWN) {
           a.lastHit = b.lastHit = now;
-          replicate();
+          replicate((a.x + b.x) / 2, a.y, now);
         }
       }
     }
   }
 
-  // A collision brings one more figure, in through the door like everyone else.
-  function replicate() {
+  // A collision doubles them: a new figure pops up right there and walks off its own way.
+  function replicate(x, y, now) {
     var alive = figs.filter(function (f) { return !f.dead; });
-    if (alive.length >= CAP) {
-      poof(alive.reduce(function (o, f) { return f.born < o.born ? f : o; }));
-      alive.length--;
-    }
-    if (alive.length + pending < CAP) pending++;
+    if (alive.length >= CAP) poof(alive.reduce(function (o, f) { return f.born < o.born ? f : o; }));
+    if (hitsBox(x, y)) return;
+    var n = makeFig(x, y);
+    n.lastHit = now;
+    n.bounce = 0.8;           // heads off in its own direction before choosing where to go
+    n.grow = 0.3;
+    effects.push({ type: "pop", x: x, y: y - H / 2, t: 0 });
   }
 
   function poof(f) {
@@ -865,7 +867,8 @@
     ctx.save();
     ctx.translate(f.x, f.y);
     var sq = f.squash > 0 ? f.squash / 0.22 : 0;          // landing squash
-    ctx.scale((f.state === "climb" ? 1 : f.dir) * f.scale * (1 + 0.28 * sq), f.scale * (1 - 0.28 * sq));
+    var grow = f.grow > 0 ? 1 - 0.7 * f.grow / 0.3 : 1;   // a newborn pops up from small
+    ctx.scale((f.state === "climb" ? 1 : f.dir) * f.scale * grow * (1 + 0.28 * sq), f.scale * grow * (1 - 0.28 * sq));
     ctx.globalAlpha *= f.alpha;
     pen();
     var s = Math.sin(f.phase), legA, legB, armA, armB;
@@ -971,6 +974,23 @@
   function drawEffects(dt, fade) {
     effects.forEach(function (e) {
       e.t += dt;
+      if (e.type === "pop") {
+        var kp = e.t / 0.4;
+        if (kp >= 1) { e.done = true; return; }
+        ctx.save();
+        ctx.strokeStyle = colors.accent;
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = fade * (1 - kp);
+        ctx.beginPath();
+        for (var r = 0; r < 6; r++) {
+          var ang = r / 6 * Math.PI * 2;
+          ctx.moveTo(e.x + Math.cos(ang) * (3 + 5 * kp), e.y + Math.sin(ang) * (3 + 5 * kp));
+          ctx.lineTo(e.x + Math.cos(ang) * (5 + 7 * kp), e.y + Math.sin(ang) * (5 + 7 * kp));
+        }
+        ctx.stroke();
+        ctx.restore();
+        return;
+      }
       var k = e.t / 0.8;
       if (k >= 1) { e.done = true; return; }
       ctx.save();
@@ -1026,6 +1046,7 @@
       if (f.wave > 0) f.wave -= dt;
       if (f.bounce > 0) f.bounce -= dt;
       if (f.squash > 0) f.squash -= dt;
+      if (f.grow > 0) f.grow -= dt;
       var moving = f.state === "climb" || f.state === "exit" || f.state === "crawl" || f.state === "ramp" ||
         (f.state === "walk" && f.wave <= 0);
       if (moving) f.phase += dt * (f.state === "climb" ? 9 : f.state === "crawl" ? 8 : 11);
@@ -1058,14 +1079,15 @@
     if (dbg && dbg.length > 300) dbg.splice(0, dbg.length - 300);
     figs = figs.filter(function (f) { return !f.dead; });
     if (!fadeOut) {
-      // the count went up: start the 15-second clock again
-      if (figs.length > lastCount) lastGrowth = now;
-      lastCount = figs.length;
-      if (figs.length || pending) emptySince = 0;
-      else if (!emptySince) emptySince = now;
-      else if (now - emptySince > RESPAWN_MS) { emptySince = 0; arrive(START); lastGrowth = now; }
-      // no growth for 15 seconds: one more comes in through the door
-      if (now - lastGrowth > STALL_MS / timeScale && !pending && figs.length < CAP) { arrive(1); lastGrowth = now; }
+      // the door: one more, at most every 10 s, only if the count is no higher than 10 s ago
+      var span = STALL_MS / timeScale;
+      if (!history.length || now - history[history.length - 1].t > 250) history.push({ t: now, n: figs.length });
+      while (history.length > 1 && now - history[1].t >= span) history.shift();
+      var then = history[0];
+      if (now - then.t >= span && now - lastRelease >= span && figs.length <= then.n && !pending && figs.length < CAP) {
+        arrive(1);
+        lastRelease = now;
+      }
     }
     draw(t, dt, fade);
     updateCounter();
@@ -1184,7 +1206,8 @@
       dirty = true;
       computeWorld();
       if (!figs.length && !pending) arrive(START);
-      lastGrowth = performance.now();
+      lastRelease = performance.now();
+      history = [];
       startLoop();
     } else if (raf) {
       fadeOut = performance.now();   // the loop fades everything out, then stops
