@@ -6,8 +6,8 @@
  * rounded corners as they fall, pull themselves up, crawl under low ceilings, climb
  * ladders beside the board and leave through one glowing EXIT door at the bottom right.
  * The doors are the controls: the blue entrance is shut by default; a click opens it (and
- * the exit) and they start coming out; while open, each click lets one more out. Click the
- * exit to shut it; with the exit shut, a click on the entrance closes it and they all go.
+ * the exit) and they start coming out; while open, each click lets one more out. A click on
+ * the exit shuts it and the entrance with it, and they all go.
  * Every page load starts with the door shut.
  * The canvas has pointer-events: none; clicks on figures are read with a passive document
  * listener that never calls preventDefault.
@@ -975,9 +975,10 @@
       }
     }
     var D = W.door;
-    if (D && scene > 0.01) {
+    var exitAlpha = Math.max(scene, exitK);
+    if (D && exitAlpha > 0.01) {
       ctx.save();
-      ctx.globalAlpha = scene;
+      ctx.globalAlpha = exitAlpha;
       drawDoor(D.x, D.y, exitK, true, t);
       ctx.strokeStyle = colors.ink;
       ctx.lineWidth = 1;
@@ -1189,25 +1190,25 @@
       exitBtn.style.left = (D.x - 7) + "px"; exitBtn.style.top = (D.y - 23) + "px";
       exitBtn.style.width = "14px"; exitBtn.style.height = "25px";
     }
-    var entryTip = !enabled ? "Open the door" : exitOpen ? "Let one more out" : "Close the door";
-    var exitTip = exitOpen ? "Close the exit" : "Open the exit";
+    var entryTip = !enabled ? "Open the door" : "Let one more out";
     entryBtn.setAttribute("data-tip", entryTip); entryBtn.setAttribute("aria-label", entryTip + " (stick figures)");
-    exitBtn.setAttribute("data-tip", exitTip); exitBtn.setAttribute("aria-label", exitTip + " (stick figures)");
+    exitBtn.setAttribute("data-tip", "Close the doors");
+    exitBtn.setAttribute("aria-label", "Close the exit and the entrance (stick figures)");
   }
 
-  // Shut: open it and they start coming out. Open: one more each click, unless the exit is
-  // closed, in which case this click closes the entrance too and they all go.
+  // The entrance: shut, a click opens it (and the exit) and they start coming out; open, each
+  // click lets one more out.
   function onEntryClick() {
     if (!enabled) openUp(true);
-    else if (!exitOpen) shutDown();
     else releaseOne();
     placeDoors();
     kick();
   }
 
+  // The exit: a click shuts it, and the entrance shuts with it; they all go.
   function onExitClick() {
     if (!enabled) return;
-    exitOpen = !exitOpen;
+    shutDown();
     placeDoors();
     kick();
   }
@@ -1223,7 +1224,7 @@
   }
 
   function shutDown() {
-    enabled = false; entryOpen = false;
+    enabled = false; entryOpen = false; exitOpen = false;
     pending = 0;
   }
 
