@@ -8,6 +8,7 @@
  * The doors are the controls: the blue entrance is shut by default; a click opens it (and
  * the exit) and they start coming out; while open, each click lets one more out. Click the
  * exit to shut it; with the exit shut, a click on the entrance closes it and they all go.
+ * Every page load starts with the door shut.
  * The canvas has pointer-events: none; clicks on figures are read with a passive document
  * listener that never calls preventDefault.
  *
@@ -1194,8 +1195,6 @@
     exitBtn.setAttribute("data-tip", exitTip); exitBtn.setAttribute("aria-label", exitTip + " (stick figures)");
   }
 
-  function save(on) { try { localStorage.setItem(STORE_KEY, on ? "on" : "off"); } catch (e) {} }
-
   // Shut: open it and they start coming out. Open: one more each click, unless the exit is
   // closed, in which case this click closes the entrance too and they all go.
   function onEntryClick() {
@@ -1216,7 +1215,6 @@
   function openUp(animate) {
     enabled = true; entryOpen = true; exitOpen = true;
     if (!animate) { entryK = exitK = sceneK = 1; }
-    save(true);
     dirty = true;
     if (!figs.length && !pending) arrive(START);
     lastArrival = performance.now();
@@ -1227,7 +1225,6 @@
   function shutDown() {
     enabled = false; entryOpen = false;
     pending = 0;
-    save(false);
   }
 
   function figureAt(clientX, clientY) {
@@ -1281,9 +1278,8 @@
     injectCss();
     buildUi();
     computeWorld();
-    var saved = null;
-    try { saved = localStorage.getItem(STORE_KEY); } catch (e) {}
-    if (saved === "on") openUp(false);                 // the door stays as the visitor left it; shut by default
+    // every visit starts with the door shut (and forget the old on/off setting)
+    try { localStorage.removeItem(STORE_KEY); } catch (e) {}
     placeDoors();
     kick();
 
