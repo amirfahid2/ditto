@@ -506,7 +506,7 @@
     <button id="backupBtn">Copy backup</button>
     <button id="restoreBtn">Restore backup</button>
   </footer>
-  <p class="hint" style="margin-top:10px">Your squares are saved in this browser on this device only. <b>Copy backup</b> puts them on your clipboard as text you can keep in Notes or an email; <b>Restore backup</b> pastes that text back here or on another device.</p>
+  <p class="hint saved-note" style="margin-top:10px">Your squares are saved in this browser on this device only. <b>Copy backup</b> puts them on your clipboard as text you can keep in Notes or an email; <b>Restore backup</b> pastes that text back here or on another device.</p>
   <div class="stores">
     <a class="store" href="https://apps.apple.com/app/id6810430522"><small>Download on the</small>App Store</a>
     <span class="store soon" aria-label="Ditto for Android is coming soon to Google Play"><small>Coming soon for Android</small>Google Play</span>
@@ -1375,6 +1375,6 @@ if ("serviceWorker" in navigator) {
   });
 }
 </script>
-<script src="figures.js" defer data-boxes=".sq, .folder-panel, .store, .arrange-btn" data-ignore=".scrim, .sheet, .ghost"></script>
+<script src="figures.js" defer data-boxes=".sq, .folder-panel, .store, .arrange-btn, .wrap > footer button, .saved-note" data-sky=".wordmark" data-ladder-from=".saved-note" data-ignore=".scrim, .sheet, .ghost"></script>
 </body>
 </html>
