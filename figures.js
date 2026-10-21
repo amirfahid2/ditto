@@ -330,7 +330,8 @@
   // The single exit: a glowing door on the ground in the bottom-right corner.
   function buildDoor() {
     W.door = null;
-    var texts = textRects(), x = W.width - 8;
+    // keep clear of the right edge, where a floating scrollbar takes the clicks
+    var texts = textRects(), x = W.width - 23;
     for (var tries = 0; tries < 20; tries++, x -= 4) {
       var clash = W.ladders.some(function (L) { return Math.abs(L.x - x) < 8 && L.bottom > W.ground - 20; });
       if (clash) continue;
