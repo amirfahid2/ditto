@@ -1,15 +1,19 @@
 /* Ditto stick figures — a decorative layer that never gets in the way.
  *
- * Tiny walkers drop out of the sky above the title, live in the gaps, margins and
- * background, stand only on the outer top edges of boxes, grab edges as they fall,
- * pull themselves up and crawl under low ceilings, climb ladders beside the board and
- * leave through one glowing EXIT door at the bottom right. The canvas has
- * pointer-events: none; clicks are read with a passive document listener that never
- * calls preventDefault.
+ * Tiny walkers step out of a glowing door at the top left, walk down a ramp and drop
+ * onto the title. They live in the gaps, margins and background, stand only on the
+ * outer top edges of boxes (the real rounded shapes, not their bounding boxes), grab
+ * rounded corners as they fall, pull themselves up, crawl under low ceilings, climb
+ * ladders beside the board and leave through one glowing EXIT door at the bottom right.
+ * The canvas has pointer-events: none; clicks are read with a passive document listener
+ * that never calls preventDefault.
  *
- * <script src="figures.js" defer data-boxes=".sq, .store" data-sky=".wordmark"></script>
- *   data-boxes        CSS selector for boxes figures must never enter (their tops are platforms)
- *   data-sky          element new figures fall from above (default: the first box)
+ * <script src="figures.js" defer data-boxes=".sq, .wordmark" data-sky=".wordmark"></script>
+ *   data-boxes        boxes figures must never enter; their top edges are platforms
+ *   data-grab         boxes whose corners can be grabbed while falling (default ".sq")
+ *   data-board        boxes that make up the board; ladders reach its top row (default ".sq")
+ *   data-text-tops    text boxes whose platform is the top of the letters, not the line box
+ *   data-sky          where arrivals are dropped off (the ramp ends above it)
  *   data-ladder-from  element whose top is the foot of the left ladder (default: the ground)
  *   data-ignore       extra selector whose clicks the figures ignore (e.g. ".scrim, .sheet")
  *   data-cap          population cap (default 50; 5 on small screens)
@@ -20,6 +24,9 @@
   var script = document.currentScript;
   var ds = (script && script.dataset) || {};
   var BOX_SELECTOR = ds.boxes || ".sq";
+  var GRAB_SELECTOR = ds.grab || ".sq";
+  var BOARD_SELECTOR = ds.board || ".sq";
+  var TEXT_TOPS = ds.textTops || "";
   var IGNORE = "a, button, input, select, textarea, label, summary, [role=button], [contenteditable], .sf-ui" +
     (ds.ignore ? ", " + ds.ignore : "");
   var TEXT_SELECTOR = "p, h1, h2, h3, h4, li, a, label, button, .wordmark";
@@ -27,14 +34,17 @@
 
   var H = 14.6, HALF_W = 3;      // standing: feet to top of head, half the body width
   var HC = 8.6, HALF_WC = 5;     // crawling on hands and knees
+  var SHOULDER = 10.4;           // feet to shoulders
   var GRAVITY = 700, CLIMB = 26, WALK_MIN = 15, WALK_MAX = 24, CRAWL_MIN = 8, CRAWL_MAX = 12;
   var START = 2, COOLDOWN = 2000, EXIT_CHANCE = 0.3, GRAB_CHANCE = 0.35, RESPAWN_MS = 4000;
+  var STALL_MS = 15000, ARRIVAL_GAP_MS = 900;
   var SMALL = Math.min(window.innerWidth, screen.width || 9999) < 520;
   var CAP = SMALL ? 5 : (parseInt(ds.cap, 10) || 50);
 
-  var W = { width: 0, height: 0, ground: 0, boxes: [], ladders: [], door: null };
+  var W = { width: 0, height: 0, ground: 0, boxes: [], ladders: [], door: null, entry: null };
   var figs = [], effects = [];
   var enabled = false, dirty = true, raf = 0, last = 0, nextId = 1, emptySince = 0, fadeOut = 0;
+  var pending = 0, lastArrival = 0, lastGrowth = 0, lastCount = 0;
   var colors = { ink: "#16262E", muted: "#64808B", accent: "#0E7C86" };
   var canvas, ctx, ui, toggle, counter, dpr = 1, shownCount = null, timeScale = 1;
 
@@ -55,6 +65,32 @@
     return { l: r.left + window.scrollX, t: r.top + window.scrollY, r: r.right + window.scrollX, b: r.bottom + window.scrollY };
   }
 
+  function radius(value, w, h) {
+    var v = parseFloat(value) || 0;
+    if (/%/.test(value)) v = v / 100 * Math.min(w, h);
+    return clamp(v, 0, Math.min(w, h) / 2);
+  }
+
+  function makeBox(el) {
+    var b = docRect(el), cs = getComputedStyle(el), w = b.r - b.l, h = b.b - b.t;
+    b.el = el;
+    b.rtl = radius(cs.borderTopLeftRadius, w, h);
+    b.rtr = radius(cs.borderTopRightRadius, w, h);
+    b.rbl = radius(cs.borderBottomLeftRadius, w, h);
+    b.rbr = radius(cs.borderBottomRightRadius, w, h);
+    if (TEXT_TOPS && el.matches(TEXT_TOPS)) {
+      // stand on the letters, not on the empty top of the line box
+      var fs = parseFloat(cs.fontSize) || 16, lh = parseFloat(cs.lineHeight) || fs * 1.2;
+      b.t += Math.max(0, (Math.min(lh, h) - fs * 0.72) / 2);
+    }
+    // the flat part of the top edge: past a rounded corner the top curves away
+    b.sl = b.l + 0.6 * b.rtl;
+    b.sr = b.r - 0.6 * b.rtr;
+    b.grab = el.matches(GRAB_SELECTOR);
+    b.board = el.matches(BOARD_SELECTOR);
+    return b;
+  }
+
   function computeWorld() {
     var de = document.documentElement;
     W.width = de.clientWidth;
@@ -68,8 +104,9 @@
       var r = el.getBoundingClientRect();
       if (r.width < 4 || r.height < 4) continue;
       if (getComputedStyle(el).position === "fixed") continue;
-      W.boxes.push(docRect(el));
+      W.boxes.push(makeBox(el));
     }
+    buildEntry();
     buildLadders();
     buildDoor();
     // ladders are rebuilt on every layout change: keep climbers on the one at the same spot
@@ -83,13 +120,30 @@
     dirty = false;
   }
 
-  // Does a figure with its feet at (x, y) overlap the inside of a box? Standing exactly on a
-  // top edge is fine; a box above that leaves less than the figure's height is not.
+  // Does the rectangle (l, t, r, bot) overlap the visible inside of box b? The area outside a
+  // rounded corner's curve is empty space, and standing exactly on the top edge is fine.
+  function boxHit(b, l, t, r, bot) {
+    if (!(r > b.l && l < b.r && bot > b.t + 0.5 && t < b.b)) return false;
+    var dx, dy;
+    if (b.rtl > 1 && r <= b.l + b.rtl && bot <= b.t + b.rtl) {
+      dx = b.l + b.rtl - r; dy = b.t + b.rtl - bot; return dx * dx + dy * dy < (b.rtl - 0.5) * (b.rtl - 0.5);
+    }
+    if (b.rtr > 1 && l >= b.r - b.rtr && bot <= b.t + b.rtr) {
+      dx = l - (b.r - b.rtr); dy = b.t + b.rtr - bot; return dx * dx + dy * dy < (b.rtr - 0.5) * (b.rtr - 0.5);
+    }
+    if (b.rbl > 1 && r <= b.l + b.rbl && t >= b.b - b.rbl) {
+      dx = b.l + b.rbl - r; dy = t - (b.b - b.rbl); return dx * dx + dy * dy < (b.rbl - 0.5) * (b.rbl - 0.5);
+    }
+    if (b.rbr > 1 && l >= b.r - b.rbr && t >= b.b - b.rbr) {
+      dx = l - (b.r - b.rbr); dy = t - (b.b - b.rbr); return dx * dx + dy * dy < (b.rbr - 0.5) * (b.rbr - 0.5);
+    }
+    return true;
+  }
+
   function hitsBox(x, y, hw, h) {
     hw = hw || HALF_W; h = h || H;
     for (var i = 0; i < W.boxes.length; i++) {
-      var b = W.boxes[i];
-      if (x + hw > b.l && x - hw < b.r && y > b.t + 0.5 && y - h < b.b) return b;
+      if (boxHit(W.boxes[i], x - hw, y - h, x + hw, y)) return W.boxes[i];
     }
     return null;
   }
@@ -102,7 +156,7 @@
   function platformUnder(x, y) {
     for (var i = 0; i < W.boxes.length; i++) {
       var b = W.boxes[i];
-      if (Math.abs(b.t - y) < 0.75 && x >= b.l && x <= b.r) return b;
+      if (Math.abs(b.t - y) < 0.75 && x >= b.sl && x <= b.sr) return b;
     }
     return null;
   }
@@ -115,17 +169,24 @@
     return true;
   }
 
-  function textRects() {
+  function textRects(except) {
     var out = [], els = document.querySelectorAll(TEXT_SELECTOR);
     for (var i = 0; i < els.length; i++) {
       if (ui && ui.contains(els[i])) continue;
+      if (except && (els[i] === except || except.contains(els[i]))) continue;
       var r = els[i].getBoundingClientRect();
       if (r.width && r.height) out.push(docRect(els[i]));
     }
     return out;
   }
 
+  function boxFor(el) {
+    for (var i = 0; i < W.boxes.length; i++) if (W.boxes[i].el === el) return W.boxes[i];
+    return null;
+  }
+
   function sameLadder(old) {
+    if (!old) return null;
     for (var i = 0; i < W.ladders.length; i++) {
       var L = W.ladders[i];
       if (Math.abs(L.x - old.x) < 3 && Math.abs(L.top - old.top) < 6) return L;
@@ -133,14 +194,31 @@
     return null;
   }
 
-  // Ladders: one up the left side from the top of the "saved" note, one up the right side
-  // from the ground (so a figure at the bottom can always get back up), and one in any
-  // vertical gap of 20 px or more.
+  // The way in: a glowing door in the top-left corner and a ramp that ends just above the title.
+  function buildEntry() {
+    W.entry = null;
+    var anchor = ds.sky && document.querySelector(ds.sky);
+    var a = anchor && (boxFor(anchor) || docRect(anchor));
+    if (!a) return;
+    var doorBottom = 15;
+    var doorX = Math.max(8, a.l - 56);
+    var endX = a.l + 7, endY = Math.max(doorBottom + 1, a.t - 3);
+    if (endX - doorX < 8) return;
+    var texts = textRects(anchor);
+    var others = W.boxes.filter(function (b) { return b.el !== anchor; });
+    if (!regionClear(doorX - 6, 0, endX + 4, endY - 0.5, others) || !regionClear(doorX - 6, 0, endX - 4, endY - 0.5, texts)) return;
+    W.entry = { x: doorX, y: doorBottom, endX: endX, endY: endY };
+  }
+
+  // Ladders reach the top row of the board: one up the left side from the top of the "saved"
+  // note, one up the right side from the ground (so a figure at the bottom can always get back
+  // up), plus one in any vertical gap of 20 px or more.
   function buildLadders() {
     W.ladders = [];
-    if (!W.boxes.length) return;
+    var board = W.boxes.filter(function (b) { return b.board; });
+    if (!board.length) return;
     var texts = textRects();
-    function addLadder(x, top, bottom, exitX, exitDir) {
+    function addLadder(x, top, bottom, exitBox, exitDir) {
       if (x < 6 || x > W.width - 6 || bottom - top < H * 2) return;
       if (!regionClear(x - 5, top - H, x + 5, bottom - 0.5, W.boxes)) return;
       if (!regionClear(x - 4.5, top - 4, x + 4.5, bottom - 0.5, texts)) return;
@@ -148,30 +226,29 @@
         var o = W.ladders[i];
         if (Math.abs(o.x - x) < 12 && bottom > o.top && top < o.bottom) return;   // conflicts with an existing ladder
       }
+      // step off the top onto the flat part of that square
+      var exitX = exitDir > 0 ? exitBox.sl + 5 : exitBox.sr - 5;
       W.ladders.push({ x: x, top: top, bottom: bottom, exitX: exitX, exitDir: exitDir });
     }
+    var topRow = Math.min.apply(null, board.map(function (b) { return b.t; }));
+    var row = board.filter(function (b) { return Math.abs(b.t - topRow) < 3; });
+    var first = row.reduce(function (m, b) { return b.l < m.l ? b : m; });
+    var lastBox = row.reduce(function (m, b) { return b.r > m.r ? b : m; });
     var minL = Infinity, maxR = -Infinity;
-    W.boxes.forEach(function (b) { minL = Math.min(minL, b.l); maxR = Math.max(maxR, b.r); });
-    var leftTop = null, rightTop = null;
-    W.boxes.forEach(function (b) {
-      if (b.l < minL + 30 && !hitsBox(b.l + 5, b.t) && (!leftTop || b.t < leftTop.t)) leftTop = b;
-      if (b.r > maxR - 30 && !hitsBox(b.r - 5, b.t) && (!rightTop || b.t < rightTop.t)) rightTop = b;
-    });
+    W.boxes.forEach(function (b) { if (b.b > topRow - 40) { minL = Math.min(minL, b.l); maxR = Math.max(maxR, b.r); } });
     var leftX = Math.max(minL - 12, 8), rightX = Math.min(maxR + 12, W.width - 8);
     var from = ds.ladderFrom && document.querySelector(ds.ladderFrom);
-    if (leftTop && leftX + 4.5 < minL - 1) {
-      var bottom = from ? docRect(from).t : W.ground;
-      addLadder(leftX, leftTop.t, bottom, leftTop.l + 5, 1);
-    }
-    if (rightTop && rightX - 4.5 > maxR + 1) addLadder(rightX, rightTop.t, W.ground, rightTop.r - 5, -1);
-    W.boxes.forEach(function (a) {
+    var fromBox = from && (boxFor(from) || docRect(from));
+    if (leftX + 4.5 < minL - 1) addLadder(leftX, topRow, fromBox ? fromBox.t : W.ground, first, 1);
+    if (rightX - 4.5 > maxR + 1) addLadder(rightX, topRow, W.ground, lastBox, -1);
+    board.forEach(function (a) {
       var right = null;
-      W.boxes.forEach(function (b) {
+      board.forEach(function (b) {
         if (b === a || Math.abs(b.t - a.t) > 3 || b.l < a.r) return;
         if (!right || b.l < right.l) right = b;
       });
       if (!right || right.l - a.r < 20) return;
-      addLadder((a.r + right.l) / 2, Math.min(a.t, right.t), W.ground, right.l + 5, 1);
+      addLadder((a.r + right.l) / 2, Math.min(a.t, right.t), W.ground, right, 1);
     });
   }
 
@@ -203,21 +280,30 @@
       id: nextId++, x: x, y: y, dir: Math.random() < 0.5 ? -1 : 1, speed: rand(WALK_MIN, WALK_MAX),
       crawlSpeed: rand(CRAWL_MIN, CRAWL_MAX), state: "walk", vx: 0, vy: 0, phase: rand(0, 6),
       born: performance.now(), lastHit: -1e9, wave: 0, bounce: 0, squash: 0, goal: null, dismount: null,
-      climbAfter: null, ladder: null, grab: null, crawlLeft: 0, tried: {}, alpha: 1, scale: 1, dead: false
+      climbAfter: null, ladder: null, grab: null, clearTo: null, crawlLeft: 0, tried: {},
+      alpha: 1, scale: 1, dead: false
     };
     figs.push(f);
     return f;
   }
 
-  // New figures fall out of the sky above the title, spread a little sideways.
-  function skySpawn(n) {
-    var anchor = ds.sky && document.querySelector(ds.sky);
-    var a = anchor ? docRect(anchor) : (W.boxes[0] || { l: W.width / 2 - 20, r: W.width / 2 + 20 });
-    for (var i = 0; i < n && figs.length < CAP; i++) {
-      var f = makeFig(rand(a.l + 4, Math.max(a.l + 5, a.r - 4)), -rand(20, 60) - i * 28);
-      f.state = "fall";
-      f.vy = rand(0, 30);
+  // New figures come in through the door, one at a time.
+  function arrive(n) {
+    pending = Math.min(pending + n, Math.max(0, CAP - figs.length));
+  }
+
+  function admitOne(now) {
+    lastArrival = now;
+    pending--;
+    if (!W.entry) {                                   // no room for the door: drop from just above the title
+      var anchor = ds.sky && document.querySelector(ds.sky);
+      var a = anchor ? docRect(anchor) : (W.boxes[0] || { l: W.width / 2 - 20, r: W.width / 2 + 20 });
+      var s = makeFig(rand(a.l + 4, Math.max(a.l + 5, a.r - 4)), -rand(20, 50));
+      s.state = "fall";
+      return;
     }
+    var f = makeFig(W.entry.x, W.entry.y);
+    f.state = "enter"; f.enterT = 0; f.dir = 1; f.alpha = 0; f.scale = 0.2;
   }
 
   function onGround(f) { return Math.abs(f.y - W.ground) < 0.75; }
@@ -232,7 +318,7 @@
   }
 
   function touchDown(f, vy) {
-    f.state = "walk"; f.vx = 0; f.vy = 0; f.goal = null; f.tried = {};
+    f.state = "walk"; f.vx = 0; f.vy = 0; f.goal = null; f.tried = {}; f.clearTo = null;
     if (vy > 140) f.squash = 0.22;
   }
 
@@ -241,25 +327,30 @@
     f.crawlLeft = distance;
   }
 
-  // Where would a figure dropping at x from y land? null if onto a box with no room even to crawl.
+  function boxKey(b) { return Math.round(b.l) + ":" + Math.round(b.t); }
+
+  // Where would a figure dropping straight down at x from y end up? null if onto a box
+  // with no room even to crawl.
   function dropTarget(x, y) {
     var land = null;
     W.boxes.forEach(function (b) {
       if (x + HALF_W > b.l && x - HALF_W < b.r && b.t >= y && (!land || b.t < land.t)) land = b;
     });
     if (!land || land.t > W.ground) return hitsBox(x, W.ground) ? null : W.ground;
-    var lx = clamp(x, land.l + 0.5, land.r - 0.5);
-    return (hitsBox(lx, land.t) && hitsBox(lx, land.t, HALF_WC, HC)) ? null : land.t;
+    if (x < land.sl || x > land.sr) return W.ground;   // beside its rounded corner: slides past it
+    return (hitsBox(x, land.t) && hitsBox(x, land.t, HALF_WC, HC)) ? null : land.t;
   }
 
   function stepOffEdge(f, p, crawling) {
     var edge = f.dir > 0 ? p.r : p.l;
     // a ladder whose foot is at this height just past the edge: walk onto it and climb
-    for (var i = 0; i < W.ladders.length; i++) {
-      var L = W.ladders[i], reach = f.dir > 0 ? L.x - edge : edge - L.x;
-      if (Math.abs(L.bottom - f.y) < 2 && reach >= 0 && reach <= 16 && !crawling) {
-        f.dismount = L.x; f.climbAfter = L;
-        return;
+    if (!crawling) {
+      for (var i = 0; i < W.ladders.length; i++) {
+        var L = W.ladders[i], reach = f.dir > 0 ? L.x - edge : edge - L.x;
+        if (Math.abs(L.bottom - f.y) < 2 && reach >= 0 && reach <= 16 && p.rtl < 2 && p.rtr < 2) {
+          f.dismount = L.x; f.climbAfter = L;
+          return;
+        }
       }
     }
     var neighbour = null, gap = 0;
@@ -268,16 +359,24 @@
       var g = f.dir > 0 ? b.l - p.r : p.l - b.r;
       if (g >= 0 && g <= 18 && (!neighbour || g < gap)) { neighbour = b; gap = g; }
     });
-    var dropX = edge + f.dir * (HALF_W + 1);
-    var canDrop = !hitsBox(dropX, f.y) && dropTarget(dropX, f.y) !== null;
-    if (!crawling && neighbour && !hitsBox(f.dir > 0 ? neighbour.l + 5 : neighbour.r - 5, neighbour.t) &&
-        (!canDrop || Math.random() < 0.5)) {
-      // hop across a narrow gap to the next box's top edge
-      f.x = edge;
-      f.state = "fall"; f.vy = -95; f.vx = f.dir * (gap + 7) / (2 * 95 / GRAVITY);
+    var dropX = edge + f.dir * (HALF_W + 0.5);
+    var canDrop = !hitsBox(dropX, f.y + 1) && dropTarget(dropX, f.y) !== null;
+    if (!crawling && neighbour) {
+      var landX = f.dir > 0 ? neighbour.sl + 3 : neighbour.sr - 3;
+      if (!hitsBox(landX, neighbour.t) && (!canDrop || Math.random() < 0.5)) {
+        // hop over the gap and both rounded corners to the flat top of the next box
+        var T = 2 * 105 / GRAVITY;
+        f.state = "fall"; f.vy = -105; f.vx = (landX - f.x) / T; f.clearTo = null;
+        f.tried[boxKey(p)] = true;
+        return;
+      }
+    }
+    if (canDrop) {
+      // slip off the rounded corner: a little hop outward, then straight down beside the box
+      f.state = "fall"; f.vy = -40; f.vx = f.dir * 85; f.clearTo = dropX;
+      f.tried[boxKey(p)] = true;
       return;
     }
-    if (canDrop) { f.x = dropX; f.state = "fall"; f.vy = 0; f.vx = 0; return; }
     f.dir = -f.dir;
   }
 
@@ -323,7 +422,7 @@
     var p = platformUnder(f.x, f.y);
     if (!p) { f.state = "fall"; f.vy = 0; f.vx = 0; return; }
     var px = f.x + f.dir * step;
-    if (px >= p.l && px <= p.r) {
+    if (px >= p.sl && px <= p.sr) {
       if (hitsBox(px, f.y)) {
         // low ceiling: get down and crawl under it, or turn back if even that won't fit
         if (!hitsBox(px, f.y, HALF_WC, HC)) startCrawl(f, 10); else f.dir = -f.dir;
@@ -345,7 +444,7 @@
     } else {
       var p = platformUnder(f.x, f.y);
       if (!p) { f.state = "fall"; f.vy = 0; f.vx = 0; return; }
-      if (nx < p.l || nx > p.r) { stepOffEdge(f, p, true); return; }   // crawl off the edge into the gap
+      if (nx < p.sl || nx > p.sr) { stepOffEdge(f, p, true); return; }   // crawl off the edge into the gap
       if (hitsBox(nx, f.y, HALF_WC, HC)) { f.dir = -f.dir; return; }
       f.x = nx;
     }
@@ -356,55 +455,73 @@
   function fall(f, dt) {
     f.vy = Math.min(f.vy + GRAVITY * dt, 420);
     var nx = f.x + f.vx * dt;
-    if (f.vx && (nx < 4 || nx > W.width - 4 || hitsBox(nx, f.y))) { f.vx = 0; nx = f.x; }
+    if (f.clearTo !== null && (f.vx > 0 ? nx >= f.clearTo : nx <= f.clearTo)) { nx = f.clearTo; f.vx = 0; f.clearTo = null; }
+    if (f.vx && (nx < 4 || nx > W.width - 4 || hitsBox(nx, f.y))) { f.vx = 0; nx = f.x; f.clearTo = null; }
     var ny = f.y + f.vy * dt;
     if (f.vy < 0) {
       if (hitsBox(nx, ny)) { f.vy = 0; ny = f.y; }       // bonk: never rise into a box
       f.x = nx; f.y = ny;
       return;
     }
-    if (tryGrab(f, nx, ny)) return;
+    if (f.clearTo === null && tryGrab(f, nx, ny)) return;
     var land = null;
     W.boxes.forEach(function (b) {
-      if (nx + HALF_W > b.l && nx - HALF_W < b.r && b.t >= f.y - 0.01 && b.t <= ny && (!land || b.t < land.t)) land = b;
+      if (nx >= b.sl - 0.5 && nx <= b.sr + 0.5 && b.t >= f.y - 0.01 && b.t <= ny && (!land || b.t < land.t)) land = b;
     });
     if (land && land.t <= W.ground) {
-      var lx = clamp(nx, land.l + 0.5, land.r - 0.5);
+      var lx = clamp(nx, land.sl, land.sr);
       if (!hitsBox(lx, land.t)) { f.x = lx; f.y = land.t; touchDown(f, f.vy); return; }
       if (!hitsBox(lx, land.t, HALF_WC, HC)) {          // too low to stand: land crouched and crawl
         f.x = lx; f.y = land.t; touchDown(f, 0); startCrawl(f, 12);
         return;
       }
-      // no room at all on that box: slip past its side and keep dropping through the gap
-      var sideX = nx < (land.l + land.r) / 2 ? land.l - HALF_W - 1 : land.r + HALF_W + 1;
-      if (!hitsBox(sideX, f.y)) { f.x = sideX; f.vx = 0; f.y = Math.min(ny, land.t - 0.1); return; }
-      settle(f, true);
-      return;
     }
-    if (ny >= W.ground) { f.x = nx; f.y = W.ground; touchDown(f, f.vy); return; }
+    if (ny >= W.ground && !hitsBox(nx, W.ground)) { f.x = nx; f.y = W.ground; touchDown(f, f.vy); return; }
+    var hit = hitsBox(nx, ny);
+    if (hit) {
+      // brushing a box's side or rounded corner: slide out beside it and keep dropping
+      var sideX = nx < (hit.l + hit.r) / 2 ? hit.l - HALF_W - 0.5 : hit.r + HALF_W + 0.5;
+      if (!hitsBox(sideX, ny)) { nx = sideX; f.vx = 0; f.clearTo = null; }
+      else { settle(f, true); return; }
+    }
     f.x = nx; f.y = ny;
   }
 
-  // Falling past the side of a box, the raised hands sometimes catch its top corner.
+  // Where the hands go: on the curve of the rounded top corner, 35 degrees up from the side
+  // (a square corner is simply the corner). side -1 = the box's left corner, +1 = its right.
+  function gripPoint(b, side, rad) {
+    var bx = side < 0 ? b.l : b.r;
+    if (rad < 1.5) return { x: bx, y: b.t };
+    var a = 35 * Math.PI / 180, inset = rad * (1 - Math.cos(a));
+    return { x: side < 0 ? bx + inset : bx - inset, y: b.t + rad * (1 - Math.sin(a)) };
+  }
+
+  // Falling past the side of a box, the hands sometimes catch its rounded top corner.
   function tryGrab(f, nx, ny) {
-    var handsBefore = f.y - H - 1, handsNow = ny - H - 1;
     for (var i = 0; i < W.boxes.length; i++) {
       var b = W.boxes[i];
-      if (b.t <= handsBefore || b.t > handsNow) continue;
+      if (!b.grab) continue;
       var side;
-      if (b.l - (nx + HALF_W) >= 0 && b.l - (nx + HALF_W) <= 5) side = -1;          // figure is left of the box
-      else if ((nx - HALF_W) - b.r >= 0 && (nx - HALF_W) - b.r <= 5) side = 1;      // figure is right of it
+      var gapL = b.l - (nx + HALF_W), gapR = (nx - HALF_W) - b.r;
+      if (gapL >= -0.6 && gapL <= 3) side = -1;          // figure is left of the box
+      else if (gapR >= -0.6 && gapR <= 3) side = 1;      // figure is right of it
       else continue;
-      var key = Math.round(b.l) + ":" + Math.round(b.t);
+      var rad = side < 0 ? b.rtl : b.rtr;
+      var grip = gripPoint(b, side, rad);
+      var shoulderY = grip.y + (rad < 1.5 ? 4.6 : 3.5);    // hang with the hands just above the head
+      if (!(f.y - SHOULDER < shoulderY && ny - SHOULDER >= shoulderY)) continue;
+      var key = boxKey(b);
       if (f.tried[key]) continue;
       f.tried[key] = true;
       if (Math.random() > GRAB_CHANCE) continue;
-      var hx = side < 0 ? b.l - HALF_W - 1 : b.r + HALF_W + 1, hy = b.t + 15;
-      var topX = side < 0 ? b.l + HALF_WC + 1 : b.r - HALF_WC - 1;
-      // the whole move must stay in the gap and on the edge: hanging, rising beside the box, crawling on top
-      if (hitsBox(hx, hy) || hitsBox(hx, b.t) || hitsBox(topX, b.t, HALF_WC, HC) || b.r - b.l < 2 * HALF_WC + 4) continue;
+      var hx = side < 0 ? b.l - HALF_W - 0.5 : b.r + HALF_W + 0.5, hy = shoulderY + SHOULDER;
+      var topX = side < 0 ? b.sl + HALF_WC : b.sr - HALF_WC;
+      if (b.sr - b.sl < 2 * HALF_WC + 4 || hitsBox(topX, b.t, HALF_WC, HC)) continue;
+      var clear = true;                                   // hanging and rising beside the box stay in the gap
+      for (var y = hy; y >= b.t - 0.01 && clear; y -= 3) if (hitsBox(hx, y)) clear = false;
+      if (!clear || hitsBox(hx, b.t)) continue;
       f.state = "hang"; f.x = hx; f.y = hy; f.vx = 0; f.vy = 0;
-      f.grab = { cx: side < 0 ? b.l : b.r, cy: b.t, side: side, hx: hx, hy: hy, topX: topX, t: 0, k: 0, hold: rand(0.35, 0.75) };
+      f.grab = { l: b.l, r: b.r, t: b.t, side: side, px: grip.x, py: grip.y, hx: hx, hy: hy, topX: topX, time: 0, k: 0, hold: rand(0.35, 0.75) };
       return true;
     }
     return false;
@@ -412,26 +529,28 @@
 
   function grabStillValid(f) {
     var g = f.grab;
-    return !!g && W.boxes.some(function (b) { return Math.abs(b.t - g.cy) < 1 && Math.abs((g.side < 0 ? b.l : b.r) - g.cx) < 1; });
+    return !!g && W.boxes.some(function (b) {
+      return Math.abs(b.t - g.t) < 1 && Math.abs((g.side < 0 ? b.l : b.r) - (g.side < 0 ? g.l : g.r)) < 1;
+    });
   }
 
   function hang(f, dt) {
     if (!grabStillValid(f)) { f.state = "fall"; f.vy = 0; f.grab = null; return; }
-    f.grab.t += dt;
-    if (f.grab.t >= f.grab.hold) { f.state = "pull"; f.grab.t = 0; }
+    f.grab.time += dt;
+    if (f.grab.time >= f.grab.hold) { f.state = "pull"; f.grab.time = 0; }
   }
 
   // Pull-up: rise beside the box until the feet reach its top, then roll onto the edge on hands and knees.
   function pull(f, dt) {
     if (!grabStillValid(f)) { f.state = "fall"; f.vy = 0; f.grab = null; return; }
     var g = f.grab;
-    g.t += dt;
-    g.k = Math.min(1, g.t / 0.8);
+    g.time += dt;
+    g.k = Math.min(1, g.time / 0.8);
     if (g.k < 0.55) {
       f.x = g.hx;
-      f.y = g.hy + (g.cy - g.hy) * ease(g.k / 0.55);
+      f.y = g.hy + (g.t - g.hy) * ease(g.k / 0.55);
     } else {
-      f.y = g.cy;
+      f.y = g.t;
       f.x = g.hx + (g.topX - g.hx) * ease((g.k - 0.55) / 0.45);
     }
     f.dir = -g.side;
@@ -444,8 +563,31 @@
     f.x = L.x;
     f.y -= CLIMB * dt;
     if (f.y <= L.top) {
-      f.y = L.top; f.state = "walk"; f.dismount = L.exitX; f.dir = L.exitDir; f.ladder = null;
+      // hop off the top of the ladder onto the flat part of the square
+      f.y = L.top; f.ladder = null; f.dir = L.exitDir;
+      var T = 2 * 95 / GRAVITY;
+      f.state = "fall"; f.vy = -95; f.vx = (L.exitX - f.x) / T; f.clearTo = null; f.tried = {};
     }
+  }
+
+  // Arriving: appear in the doorway, walk down the ramp, step off onto the title.
+  function enter(f, dt) {
+    var E = W.entry;
+    if (!E) { f.state = "fall"; f.alpha = 1; f.scale = 1; return; }
+    f.enterT += dt;
+    var k = Math.min(1, f.enterT / 0.5);
+    f.alpha = k; f.scale = 0.2 + 0.8 * k;
+    f.x = E.x; f.y = E.y;
+    if (k >= 1) { f.state = "ramp"; f.alpha = 1; f.scale = 1; }
+  }
+
+  function rampWalk(f, dt) {
+    var E = W.entry;
+    if (!E) { f.state = "fall"; return; }
+    f.x = Math.min(E.endX, f.x + f.speed * dt);
+    f.y = E.y + (E.endY - E.y) * clamp((f.x - E.x) / (E.endX - E.x), 0, 1);
+    f.dir = 1;
+    if (f.x >= E.endX) { f.state = "fall"; f.vx = 12; f.vy = 0; }
   }
 
   function exitStep(f, dt) {
@@ -461,7 +603,7 @@
   // Strict rule: never inside a box. Anything that ends up there (layout change, resize)
   // moves to the nearest legal top edge or the ground.
   function settle(f, force) {
-    if (f.dead || f.state === "exit") return;
+    if (f.dead || f.state === "exit" || f.state === "enter" || f.state === "ramp") return;
     if (f.state === "climb") {
       if (f.ladder && W.ladders.indexOf(f.ladder) >= 0) return;
       f.state = "fall"; f.vy = 0; f.vx = 0; f.ladder = null;
@@ -470,8 +612,8 @@
     if (!force && !hitsBox(f.x, f.y, e[0], e[1])) return;
     var best = null, bd = Infinity;
     W.boxes.forEach(function (b) {
-      if (b.r - b.l < 2 * HALF_W) return;
-      var x = clamp(f.x, b.l + HALF_W, b.r - HALF_W);
+      if (b.sr - b.sl < 2 * HALF_W) return;
+      var x = clamp(f.x, b.sl, b.sr);
       if (hitsBox(x, b.t)) return;
       var d = Math.abs(x - f.x) + Math.abs(b.t - f.y);
       if (d < bd) { bd = d; best = { x: x, y: b.t }; }
@@ -480,7 +622,7 @@
     if (!hitsBox(gx, W.ground) && Math.abs(gx - f.x) + Math.abs(W.ground - f.y) < bd) best = { x: gx, y: W.ground };
     if (!best) { f.dead = true; return; }
     f.x = best.x; f.y = best.y; f.state = "walk"; f.vx = 0; f.vy = 0;
-    f.dismount = null; f.climbAfter = null; f.goal = null; f.grab = null;
+    f.dismount = null; f.climbAfter = null; f.goal = null; f.grab = null; f.clearTo = null;
   }
 
   function collide(now) {
@@ -496,22 +638,20 @@
         left.goal = right.goal = null;
         if (now - a.lastHit > COOLDOWN && now - b.lastHit > COOLDOWN) {
           a.lastHit = b.lastHit = now;
-          replicate(now);
+          replicate();
         }
       }
     }
   }
 
-  // A collision brings one more figure, dropping in from the sky like everyone else.
-  function replicate(now) {
+  // A collision brings one more figure, in through the door like everyone else.
+  function replicate() {
     var alive = figs.filter(function (f) { return !f.dead; });
-    if (alive.length >= CAP) {
+    if (alive.length + pending >= CAP) {
       var oldest = alive.reduce(function (o, f) { return f.born < o.born ? f : o; });
       poof(oldest);
     }
-    var before = figs.length;
-    skySpawn(1);
-    if (figs.length > before) figs[figs.length - 1].lastHit = now;
+    pending = Math.min(pending + 1, CAP);
   }
 
   function poof(f) {
@@ -560,17 +700,17 @@
     ctx.restore();
   }
 
-  // Hanging from a corner or pulling up: both hands on the corner, body below and beside it.
+  // Hanging from a rounded corner or pulling up: both hands on the curve, body beside the box.
   function drawHanger(f, t) {
     var g = f.grab;
+    var sx = f.x, sy = f.y - SHOULDER;
+    var p = { x: g.px, y: g.py };                       // the hands stay on the corner while the body moves
+    var kick = f.state === "pull" ? 0.55 * Math.sin(t / 60) : 0.18 * Math.sin(t / 160);
     ctx.save();
     pen();
-    var sx = f.x, sy = f.y - 10.4;                      // shoulders
-    var hx = g.cx - g.side * 0.6, hy = g.cy - 0.6;      // hands just outside the corner
-    var kick = f.state === "pull" ? 0.55 * Math.sin(t / 60) : 0.18 * Math.sin(t / 160);
     ctx.beginPath();
-    ctx.moveTo(sx, sy); ctx.lineTo(hx, hy);
-    ctx.moveTo(sx, sy); ctx.lineTo(hx + g.side * 1.4, hy + 0.3);
+    ctx.moveTo(sx, sy); ctx.lineTo(p.x, p.y);
+    ctx.moveTo(sx, sy); ctx.lineTo(p.x + g.side * 1.1, p.y + 1.1);
     ctx.moveTo(f.x, f.y - 6.6); ctx.lineTo(f.x, f.y - 11);
     limb(f.x, f.y - 6.6, kick, 6.6);
     limb(f.x, f.y - 6.6, -kick * 0.6 - 0.1, 6.6);
@@ -599,6 +739,8 @@
       armA = 2.25 + 0.6 * Math.sin(fl); armB = -2.25 - 0.6 * Math.sin(fl + 1.3);
     } else if (f.wave > 0) {
       legA = 0.12; legB = -0.12; armA = -0.25; armB = -(2.5 + 0.5 * Math.sin(t / 70));
+    } else if (f.state === "enter") {
+      legA = 0.12; legB = -0.12; armA = 0.25; armB = -0.25;
     } else {
       legA = 0.14 + 0.5 * s; legB = -0.14 - 0.5 * s; armA = 0.22 - 0.55 * s; armB = -0.22 + 0.55 * s;
     }
@@ -630,18 +772,19 @@
     ctx.restore();
   }
 
-  // The exit: a glowing doorway on the ground with a flickering sign above it.
-  function drawDoor(t) {
-    var D = W.door;
-    if (!D) return;
-    var dx = D.x, dy = D.y, w = 9, h = 14;
-    var pulse = 0.75 + 0.25 * Math.sin(t / 380);
+  function glowDoor(dx, dy, t, warm) {
+    var w = 9, h = 14, pulse = 0.75 + 0.25 * Math.sin(t / 380);
     ctx.save();
     ctx.shadowColor = colors.accent;
     ctx.shadowBlur = 8 * pulse;
     var g = ctx.createLinearGradient(dx, dy - h, dx, dy);
-    g.addColorStop(0, "rgba(255, 236, 160, " + (0.55 * pulse) + ")");
-    g.addColorStop(1, "rgba(255, 196, 80, " + (0.95 * pulse) + ")");
+    if (warm) {
+      g.addColorStop(0, "rgba(255, 236, 160, " + (0.55 * pulse) + ")");
+      g.addColorStop(1, "rgba(255, 196, 80, " + (0.95 * pulse) + ")");
+    } else {
+      g.addColorStop(0, "rgba(170, 236, 240, " + (0.55 * pulse) + ")");
+      g.addColorStop(1, "rgba(83, 183, 192, " + (0.95 * pulse) + ")");
+    }
     ctx.fillStyle = g;
     ctx.fillRect(dx - w / 2, dy - h, w, h);
     ctx.restore();
@@ -649,18 +792,42 @@
     ctx.strokeStyle = colors.ink;
     ctx.lineWidth = 1;
     ctx.strokeRect(dx - w / 2 - 0.5, dy - h - 0.5, w + 1, h + 0.5);
-    ctx.beginPath();                                    // door mat
-    ctx.moveTo(dx - 7, dy + 0.5); ctx.lineTo(dx + 7, dy + 0.5);
-    ctx.stroke();
-    ctx.globalAlpha *= Math.random() < 0.07 ? 0.2 : 1;  // the sign flickers
-    ctx.fillStyle = "#E5484D";
-    ctx.shadowColor = "#E5484D";
-    ctx.shadowBlur = 3;
-    ctx.font = "bold 5px -apple-system, system-ui, sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "bottom";
-    ctx.fillText("EXIT", dx, dy - h - 2);
     ctx.restore();
+  }
+
+  // The way in (top left, with its ramp) and the way out (bottom right, with a flickering sign).
+  function drawDoors(t) {
+    var E = W.entry;
+    if (E) {
+      glowDoor(E.x, E.y, t, false);
+      ctx.save();
+      ctx.strokeStyle = colors.muted;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(E.x - 5, E.y + 0.5); ctx.lineTo(E.x + 5, E.y + 0.5); ctx.lineTo(E.endX, E.endY + 0.5);
+      ctx.moveTo(E.endX - 6, E.endY + 0.5); ctx.lineTo(E.endX - 6, E.endY + 3.5);   // a post under the end of the ramp
+      ctx.stroke();
+      ctx.restore();
+    }
+    var D = W.door;
+    if (D) {
+      glowDoor(D.x, D.y, t, true);
+      ctx.save();
+      ctx.strokeStyle = colors.ink;
+      ctx.lineWidth = 1;
+      ctx.beginPath();                                    // door mat
+      ctx.moveTo(D.x - 7, D.y + 0.5); ctx.lineTo(D.x + 7, D.y + 0.5);
+      ctx.stroke();
+      ctx.globalAlpha *= Math.random() < 0.07 ? 0.2 : 1;  // the sign flickers
+      ctx.fillStyle = "#E5484D";
+      ctx.shadowColor = "#E5484D";
+      ctx.shadowBlur = 3;
+      ctx.font = "bold 5px -apple-system, system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.fillText("EXIT", D.x, D.y - 16);
+      ctx.restore();
+    }
   }
 
   function drawEffects(dt, fade) {
@@ -693,7 +860,7 @@
     ctx.translate(-window.scrollX, -window.scrollY);
     ctx.globalAlpha = fade;
     drawLadders();
-    drawDoor(t);
+    drawDoors(t);
     var top = window.scrollY - 30, bottom = window.scrollY + window.innerHeight + 30;
     figs.forEach(function (f) { if (f.y > top && f.y - H < bottom) drawFigure(f, t); });
     drawEffects(dt, fade);
@@ -713,11 +880,13 @@
       fade = 1 - (now - fadeOut) / 300;
       if (fade <= 0) { stopLoop(true); return; }
     }
+    if (!fadeOut && pending > 0 && now - lastArrival > ARRIVAL_GAP_MS / timeScale) admitOne(now);
     figs.forEach(function (f) {
       if (f.wave > 0) f.wave -= dt;
       if (f.bounce > 0) f.bounce -= dt;
       if (f.squash > 0) f.squash -= dt;
-      var moving = f.state === "climb" || f.state === "exit" || f.state === "crawl" || (f.state === "walk" && f.wave <= 0);
+      var moving = f.state === "climb" || f.state === "exit" || f.state === "crawl" || f.state === "ramp" ||
+        (f.state === "walk" && f.wave <= 0);
       if (moving) f.phase += dt * (f.state === "climb" ? 9 : f.state === "crawl" ? 8 : 11);
       if (f.state === "walk") walk(f, dt);
       else if (f.state === "fall") fall(f, dt);
@@ -725,15 +894,22 @@
       else if (f.state === "hang") hang(f, dt);
       else if (f.state === "pull") pull(f, dt);
       else if (f.state === "crawl") crawl(f, dt);
+      else if (f.state === "enter") enter(f, dt);
+      else if (f.state === "ramp") rampWalk(f, dt);
       else if (f.state === "exit") exitStep(f, dt);
     });
     if (!fadeOut) collide(now);
     figs.forEach(function (f) { settle(f, false); });
     figs = figs.filter(function (f) { return !f.dead; });
     if (!fadeOut) {
-      if (figs.length) emptySince = 0;
+      // the count went up: start the 15-second clock again
+      if (figs.length > lastCount) lastGrowth = now;
+      lastCount = figs.length;
+      if (figs.length || pending) emptySince = 0;
       else if (!emptySince) emptySince = now;
-      else if (now - emptySince > RESPAWN_MS) { emptySince = 0; skySpawn(START); }
+      else if (now - emptySince > RESPAWN_MS) { emptySince = 0; arrive(START); lastGrowth = now; }
+      // no growth for 15 seconds: one more comes in through the door
+      if (now - lastGrowth > STALL_MS / timeScale && !pending && figs.length < CAP) { arrive(1); lastGrowth = now; }
     }
     draw(t, dt, fade);
     updateCounter();
@@ -749,7 +925,7 @@
     if (raf) cancelAnimationFrame(raf);
     raf = 0;
     if (clear) {
-      figs = []; effects = []; fadeOut = 0;
+      figs = []; effects = []; fadeOut = 0; pending = 0;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       updateCounter();
@@ -851,10 +1027,12 @@
       fadeOut = 0;
       dirty = true;
       computeWorld();
-      if (!figs.length) skySpawn(START);
+      if (!figs.length && !pending) arrive(START);
+      lastGrowth = performance.now();
       startLoop();
     } else if (raf) {
       fadeOut = performance.now();   // the loop fades everything out, then stops
+      pending = 0;
     } else {
       stopLoop(true);
     }
@@ -864,7 +1042,7 @@
   function figureAt(clientX, clientY) {
     var x = clientX + window.scrollX, y = clientY + window.scrollY, pad = 5, best = null, bd = Infinity;
     figs.forEach(function (f) {
-      if (f.dead || f.state === "exit") return;
+      if (f.dead || f.state === "exit" || f.state === "enter") return;
       var e = extents(f);
       if (x < f.x - e[0] - pad || x > f.x + e[0] + pad || y < f.y - e[1] - pad || y > f.y + pad) return;
       var d = Math.abs(x - f.x) + Math.abs(y - (f.y - e[1] / 2));
@@ -882,7 +1060,7 @@
     var f = figureAt(e.clientX, e.clientY);
     if (!f || (f.state !== "walk" && f.state !== "crawl")) return;
     if (f.state === "crawl") { f.crawlLeft = 0; return; }   // a crawler stands up as soon as there's room
-    if (Math.random() < 0.5) { f.state = "fall"; f.vy = -170; f.vx = 0; f.dismount = null; f.climbAfter = null; }
+    if (Math.random() < 0.5) { f.state = "fall"; f.vy = -170; f.vx = 0; f.dismount = null; f.climbAfter = null; f.clearTo = null; }
     else f.wave = 1.2;
   }
 
@@ -927,8 +1105,8 @@
     if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
       window.__dittoFigures = {
         figs: function () { return figs; }, world: function () { return W; }, cap: CAP,
-        skySpawn: skySpawn, setSpeed: function (k) { timeScale = k; }, hitsBox: hitsBox, extents: extents,
-        setGrabChance: function (p) { GRAB_CHANCE = p; }
+        arrive: arrive, pending: function () { return pending; }, setSpeed: function (k) { timeScale = k; },
+        hitsBox: hitsBox, extents: extents, setGrabChance: function (p) { GRAB_CHANCE = p; }
       };
     }
   }
