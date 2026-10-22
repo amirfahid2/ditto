@@ -40,6 +40,7 @@
   var H = 14.6, HALF_W = 3;      // standing: feet to top of head, half the body width
   var HC = 8.4, HALF_WC = 5;     // crawling on hands and knees
   var SHOULDER = 10.4;           // feet to shoulders
+  var ROLL_G = 160, CHIN_T = 0.35;   // sliding down a rounded corner; the chin-up before crawling up one
   var GRAVITY = 700, CLIMB = 26, WALK_MIN = 15, WALK_MAX = 24, CRAWL_MIN = 8, CRAWL_MAX = 12;
   var START = 2, COOLDOWN = 2000, EXIT_CHANCE = 0.3, GRAB_CHANCE = 0.35;
   var STALL_MS = 10000, ARRIVAL_GAP_MS = 900;   // the door: one more only if the count hasn't grown in 10 s
@@ -224,7 +225,7 @@
   }
 
   function extents(f) {
-    if (f.state === "crawl" || (f.state === "pull" && f.grab && f.grab.k > 0.6)) return [HALF_WC, HC];
+    if (f.state === "crawl" || (f.state === "pull" && f.grab && f.grab.up)) return [HALF_WC, HC];
     if ((f.state === "fall" || f.state === "slip") && f.lowSlip) return [HALF_WC, HC];   // still crouched, sliding off a low ledge
     return [HALF_W, H];
   }
@@ -356,7 +357,7 @@
       crawlSpeed: rand(CRAWL_MIN, CRAWL_MAX), state: "walk", vx: 0, vy: 0, phase: rand(0, 6),
       born: performance.now(), lastHit: -1e9, wave: 0, bounce: 0, squash: 0, goal: null, dismount: null,
       climbAfter: null, ladder: null, grab: null, clearTo: null, crawlLeft: 0, tried: {},
-      alpha: 1, scale: 1, dead: false
+      alpha: 1, scale: 1, dead: false, tilt: 0
     };
     figs.push(f);
     return f;
@@ -393,7 +394,7 @@
   }
 
   function touchDown(f, vy) {
-    f.state = "walk"; f.vx = 0; f.vy = 0; f.goal = null; f.tried = {}; f.clearTo = null; f.slip = false; f.lowSlip = false;
+    f.state = "walk"; f.vx = 0; f.vy = 0; f.goal = null; f.tried = {}; f.clearTo = null; f.slip = false; f.lowSlip = false; f.tilt = 0;
     if (vy > 140) f.squash = 0.22;
   }
 
@@ -472,12 +473,49 @@
     }
     // slip: slide down the rounded corner, then drop beside this box (near) or drift across to the next (far)
     f.state = "slip"; f.vy = 0; f.vx = 0; f.clearTo = null; f.slip = true;
-    f.slipG = { key: p.key, edge: edge, t: p.t, r: f.dir > 0 ? p.rtr : p.rtl, dir: f.dir, to: pick === "near" ? nearX : farX };
+    var S = f.slipG = { key: p.key, edge: edge, t: p.t, r: f.dir > 0 ? p.rtr : p.rtl, dir: f.dir, to: pick === "near" ? nearX : farX };
+    if (crawling && S.r >= 6) {
+      // on hands and knees: tip forward over the curve and slide down it
+      var th0 = Math.asin(clamp((f.x - (edge - f.dir * S.r)) * f.dir / (S.r + 5.1), 0, 1));
+      if (curveClear(edge, p.t, S.r, f.dir, f.dir, th0, Math.PI / 2)) { S.roll = true; S.th = th0; S.w = f.crawlSpeed / S.r; }
+    }
+  }
+
+  // A crawler on a rounded corner: hands and knees on the curve at angle th (0 = the top,
+  // 90 degrees = the side), the body tilted to match. side -1 = the box's left corner, +1 = its right.
+  function onCurve(f, edge, t, r, side, th) {
+    var lift = r + 5.1;                                   // curve to the middle of the body
+    f.x = edge - side * r + lift * side * Math.sin(th);
+    f.y = t + r - lift * Math.cos(th) + 4.5;
+    f.tilt = f.dir === side ? th : -th;                   // nose down going over, nose up coming up
+  }
+
+  // Where the crawler's lines are drawn (hands, knees, back, head), for checking against boxes.
+  function crawlerPoints(x, y, dir, tilt) {
+    var c = Math.cos(tilt), s = Math.sin(tilt), out = [];
+    [[-5.9, -0.4], [-3.3, -0.4], [-3.9, 0], [-1.3, 0], [-3.2, -4.2], [-0.4, -4.7], [2.4, -5.2], [1.7, 0], [4.3, 0],
+     [3.9, -8.4], [5.7, -6.6], [3.9, -4.8], [2.1, -6.6]].forEach(function (q) {
+      var lx = q[0], ly = q[1] + 4.5;                     // about the middle of the body
+      out.push([x + dir * (lx * c - ly * s), y - 4.5 + lx * s + ly * c]);
+    });
+    return out;
+  }
+
+  // Is the whole way over (or up) a rounded corner, from angle a to b, clear of every box?
+  function curveClear(edge, t, r, side, dir, a, b) {
+    var probe = { dir: dir };
+    for (var i = 0; i <= 6; i++) {
+      onCurve(probe, edge, t, r, side, a + (b - a) * i / 6);
+      var pts = crawlerPoints(probe.x, probe.y, dir, probe.tilt);
+      for (var j = 0; j < pts.length; j++) if (hitsBox(pts[j][0], pts[j][1] + 0.6, 0.6, 1.2)) return false;
+    }
+    return true;
   }
 
   // Following the curve of the corner: the body just touches it until it's clear of the box.
   function slipStep(f, dt) {
     var S = f.slipG, e = extents(f);
+    if (S.roll) { rollStep(f, S, dt); return; }
     f.x += S.dir * 70 * dt;
     var inner = S.dir > 0 ? f.x - e[0] : f.x + e[0];
     if (S.dir > 0 ? inner >= S.edge : inner <= S.edge) {
@@ -487,6 +525,17 @@
     }
     var into = S.dir > 0 ? inner - (S.edge - S.r) : (S.edge + S.r) - inner;
     f.y = (S.r < 1.5 || into <= 0) ? S.t : S.t + S.r - Math.sqrt(Math.max(0, S.r * S.r - into * into)) - 0.6;
+  }
+
+  // Going over a rounded corner on hands and knees: it slides faster and faster down the curve,
+  // then drops off beside the box (near) or drifts across to the next one (far), straightening out.
+  function rollStep(f, S, dt) {
+    S.w += ROLL_G * Math.sin(S.th) / S.r * dt;
+    S.th = Math.min(Math.PI / 2, S.th + S.w * dt);
+    onCurve(f, S.edge, S.t, S.r, S.dir, S.th);
+    if (S.th < Math.PI / 2) return;
+    f.state = "fall"; f.vy = S.w * S.r; f.vx = 0; f.slipG = null;
+    if ((S.to - f.x) * S.dir > 1) { f.vx = S.dir * 80; f.clearTo = S.to; }
   }
 
   function walk(f, dt) {
@@ -564,6 +613,10 @@
 
   function fall(f, dt) {
     f.vy = Math.min(f.vy + GRAVITY * dt, 420);
+    if (f.tilt) {
+      f.tilt = Math.sign(f.tilt) * Math.max(0, Math.abs(f.tilt) - 5 * dt);
+      if (!f.tilt && f.lowSlip && f.clearTo === null && !hitsBox(f.x, f.y)) f.lowSlip = false;   // straightened out
+    }
     var nx = f.x + f.vx * dt, e = extents(f);
     if (f.clearTo !== null && (f.vx > 0 ? nx >= f.clearTo : nx <= f.clearTo)) { nx = f.clearTo; f.vx = 0; f.clearTo = null; f.lowSlip = false; }
     if (f.vx && (nx < 4 || nx > W.width - 4 || hitsBox(nx, f.y, e[0], e[1]))) { f.vx = 0; nx = f.x; f.clearTo = null; }
@@ -620,6 +673,7 @@
       else if (gapR >= -0.6 && gapR <= 3) side = 1;      // figure is right of it
       else continue;
       var rad = side < 0 ? b.rtl : b.rtr;
+      if (rad < 6) continue;                              // only rounded corners: the way up is along the curve
       var grip = gripPoint(b, side, rad);
       var shoulderY = grip.y + (rad < 1.5 ? 4.6 : 3.5);    // hang with the hands just above the head
       if (!(f.y - SHOULDER < shoulderY && ny - SHOULDER >= shoulderY)) continue;
@@ -630,18 +684,17 @@
       f.slip = false;
       if (Math.random() > chance) continue;
       var hx = side < 0 ? b.l - HALF_W - 0.5 : b.r + HALF_W + 0.5, hy = shoulderY + SHOULDER;
-      var topX = side < 0 ? b.sl + HALF_WC : b.sr - HALF_WC;
+      var chin = shoulderY - grip.y - 0.5;                // the chin-up brings the shoulders up to the hands
+      var topX = side < 0 ? b.sl + HALF_WC : b.sr - HALF_WC, edge = side < 0 ? b.l : b.r;
       if (b.sr - b.sl < 2 * HALF_WC + 4 || hitsBox(topX, b.t, HALF_WC, HC)) continue;
-      var clear = true;                                   // hanging and rising beside the box stay in the gap
-      for (var y = hy; y >= b.t - 0.01 && clear; y -= 3) if (hitsBox(hx, y)) clear = false;
-      if (!clear || hitsBox(hx, b.t)) continue;
-      f.state = "hang"; f.x = hx; f.y = hy; f.vx = 0; f.vy = 0;
-      var room = Infinity;
-      W.boxes.forEach(function (o) {
-        if (o.b <= b.t && topX + HALF_WC > o.l && topX - HALF_WC < o.r) room = Math.min(room, b.t - o.b);
-      });
-      f.grab = { key: b.key, l: b.l, r: b.r, t: b.t, side: side, px: grip.x, py: grip.y, hx: hx, hy: hy, topX: topX,
-        lift: clamp(room - HC - 0.6, 0, 2.5), time: 0, k: 0, hold: rand(0.5, 0.9) };
+      if (hitsBox(hx, hy) || hitsBox(hx, hy - chin)) continue;
+      // then up the curve on hands and knees, starting where the hanging body already is
+      var th0 = clamp(Math.atan2((hx - (edge - side * rad)) * side, b.t + rad - (hy - chin - H / 2)), 0.3, 1.45);
+      var thTop = Math.asin(clamp((topX - (edge - side * rad)) * side / (rad + 5.1), 0, 1));
+      if (!curveClear(edge, b.t, rad, side, -side, th0, thTop)) continue;
+      f.state = "hang"; f.x = hx; f.y = hy; f.vx = 0; f.vy = 0; f.tilt = 0;
+      f.grab = { key: b.key, l: b.l, r: b.r, t: b.t, side: side, rad: rad, px: grip.x, py: grip.y, hx: hx, hy: hy, topX: topX,
+        chin: chin, th: th0, thTop: thTop, up: false, time: 0, hold: rand(0.5, 0.9) };
       return true;
     }
     return false;
@@ -655,10 +708,11 @@
   function lostGrip(f, where) {
     if (dbg) {
       var g = f.grab, b = g && boxByKey(g.key);
-      dbg.push({ kind: "griplost", id: f.id, where: where, k: g && +g.k.toFixed(2), key: g && String(g.key),
+      dbg.push({ kind: "griplost", id: f.id, where: where, up: g && g.up, key: g && String(g.key),
         box: !!b, dt: b ? [Math.round(b.t - g.t), Math.round((g.side < 0 ? b.l : b.r) - (g.side < 0 ? g.l : g.r))] : null });
     }
     f.state = "fall"; f.vy = 0; f.grab = null;
+    if (f.tilt) f.lowSlip = true;                 // was crawling up the curve: falls crouched
   }
 
   function hang(f, dt) {
@@ -667,22 +721,22 @@
     if (f.grab.time >= f.grab.hold) { f.state = "pull"; f.grab.time = 0; }
   }
 
-  // Pull-up: rise beside the box until the feet reach its top, then roll onto the edge on hands and knees.
+  // Pull-up: a short chin-up on bent arms, then up the curve of the corner on hands and knees
+  // and onto the top, where it crawls a little way before standing up.
   function pull(f, dt) {
     if (!grabStillValid(f)) { lostGrip(f, "pull"); return; }
     var g = f.grab;
     g.time += dt;
-    g.k = Math.min(1, g.time / 1.0);
-    if (g.k < 0.6) {
-      f.x = g.hx;
-      f.y = g.hy + (g.t - g.hy) * ease(g.k / 0.6);
-    } else {
-      var k2 = (g.k - 0.6) / 0.4;
-      f.x = g.hx + (g.topX - g.hx) * ease(k2);
-      f.y = g.t - g.lift * Math.sin(Math.PI * k2);         // up and over the edge
-    }
     f.dir = -g.side;
-    if (g.k >= 1) { f.x = g.topX; f.grab = null; startCrawl(f, rand(16, 36)); }
+    if (g.time < CHIN_T) {
+      f.x = g.hx;
+      f.y = g.hy - g.chin * ease(g.time / CHIN_T);
+      return;
+    }
+    g.up = true;
+    g.th = Math.max(g.thTop, g.th - f.crawlSpeed * 1.4 / g.rad * dt);
+    onCurve(f, g.side < 0 ? g.l : g.r, g.t, g.rad, g.side, g.th);
+    if (g.th <= g.thTop) { f.x = g.topX; f.y = g.t; f.tilt = 0; f.grab = null; startCrawl(f, rand(16, 36)); }
   }
 
   function climb(f, dt) {
@@ -728,10 +782,15 @@
     if (k >= 1) { f.dead = true; if (dbg) dbg.push({ kind: "gone", why: "exit", id: f.id }); }
   }
 
+  function onCorner(f) {
+    return (f.state === "slip" && f.slipG && f.slipG.roll) || (f.state === "pull" && f.grab && f.grab.up);
+  }
+
   // Strict rule: never inside a box. Anything that ends up there (layout change, resize)
   // moves to the nearest legal top edge or the ground.
   function settle(f, force) {
     if (f.dead || f.state === "exit" || f.state === "enter" || f.state === "ramp") return;
+    if (onCorner(f)) return;                     // hugging a rounded corner: its pose was checked against the curve
     if (f.state === "climb") {
       if (f.ladder && W.ladders.indexOf(f.ladder) >= 0) return;
       f.state = "fall"; f.vy = 0; f.vx = 0; f.ladder = null;
@@ -760,6 +819,7 @@
     f.x = best.x; f.y = best.y; f.state = best.state; f.vx = 0; f.vy = 0;
     if (best.state === "crawl") f.crawlLeft = 10;
     f.dismount = null; f.climbAfter = null; f.goal = null; f.grab = null; f.clearTo = null; f.lowSlip = false; f.slip = false; f.slipG = null;
+    f.tilt = 0;
   }
 
   function collide(now) {
@@ -855,6 +915,7 @@
     ctx.save();
     ctx.translate(f.x, f.y);
     ctx.scale(f.dir, 1);
+    if (f.tilt) { ctx.translate(0, -4.5); ctx.rotate(f.tilt); ctx.translate(0, 4.5); }   // on a curve: + nose down
     pen();
     ctx.beginPath();
     ctx.moveTo(-3.2, -4.2); ctx.lineTo(2.4, -5.2);                                             // back
@@ -869,7 +930,18 @@
     ctx.restore();
   }
 
-  // Hanging from a rounded corner or pulling up: both hands on the curve, body beside the box.
+  // Upper arm and forearm, 4.4 each: the elbow bends down when the hand is closer than that.
+  function arm(sx, sy, hx, hy) {
+    var dx = hx - sx, dy = hy - sy, d = Math.sqrt(dx * dx + dy * dy) || 1, bend = 0;
+    if (d < 8.8) bend = Math.sqrt(4.4 * 4.4 - d * d / 4);
+    var nx = -dy / d, ny = dx / d;
+    if (ny < 0) { nx = -nx; ny = -ny; }
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(sx + dx / 2 + nx * bend, sy + dy / 2 + ny * bend);
+    ctx.lineTo(hx, hy);
+  }
+
+  // Hanging from a rounded corner or doing the chin-up: both hands on the curve, body beside the box.
   function drawHanger(f, t) {
     var g = f.grab;
     var sx = f.x, sy = f.y - SHOULDER;
@@ -878,8 +950,8 @@
     ctx.save();
     pen();
     ctx.beginPath();
-    ctx.moveTo(sx, sy); ctx.lineTo(p.x, p.y);
-    ctx.moveTo(sx, sy); ctx.lineTo(p.x + g.side * 1.1, p.y + 1.1);
+    arm(sx, sy, p.x, p.y);
+    arm(sx, sy, p.x + g.side * 1.1, p.y + 1.1);
     ctx.moveTo(f.x, f.y - 6.6); ctx.lineTo(f.x, f.y - 11);
     limb(f.x, f.y - 6.6, kick, 6.6);
     limb(f.x, f.y - 6.6, -kick * 0.6 - 0.1, 6.6);
@@ -891,7 +963,7 @@
   }
 
   function drawFigure(f, t) {
-    if (f.state === "crawl" || (f.state === "pull" && f.grab && f.grab.k > 0.6) || ((f.state === "fall" || f.state === "slip") && f.lowSlip)) { drawCrawler(f); return; }
+    if (f.state === "crawl" || (f.state === "pull" && f.grab && f.grab.up) || ((f.state === "fall" || f.state === "slip") && f.lowSlip)) { drawCrawler(f); return; }
     if ((f.state === "hang" || f.state === "pull") && f.grab) { drawHanger(f, t); return; }
     ctx.save();
     ctx.translate(f.x, f.y);
@@ -1331,6 +1403,10 @@
         arrive: arrive, releaseOne: releaseOne, pending: function () { return pending; },
         doors: function () { return { enabled: enabled, entryOpen: entryOpen, exitOpen: exitOpen, entryK: entryK, exitK: exitK, sceneK: sceneK }; }, setSpeed: function (k) { timeScale = k; },
         hitsBox: hitsBox, extents: extents, setGrabChance: function (p) { GRAB_CHANCE = p; },
+        onCorner: onCorner, crawlerPoints: crawlerPoints,
+        step: function (n) {                     // run n frames by hand (a hidden preview gets no animation frames)
+          for (var i = 0; i < n; i++) { if (raf) cancelAnimationFrame(raf); raf = 0; frame((last || performance.now()) + 1000 / 60); }
+        },
         poofTimes: function () { return poofTimes; }
       };
     }
