@@ -9,6 +9,8 @@
  * the exit) and they start coming out; while open, each click lets one more out. A click on
  * the exit shuts it and the entrance with it, and they all go.
  * Every page load starts with the door shut.
+ * When a crowd keeps doubling in one spot (15 poofs at the cap within 10 s), the 30 most
+ * crowded figures go poof at once.
  * The canvas has pointer-events: none; clicks on figures are read with a passive document
  * listener that never calls preventDefault.
  *
@@ -18,7 +20,6 @@
  *   data-board        boxes that make up the board; ladders reach its top row (default ".sq")
  *   data-text-tops    text boxes whose platform is the top of the letters, not the line box
  *   data-sky          where arrivals are dropped off (the ramp ends above it)
- *   data-ladder-from  element whose top is the foot of the left ladder (default: the ground)
  *   data-ignore       extra selector whose clicks the figures ignore (e.g. ".scrim, .sheet")
  *   data-cap          population cap (default 50; 5 on small screens)
  */
@@ -42,6 +43,7 @@
   var GRAVITY = 700, CLIMB = 26, WALK_MIN = 15, WALK_MAX = 24, CRAWL_MIN = 8, CRAWL_MAX = 12;
   var START = 2, COOLDOWN = 2000, EXIT_CHANCE = 0.3, GRAB_CHANCE = 0.35;
   var STALL_MS = 10000, ARRIVAL_GAP_MS = 900;   // the door: one more only if the count hasn't grown in 10 s
+  var CRUSH_POOFS = 15, CRUSH_MS = 10000, CRUSH_CLEAR = 30, CRUSH_NEAR = 40;   // breaking up a crowd
   // a phone (by its screen, so a narrow window on a computer still gets the full cast)
   var SMALL = Math.min(screen.width || 9999, screen.height || 9999) < 500;
   var CAP = SMALL ? 5 : (parseInt(ds.cap, 10) || 50);
@@ -49,7 +51,7 @@
   var W = { width: 0, height: 0, ground: 0, boxes: [], ladders: [], door: null, entry: null };
   var figs = [], effects = [];
   var enabled = false, dirty = true, raf = 0, last = 0, nextId = 1;
-  var pending = 0, lastArrival = 0, lastRelease = 0, history = [];
+  var pending = 0, lastArrival = 0, lastRelease = 0, history = [], poofTimes = [];
   var colors = { ink: "#16262E", muted: "#64808B", accent: "#0E7C86" };
   var canvas, ctx, ui, entryBtn, exitBtn, dpr = 1, cw = 0, ch = 0, timeScale = 1;
   var entryOpen = false, exitOpen = false, entryK = 0, exitK = 0, sceneK = 0;   // the doors: shut by default
@@ -285,9 +287,8 @@
     W.entry = { x: doorX, y: doorBottom, endX: endX, endY: endY };
   }
 
-  // Ladders reach the top row of the board: one up the left side from the top of the "saved"
-  // note, one up the right side from the ground (so a figure at the bottom can always get back
-  // up), plus one in any vertical gap of 20 px or more.
+  // Ladders reach the top row of the board: one up each side from the ground (so a figure at
+  // the bottom can always get back up), plus one in any vertical gap of 20 px or more.
   function buildLadders() {
     W.ladders = [];
     var board = W.boxes.filter(function (b) { return b.board; });
@@ -312,9 +313,7 @@
     var minL = Infinity, maxR = -Infinity;
     W.boxes.forEach(function (b) { if (b.b > topRow - 40) { minL = Math.min(minL, b.l); maxR = Math.max(maxR, b.r); } });
     var leftX = Math.max(minL - 12, 8), rightX = Math.min(maxR + 12, W.width - 8);
-    var from = ds.ladderFrom && document.querySelector(ds.ladderFrom);
-    var fromBox = from && (boxFor(from) || docRect(from));
-    if (leftX + 4.5 < minL - 1) addLadder(leftX, topRow, fromBox ? fromBox.t : W.ground, first, 1);
+    if (leftX + 4.5 < minL - 1) addLadder(leftX, topRow, W.ground, first, 1);
     if (rightX - 4.5 > maxR + 1) addLadder(rightX, topRow, W.ground, lastBox, -1);
     board.forEach(function (a) {
       var right = null;
@@ -785,7 +784,7 @@
   // A collision doubles them: a new figure pops up right there and walks off its own way.
   function replicate(x, y, now) {
     var alive = figs.filter(function (f) { return !f.dead; });
-    if (alive.length >= CAP) poof(alive.reduce(function (o, f) { return f.born < o.born ? f : o; }));
+    if (alive.length >= CAP) poofForRoom(alive);
     if (hitsBox(x, y)) return;
     var n = makeFig(x, y);
     n.lastHit = now;
@@ -794,11 +793,34 @@
     effects.push({ type: "pop", x: x, y: y - H / 2, t: 0 });
   }
 
-  function poof(f) {
+  function poof(f, why) {
     f.dead = true;
-    if (dbg) dbg.push({ kind: "gone", why: "poof", id: f.id });
+    if (dbg) dbg.push({ kind: "gone", why: why || "poof", id: f.id });
     var e = extents(f);
     effects.push({ x: f.x, y: f.y - e[1] / 2, t: 0 });
+  }
+
+  // One goes poof to make room at the cap. A crowd that keeps doubling in one spot fills the
+  // cap over and over: 15 of these within 10 s and the 30 most crowded go poof at once.
+  function poofForRoom(alive) {
+    poof(alive.reduce(function (o, f) { return f.born < o.born ? f : o; }));
+    var now = performance.now();
+    poofTimes.push(now);
+    while (poofTimes.length && now - poofTimes[0] > CRUSH_MS / timeScale) poofTimes.shift();
+    if (poofTimes.length >= CRUSH_POOFS) breakUpCrowd();
+  }
+
+  function breakUpCrowd() {
+    poofTimes = [];
+    var alive = figs.filter(function (f) { return !f.dead && f.state !== "exit"; });
+    alive.forEach(function (f) {
+      f.crowd = 0;
+      alive.forEach(function (g) {
+        if (g !== f && Math.abs(g.x - f.x) < CRUSH_NEAR && Math.abs(g.y - f.y) < CRUSH_NEAR) f.crowd++;
+      });
+    });
+    alive.sort(function (a, b) { return b.crowd - a.crowd || a.born - b.born; });
+    alive.slice(0, Math.max(0, Math.min(CRUSH_CLEAR, alive.length - START))).forEach(function (f) { poof(f, "crowd"); });
   }
 
   /* ---------------- drawing ---------------- */
@@ -1222,6 +1244,7 @@
     lastArrival = performance.now();
     lastRelease = performance.now();
     history = [];
+    poofTimes = [];
   }
 
   function shutDown() {
@@ -1248,9 +1271,7 @@
   // Clicking the entrance door lets one more through (the oldest goes poof at the cap).
   function releaseOne() {
     var alive = figs.filter(function (f) { return !f.dead; });
-    if (alive.length + pending >= CAP && alive.length) {
-      poof(alive.reduce(function (o, f) { return f.born < o.born ? f : o; }));
-    }
+    if (alive.length + pending >= CAP && alive.length) poofForRoom(alive);
     pending = Math.min(pending + 1, Math.max(1, CAP - alive.length + 1));
     lastArrival = 0;
   }
@@ -1309,7 +1330,8 @@
         figs: function () { return figs; }, world: function () { return W; }, cap: CAP,
         arrive: arrive, releaseOne: releaseOne, pending: function () { return pending; },
         doors: function () { return { enabled: enabled, entryOpen: entryOpen, exitOpen: exitOpen, entryK: entryK, exitK: exitK, sceneK: sceneK }; }, setSpeed: function (k) { timeScale = k; },
-        hitsBox: hitsBox, extents: extents, setGrabChance: function (p) { GRAB_CHANCE = p; }
+        hitsBox: hitsBox, extents: extents, setGrabChance: function (p) { GRAB_CHANCE = p; },
+        poofTimes: function () { return poofTimes; }
       };
     }
   }
