@@ -21,7 +21,7 @@
  *   data-text-tops    text boxes whose platform is the top of the letters, not the line box
  *   data-sky          where arrivals are dropped off (the ramp ends above it)
  *   data-ignore       extra selector whose clicks the figures ignore (e.g. ".scrim, .sheet")
- *   data-cap          population cap (default 50; 20 on phones)
+ *   data-cap          population cap (default 50; 25 on phones)
  */
 (function () {
   "use strict";
@@ -49,7 +49,7 @@
   // a phone (by its screen, so a narrow window on a computer still gets the full cast)
   var SMALL = Math.min(screen.width || 9999, screen.height || 9999) < 500;
   // (a handful on a phone must never hit the cap: at 5, three or four out kept poofing)
-  var CAP = SMALL ? 20 : (parseInt(ds.cap, 10) || 50);
+  var CAP = SMALL ? 25 : (parseInt(ds.cap, 10) || 50);
   var CRUSH_CLEAR = Math.round(CAP * 0.6);   // 30 of 50
 
   var W = { width: 0, height: 0, ground: 0, boxes: [], ladders: [], door: null, entry: null };
@@ -1174,9 +1174,10 @@
       if (f.bounce > 0) f.bounce -= dt;
       if (f.squash > 0) f.squash -= dt;
       if (f.grow > 0) f.grow -= dt;
-      var moving = f.state === "climb" || f.state === "exit" || f.state === "crawl" || f.state === "ramp" ||
-        (f.state === "walk" && f.wave <= 0);
-      if (moving) f.phase += dt * (f.state === "climb" ? 9 : f.state === "crawl" ? 8 : 11);
+      var moving = f.state === "climb" || f.state === "exit" || f.state === "crawl" || f.state === "pull" ||
+        f.state === "ramp" || (f.state === "walk" && f.wave <= 0);
+      // hands and knees step in time with the speed: crawling up a corner goes 1.4 times as fast
+      if (moving) f.phase += dt * (f.state === "climb" ? 9 : f.state === "crawl" ? 8 : f.state === "pull" ? 11.2 : 11);
       if (f.state === "walk") walk(f, dt);
       else if (f.state === "fall") fall(f, dt);
       else if (f.state === "slip") slipStep(f, dt);
