@@ -31,6 +31,8 @@
     --sheet: #FFFFFF;
     --field: #F2F5F6;
     --shadow: 0 1px 2px rgba(22, 38, 46, 0.06), 0 4px 14px rgba(22, 38, 46, 0.07);
+    --c-navy: #1F3D69; --c-teal: #0D7D87; --c-green: #2E7D4F; --c-amber: #C78A1C;
+    --c-rose: #B3475C; --c-purple: #6B4FA1; --c-slate: #596B78;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -49,6 +51,8 @@
       --sheet: #1A2429;
       --field: #0F1518;
       --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 14px rgba(0, 0, 0, 0.35);
+      --c-navy: #2E4F80; --c-teal: #298C96; --c-green: #388C5E; --c-amber: #C79433;
+      --c-rose: #BD546B; --c-purple: #7A61B0; --c-slate: #6B7D8C;
     }
   }
   :root[data-theme="dark"] {
@@ -67,6 +71,8 @@
     --sheet: #1A2429;
     --field: #0F1518;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 14px rgba(0, 0, 0, 0.35);
+    --c-navy: #2E4F80; --c-teal: #298C96; --c-green: #388C5E; --c-amber: #C79433;
+    --c-rose: #BD546B; --c-purple: #7A61B0; --c-slate: #6B7D8C;
   }
 
   * { box-sizing: border-box; }
@@ -150,6 +156,7 @@
     touch-action: manipulation;
     transition: transform 0.1s ease;
     overflow: hidden;
+    position: relative;
   }
   .sq:active { transform: scale(0.96); }
   .sq .name {
@@ -193,6 +200,50 @@
     font-weight: 500;
     opacity: 0.75;
   }
+
+  /* the iPhone's squares (Options ▸ Use my iPhone's squares): its colors, borders, emoji, pictures */
+  .sq.colored { color: #FFFFFF; }
+  .sq .ring { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; }
+  .sq .emoji { font-size: 30px; line-height: 1; }
+  .sq .emoji.big { font-size: 46px; }
+  .sq.pic { padding: 0; }
+  .sq.pic img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .sq.pic .fcap { display: none; }
+  .sq.pic .name.cap {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    padding: 4px 6px;
+    background: rgba(0, 0, 0, 0.45);
+    color: #FFFFFF;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .grid.waiting { opacity: 0.35; pointer-events: none; }
+  .phone-conflict {
+    background: var(--card);
+    border: 1.5px solid var(--accent);
+    border-radius: 14px;
+    padding: 12px 14px;
+    margin: 0 0 14px;
+    font-size: 14px;
+    line-height: 1.45;
+  }
+  .phone-conflict[hidden] { display: none; }
+  .phone-conflict .row { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+  .phone-conflict button {
+    font: inherit;
+    font-weight: 600;
+    border-radius: 999px;
+    padding: 7px 14px;
+    border: 1.5px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    cursor: pointer;
+  }
+  .phone-conflict button.primary { background: var(--accent); color: var(--accent-ink); }
+  .saved-note .phone-status { display: block; margin-top: 4px; }
+  .saved-note .phone-status[data-kind="error"] { color: var(--danger); }
 
   .folder-panel {
     grid-column: 1 / -1;
@@ -499,6 +550,13 @@
     <button class="arrange-btn" id="arrangeBtn">Arrange</button>
   </header>
   <p class="hint" id="mainHint">Tap a square to copy its text. Press and hold to edit.</p>
+  <div class="phone-conflict" id="phoneConflict" hidden>
+    <span id="phoneConflictText">Your iPhone changed the squares while you were editing here.</span>
+    <div class="row">
+      <button type="button" class="primary" id="phoneUseTheirs">Use the iPhone's</button>
+      <button type="button" id="phoneKeepMine">Keep mine</button>
+    </div>
+  </div>
   <div class="grid" id="grid"></div>
   <footer>
     <button id="shareBtn">Share my list</button>
@@ -506,7 +564,7 @@
     <button id="backupBtn">Copy backup</button>
     <button id="restoreBtn">Restore backup</button>
   </footer>
-  <p class="hint saved-note" style="margin-top:10px">Your squares are saved in this browser on this device only. <b>Copy backup</b> puts them on your clipboard as text you can keep in Notes or an email; <b>Restore backup</b> pastes that text back here or on another device.</p>
+  <p class="hint saved-note" id="savedNote" style="margin-top:10px">Your squares are saved in this browser on this device only. <b>Copy backup</b> puts them on your clipboard as text you can keep in Notes or an email; <b>Restore backup</b> pastes that text back here or on another device.</p>
   <div class="stores">
     <a class="store" href="https://apps.apple.com/app/id6810430522"><small>Download on the</small>App Store</a>
     <span class="store soon" aria-label="Ditto for Android is coming soon to Google Play"><small>Coming soon for Android</small>Google Play</span>
@@ -572,6 +630,13 @@
     </span>
     <input type="checkbox" class="switch" id="combineToggle">
   </label>
+  <label class="opt-row" for="phoneToggle">
+    <span class="opt-text">
+      <span class="opt-name">Use my iPhone's squares</span>
+      <span class="opt-desc" id="phoneDesc"></span>
+    </span>
+    <input type="checkbox" class="switch" id="phoneToggle">
+  </label>
   <div class="version">Ditto v3.0</div>
 </div>
 
@@ -581,8 +646,15 @@
 (function () {
   var KEY = "tapcopy.v1";
   var state = null;
+  var local = null;      // this browser's own squares
+  var phone = null;      // the iPhone's board, while "Use my iPhone's squares" is on
+  var phoneLib = null;
 
-  function uid() { return "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  // the iPhone only reads UUIDs, so squares added to its board get one
+  function uid() {
+    if (phone) return crypto.randomUUID().toUpperCase();
+    return "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
   function isFolder(sq) { return !!(sq && sq.type === "folder"); }
   function isSet(sq) { return !!(sq && (sq.name || sq.text || isFolder(sq))); }
 
@@ -604,11 +676,12 @@
 
   function save() {
     chain = { ids: [], texts: [], last: 0 };
-    try { localStorage.setItem(KEY, JSON.stringify(state)); }
+    if (phone && state !== local) phone.changed(state.squares);   // goes to the iPhone; options stay here
+    try { localStorage.setItem(KEY, JSON.stringify(local)); }
     catch (e) { showToast("Couldn't save — storage unavailable"); }
   }
 
-  state = load() || freshState();
+  state = local = load() || freshState();
   if (!state.options) state.options = { combineTaps: false };
 
   var grid = document.getElementById("grid");
@@ -684,6 +757,7 @@
         b.appendChild(dots);
         b.setAttribute("aria-label", "Empty square — tap to set up");
       }
+      if (phone) phone.decorate(b, sq);
       attachPressEvents(b, { kind: "top", index: i },
         function (el) { onSquareTap(i, el); },
         function () { openEditor({ kind: "square", index: i }); });
@@ -726,6 +800,7 @@
       t.setAttribute("aria-label", "Copy " + (item.name || ""));
       t.dataset.folder = fIdx;
       t.dataset.item = j;
+      if (phone) phone.decorate(t, item);
       attachPressEvents(t, { kind: "item", folder: fIdx, item: j },
         function (el) { copySquare(item, el); },
         function () { openEditor({ kind: "item", folder: fIdx, item: j }); });
@@ -795,6 +870,7 @@
     }
     chain.last = now;
     var payload = chain.texts.join("\n\n");
+    if (phone) payload = phoneLib.substituteTokens(payload);   // [TODAY], [TOMORROW], [TIME], as on the iPhone
     var count = chain.texts.length;
     var done = function () {
       el.classList.remove("flash");
@@ -1084,6 +1160,7 @@
     disarmDelete();
     importReplace.classList.remove("confirm");
     importReplace.textContent = "Replace my whole board";
+    if (picturesWaiting) { picturesWaiting = false; render(); }   // the iPhone's pictures came in meanwhile
   }
   scrim.addEventListener("click", closeSheets);
 
@@ -1321,12 +1398,159 @@
   var combineToggle = document.getElementById("combineToggle");
   document.getElementById("optionsBtn").addEventListener("click", function () {
     combineToggle.checked = !!state.options.combineTaps;
+    showPhoneOption();
     openSheet(optionsSheet);
   });
   document.getElementById("optionsDone").addEventListener("click", closeSheets);
   combineToggle.addEventListener("change", function () {
     state.options.combineTaps = combineToggle.checked;
     save();
+  });
+
+  /* ---------- the iPhone's squares ---------- */
+  // Linked at dittotap.com/link, this browser can show the iPhone's board instead of its own:
+  // taps copy as on the phone and edits go back to it. Off, the web app keeps its own squares.
+
+  var LINK_KEY = "ditto.link.v1", USE_KEY = "ditto.link.useOnSite";
+  var phoneToggle = document.getElementById("phoneToggle");
+  var phoneDesc = document.getElementById("phoneDesc");
+  var savedNote = document.getElementById("savedNote");
+  var SAVED_NOTE = savedNote.innerHTML;
+  var restoreBtn = document.getElementById("restoreBtn");
+  var phoneConflict = document.getElementById("phoneConflict");
+  var phoneStarting = false, picturesWaiting = false;
+
+  function stored(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+  function isLinked() {
+    try { var s = JSON.parse(stored(LINK_KEY) || "null"); return !!(s && s.secret); } catch (e) { return false; }
+  }
+  function phoneWanted() { return stored(USE_KEY) === "1" && isLinked(); }
+
+  function showPhoneOption() {
+    var linked = isLinked();
+    phoneToggle.checked = phoneWanted();
+    phoneToggle.disabled = !linked;
+    phoneDesc.innerHTML = linked
+      ? "Show the squares from Ditto on your iPhone here instead of this browser's own. Tap to copy them; changes you make here go to your iPhone. Off: this browser keeps its own squares, and <a href=\"link/\">dittotap.com/link</a> edits only your iPhone."
+      : "Link this browser to Ditto on your iPhone first, at <a href=\"link/\">dittotap.com/link</a>. Then this shows your iPhone's squares here: tap to copy, and changes go to your iPhone.";
+  }
+
+  function phoneNote(kind, text) {
+    if (!phone) { savedNote.innerHTML = SAVED_NOTE; return; }
+    savedNote.textContent = "These are your iPhone's squares, linked at dittotap.com/link. Changes you make here go to your iPhone the next time you open Ditto. To use this browser's own squares, turn off Use my iPhone's squares in Options.";
+    if (text) {
+      var st = document.createElement("span");
+      st.className = "phone-status";
+      st.dataset.kind = kind;
+      st.textContent = text;
+      savedNote.appendChild(st);
+    }
+  }
+
+  function busy() {
+    return arranging || !!document.querySelector(".sheet.open") || !!document.querySelector(".ghost");
+  }
+
+  function useSquares(squares) {
+    state = phone ? { squares: squares, options: local.options } : local;
+    if (openFolderId !== null && indexById(openFolderId) < 0) openFolderId = null;
+    restoreBtn.hidden = !!phone;
+    render();
+  }
+
+  function startPhone(then) {
+    if (phone || phoneStarting) return;
+    phoneStarting = true;
+    grid.classList.add("waiting");
+    savedNote.textContent = "Loading your iPhone's squares…";
+    import("./link/phone-board.js").then(function (lib) {
+      phoneLib = lib;
+      return lib.openPhoneBoard({
+        busy: busy,
+        remote: function (squares, device) {
+          if (!phone) return;
+          useSquares(squares);
+          showToast("Updated from " + device);
+        },
+        status: function (kind, text) { phoneNote(kind, text); },
+        conflict: function (device) {
+          if (!phone) return;
+          document.getElementById("phoneConflictText").textContent = device + " changed the squares while you were editing here.";
+          phoneConflict.hidden = false;
+          phoneNote("error", "Not saved yet: choose a version above.");
+        },
+        unlinked: function () {
+          phone = null;
+          phoneConflict.hidden = true;
+          useSquares(null);
+          phoneNote();
+          showToast("This browser is no longer linked to your iPhone");
+        },
+        pictures: function () {
+          if (!phone) return;
+          if (busy()) picturesWaiting = true; else render();
+        }
+      });
+    }).then(function (res) {
+      phoneStarting = false;
+      grid.classList.remove("waiting");
+      if (res.error) {
+        useSquares(null);
+        phoneNote();
+        if (res.error === "unlinked") {
+          try { localStorage.removeItem(USE_KEY); } catch (e) {}
+          showToast("This browser is no longer linked to your iPhone");
+        } else {
+          savedNote.innerHTML = SAVED_NOTE;
+          var st = document.createElement("span");
+          st.className = "phone-status";
+          st.dataset.kind = "error";
+          st.textContent = "Can't reach your iPhone's squares right now, so these are this browser's own.";
+          savedNote.appendChild(st);
+        }
+      } else {
+        phone = res;
+        openFolderId = null;
+        useSquares(phone.squares);
+        phoneNote();
+      }
+      if (then) then();
+    }, function () {
+      phoneStarting = false;
+      grid.classList.remove("waiting");
+      useSquares(null);
+      phoneNote();
+      if (then) then();
+    });
+  }
+
+  function stopPhone() {
+    if (!phone) return;
+    phone.finish();
+    phone = null;
+    phoneConflict.hidden = true;
+    openFolderId = null;
+    useSquares(null);
+    phoneNote();
+  }
+
+  phoneToggle.addEventListener("change", function () {
+    try {
+      if (phoneToggle.checked) localStorage.setItem(USE_KEY, "1");
+      else localStorage.removeItem(USE_KEY);
+    } catch (e) {}
+    if (phoneToggle.checked) startPhone(); else stopPhone();
+  });
+  document.getElementById("phoneUseTheirs").addEventListener("click", function () {
+    phoneConflict.hidden = true;
+    if (phone) phone.resolve(false);
+  });
+  document.getElementById("phoneKeepMine").addEventListener("click", function () {
+    phoneConflict.hidden = true;
+    if (phone) phone.resolve(true);
+  });
+  window.addEventListener("beforeunload", function (e) {
+    if (phone && phone.unsaved()) { e.preventDefault(); e.returnValue = ""; }
   });
 
   /* ---------- backup / restore ---------- */
@@ -1365,7 +1589,8 @@
   });
 
   render();
-  checkShareHash();
+  if (phoneWanted()) startPhone(checkShareHash);   // a shared list then goes onto the iPhone's board
+  else checkShareHash();
 })();
 </script>
 <script>
@@ -1375,6 +1600,6 @@ if ("serviceWorker" in navigator) {
   });
 }
 </script>
-<script src="figures.js" defer data-boxes=".sq, .folder-panel, .store, .arrange-btn, .wrap > footer button, .saved-note, .wordmark" data-grab=".sq, .folder-panel, .store" data-board=".grid > .sq" data-text-tops=".wordmark, .saved-note" data-sky=".wordmark" data-ignore=".scrim, .sheet, .ghost"></script>
+<script src="figures.js" defer data-boxes=".sq, .folder-panel, .store, .arrange-btn, .wrap > footer button, .saved-note, .wordmark, .phone-conflict" data-grab=".sq, .folder-panel, .store" data-board=".grid > .sq" data-text-tops=".wordmark, .saved-note" data-sky=".wordmark" data-ignore=".scrim, .sheet, .ghost"></script>
 </body>
 </html>

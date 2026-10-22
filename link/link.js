@@ -5,6 +5,7 @@ import { qrSvg } from "./qr.js";
 
 const RELAY = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? "http://localhost:8672" : "https://ditto-relay.ditto-relay.workers.dev";
 const STORE_KEY = "ditto.link.v1";
+const USE_KEY = "ditto.link.useOnSite";   // dittotap.com shows the iPhone's squares (link/phone-board.js)
 const PAIR_POLL_MS = 2000, PAIR_POLL_LIMIT_MS = 10 * 60 * 1000;
 const EDIT_POLL_MS = 10000, SAVE_DELAY_MS = 1500;
 const COLORS = ["navy", "teal", "green", "amber", "rose", "purple", "slate"];
@@ -179,6 +180,7 @@ function enterEditor(remote) {
   $("pairView").hidden = true;
   $("editorView").hidden = false;
   $("unlinkBtn").hidden = false;
+  try { $("useHereToggle").checked = localStorage.getItem(USE_KEY) === "1"; } catch (e) {}
   setStatus("saved", "Up to date");
   render();
   schedulePoll();
@@ -307,7 +309,7 @@ function resolveConflict(keepMine) {
 
 function unlinked(message) {
   stopPolling();
-  try { localStorage.removeItem(STORE_KEY); } catch (e) {}
+  try { localStorage.removeItem(STORE_KEY); localStorage.removeItem(USE_KEY); } catch (e) {}
   S.board = []; S.path = []; S.selectedId = null; S.dirty = false;
   toast(message);
   startPairing(true);
@@ -691,6 +693,13 @@ $("addSquareBtn").addEventListener("click", () => addSquare(false));
 $("addFolderBtn").addEventListener("click", () => addSquare(true));
 $("useRemoteBtn").addEventListener("click", () => resolveConflict(false));
 $("keepMineBtn").addEventListener("click", () => resolveConflict(true));
+$("useHereToggle").addEventListener("change", (e) => {
+  try {
+    if (e.target.checked) localStorage.setItem(USE_KEY, "1");
+    else localStorage.removeItem(USE_KEY);
+  } catch (err) {}
+  toast(e.target.checked ? "dittotap.com now shows your iPhone's squares in this browser." : "dittotap.com shows this browser's own squares again.");
+});
 document.addEventListener("visibilitychange", () => { if (!document.hidden && !$("editorView").hidden) pollEditor(); });
 window.addEventListener("beforeunload", (e) => { if (S.dirty || S.saving) { e.preventDefault(); e.returnValue = ""; } });
 
