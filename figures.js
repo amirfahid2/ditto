@@ -21,7 +21,7 @@
  *   data-text-tops    text boxes whose platform is the top of the letters, not the line box
  *   data-sky          where arrivals are dropped off (the ramp ends above it)
  *   data-ignore       extra selector whose clicks the figures ignore (e.g. ".scrim, .sheet")
- *   data-cap          population cap (default 50; 5 on small screens)
+ *   data-cap          population cap (default 50; 20 on phones)
  */
 (function () {
   "use strict";
@@ -40,14 +40,17 @@
   var H = 14.6, HALF_W = 3;      // standing: feet to top of head, half the body width
   var HC = 8.4, HALF_WC = 5;     // crawling on hands and knees
   var SHOULDER = 10.4;           // feet to shoulders
-  var ROLL_G = 160, CHIN_T = 0.35;   // sliding down a rounded corner; the chin-up before crawling up one
+  var ROLL_G = 160;              // sliding down a rounded corner
+  var HALF_WH = 2;               // hanging from a corner: legs together, close to the box
   var GRAVITY = 700, CLIMB = 26, WALK_MIN = 15, WALK_MAX = 24, CRAWL_MIN = 8, CRAWL_MAX = 12;
   var START = 2, COOLDOWN = 2000, EXIT_CHANCE = 0.3, GRAB_CHANCE = 0.35;
   var STALL_MS = 10000, ARRIVAL_GAP_MS = 900;   // the door: one more only if the count hasn't grown in 10 s
-  var CRUSH_POOFS = 15, CRUSH_MS = 10000, CRUSH_CLEAR = 30, CRUSH_NEAR = 40;   // breaking up a crowd
+  var CRUSH_POOFS = 15, CRUSH_MS = 10000, CRUSH_NEAR = 40;   // breaking up a crowd
   // a phone (by its screen, so a narrow window on a computer still gets the full cast)
   var SMALL = Math.min(screen.width || 9999, screen.height || 9999) < 500;
-  var CAP = SMALL ? 5 : (parseInt(ds.cap, 10) || 50);
+  // (a handful on a phone must never hit the cap: at 5, three or four out kept poofing)
+  var CAP = SMALL ? 20 : (parseInt(ds.cap, 10) || 50);
+  var CRUSH_CLEAR = Math.round(CAP * 0.6);   // 30 of 50
 
   var W = { width: 0, height: 0, ground: 0, boxes: [], ladders: [], door: null, entry: null };
   var figs = [], effects = [];
@@ -225,7 +228,8 @@
   }
 
   function extents(f) {
-    if (f.state === "crawl" || (f.state === "pull" && f.grab && f.grab.up)) return [HALF_WC, HC];
+    if (f.state === "crawl" || f.state === "pull") return [HALF_WC, HC];
+    if (f.state === "hang") return [HALF_WH, H];
     if ((f.state === "fall" || f.state === "slip") && f.lowSlip) return [HALF_WC, HC];   // still crouched, sliding off a low ledge
     return [HALF_W, H];
   }
@@ -653,12 +657,12 @@
     f.x = nx; f.y = ny;
   }
 
-  // Where the hands go: on the curve of the rounded top corner, 35 degrees up from the side
-  // (a square corner is simply the corner). side -1 = the box's left corner, +1 = its right.
+  // Where the hands go: on the curve of the rounded top corner, 25 degrees up from the side, in
+  // reach of normal-length arms (a square corner is simply the corner). side -1 = the box's left corner, +1 = its right.
   function gripPoint(b, side, rad) {
     var bx = side < 0 ? b.l : b.r;
     if (rad < 1.5) return { x: bx, y: b.t };
-    var a = 35 * Math.PI / 180, inset = rad * (1 - Math.cos(a));
+    var a = 25 * Math.PI / 180, inset = rad * (1 - Math.cos(a));
     return { x: side < 0 ? bx + inset : bx - inset, y: b.t + rad * (1 - Math.sin(a)) };
   }
 
@@ -675,7 +679,7 @@
       var rad = side < 0 ? b.rtl : b.rtr;
       if (rad < 6) continue;                              // only rounded corners: the way up is along the curve
       var grip = gripPoint(b, side, rad);
-      var shoulderY = grip.y + (rad < 1.5 ? 4.6 : 3.5);    // hang with the hands just above the head
+      var shoulderY = grip.y + 2;                         // hands at chin height, arms their normal length
       if (!(f.y - SHOULDER < shoulderY && ny - SHOULDER >= shoulderY)) continue;
       var key = boxKey(b);
       if (f.tried[key]) continue;
@@ -683,18 +687,17 @@
       var chance = f.slip ? 0.55 : GRAB_CHANCE;
       f.slip = false;
       if (Math.random() > chance) continue;
-      var hx = side < 0 ? b.l - HALF_W - 0.5 : b.r + HALF_W + 0.5, hy = shoulderY + SHOULDER;
-      var chin = shoulderY - grip.y - 0.5;                // the chin-up brings the shoulders up to the hands
+      var hx = side < 0 ? b.l - HALF_WH - 0.5 : b.r + HALF_WH + 0.5, hy = shoulderY + SHOULDER;
       var topX = side < 0 ? b.sl + HALF_WC : b.sr - HALF_WC, edge = side < 0 ? b.l : b.r;
       if (b.sr - b.sl < 2 * HALF_WC + 4 || hitsBox(topX, b.t, HALF_WC, HC)) continue;
-      if (hitsBox(hx, hy) || hitsBox(hx, hy - chin)) continue;
+      if (hitsBox(hx, hy, HALF_WH, H)) continue;
       // then up the curve on hands and knees, starting where the hanging body already is
-      var th0 = clamp(Math.atan2((hx - (edge - side * rad)) * side, b.t + rad - (hy - chin - H / 2)), 0.3, 1.45);
+      var th0 = clamp(Math.atan2((hx - (edge - side * rad)) * side, b.t + rad - (hy - H / 2)), 0.3, 1.45);
       var thTop = Math.asin(clamp((topX - (edge - side * rad)) * side / (rad + 5.1), 0, 1));
       if (!curveClear(edge, b.t, rad, side, -side, th0, thTop)) continue;
       f.state = "hang"; f.x = hx; f.y = hy; f.vx = 0; f.vy = 0; f.tilt = 0;
       f.grab = { key: b.key, l: b.l, r: b.r, t: b.t, side: side, rad: rad, px: grip.x, py: grip.y, hx: hx, hy: hy, topX: topX,
-        chin: chin, th: th0, thTop: thTop, up: false, time: 0, hold: rand(0.5, 0.9) };
+        th: th0, thTop: thTop, time: 0, hold: rand(0.25, 0.45) };
       return true;
     }
     return false;
@@ -708,7 +711,7 @@
   function lostGrip(f, where) {
     if (dbg) {
       var g = f.grab, b = g && boxByKey(g.key);
-      dbg.push({ kind: "griplost", id: f.id, where: where, up: g && g.up, key: g && String(g.key),
+      dbg.push({ kind: "griplost", id: f.id, where: where, key: g && String(g.key),
         box: !!b, dt: b ? [Math.round(b.t - g.t), Math.round((g.side < 0 ? b.l : b.r) - (g.side < 0 ? g.l : g.r))] : null });
     }
     f.state = "fall"; f.vy = 0; f.grab = null;
@@ -718,22 +721,15 @@
   function hang(f, dt) {
     if (!grabStillValid(f)) { lostGrip(f, "hang"); return; }
     f.grab.time += dt;
-    if (f.grab.time >= f.grab.hold) { f.state = "pull"; f.grab.time = 0; }
+    if (f.grab.time >= f.grab.hold) { f.state = "pull"; f.grab.time = 0; pull(f, 0); }   // onto the curve at once
   }
 
-  // Pull-up: a short chin-up on bent arms, then up the curve of the corner on hands and knees
-  // and onto the top, where it crawls a little way before standing up.
+  // Pull-up: straight from the catch, up the curve of the corner on hands and knees and onto
+  // the top, where it crawls a little way before standing up.
   function pull(f, dt) {
     if (!grabStillValid(f)) { lostGrip(f, "pull"); return; }
     var g = f.grab;
-    g.time += dt;
     f.dir = -g.side;
-    if (g.time < CHIN_T) {
-      f.x = g.hx;
-      f.y = g.hy - g.chin * ease(g.time / CHIN_T);
-      return;
-    }
-    g.up = true;
     g.th = Math.max(g.thTop, g.th - f.crawlSpeed * 1.4 / g.rad * dt);
     onCurve(f, g.side < 0 ? g.l : g.r, g.t, g.rad, g.side, g.th);
     if (g.th <= g.thTop) { f.x = g.topX; f.y = g.t; f.tilt = 0; f.grab = null; startCrawl(f, rand(16, 36)); }
@@ -783,7 +779,7 @@
   }
 
   function onCorner(f) {
-    return (f.state === "slip" && f.slipG && f.slipG.roll) || (f.state === "pull" && f.grab && f.grab.up);
+    return (f.state === "slip" && f.slipG && f.slipG.roll) || (f.state === "pull" && !!f.grab);
   }
 
   // Strict rule: never inside a box. Anything that ends up there (layout change, resize)
@@ -930,10 +926,10 @@
     ctx.restore();
   }
 
-  // Upper arm and forearm, 4.4 each: the elbow bends down when the hand is closer than that.
+  // Upper arm and forearm, 2.7 each (a normal arm): the elbow bends down when the hand is closer.
   function arm(sx, sy, hx, hy) {
     var dx = hx - sx, dy = hy - sy, d = Math.sqrt(dx * dx + dy * dy) || 1, bend = 0;
-    if (d < 8.8) bend = Math.sqrt(4.4 * 4.4 - d * d / 4);
+    if (d < 5.4) bend = Math.sqrt(2.7 * 2.7 - d * d / 4);
     var nx = -dy / d, ny = dx / d;
     if (ny < 0) { nx = -nx; ny = -ny; }
     ctx.moveTo(sx, sy);
@@ -941,12 +937,12 @@
     ctx.lineTo(hx, hy);
   }
 
-  // Hanging from a rounded corner or doing the chin-up: both hands on the curve, body beside the box.
+  // Hanging from a rounded corner: both hands on the curve, body close beside the box.
   function drawHanger(f, t) {
     var g = f.grab;
     var sx = f.x, sy = f.y - SHOULDER;
     var p = { x: g.px, y: g.py };                       // the hands stay on the corner while the body moves
-    var kick = f.state === "pull" ? 0.55 * Math.sin(t / 60) : 0.32 * Math.sin(t / 210 + f.id);
+    var kick = 0.25 * Math.sin(t / 210 + f.id);         // legs together, swinging a little
     ctx.save();
     pen();
     ctx.beginPath();
@@ -963,8 +959,8 @@
   }
 
   function drawFigure(f, t) {
-    if (f.state === "crawl" || (f.state === "pull" && f.grab && f.grab.up) || ((f.state === "fall" || f.state === "slip") && f.lowSlip)) { drawCrawler(f); return; }
-    if ((f.state === "hang" || f.state === "pull") && f.grab) { drawHanger(f, t); return; }
+    if (f.state === "crawl" || f.state === "pull" || ((f.state === "fall" || f.state === "slip") && f.lowSlip)) { drawCrawler(f); return; }
+    if (f.state === "hang" && f.grab) { drawHanger(f, t); return; }
     ctx.save();
     ctx.translate(f.x, f.y);
     var sq = f.squash > 0 ? f.squash / 0.22 : 0;          // landing squash
