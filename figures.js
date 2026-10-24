@@ -59,6 +59,9 @@
   var DOG_HW = 4.8, DOG_H = 9.2, DOG_MIN = 34, DOG_MAX = 44, DOG_CAP = SMALL ? 6 : 12;
   var DOG_LONG = 1.5, DOG_SPRINT = 1.5;   // a box wider than 1.5 squares: run 1.5 times as fast, leap far off it
   var DOG_MEET_MS = 600;                   // a newborn puppy can't make another one straight away
+  var DOG_RUNUP = 0.45;                    // run-up (of the square's width) for a jump to the next square
+  // Clicked on a ladder, a Ditto stops for a second and tells you off: "Stop it!" first, then any of these.
+  var LADDER_PAUSE = 1, NAGS = ["STOP", "What's wrong with you?", "This is dangerous!", "No!"];
   // The second easter egg: after 1000 Dittos, 1 in 50 that come through the door wears a tall striped
   // hat. A hat makes a Ditto 6 px taller, and it can't be doubled or go poof (it can still leave).
   var HAT_UNLOCK = 1000, HAT_CHANCE = 1 / 50, HAT_H = 6;
@@ -532,6 +535,11 @@
   }
 
   function touchDown(f, vy) {
+    if (dbg && f.jumpTo !== undefined) {
+      var on = platformUnder(f.x, f.y);
+      dbg.push({ kind: "dogland", ok: !!on && on.key === f.jumpTo, x: Math.round(f.x), y: Math.round(f.y) });
+      delete f.jumpTo;
+    }
     if (f.dog && f.toExit && W.door) { f.state = "exit"; f.exitT = 0; f.door = W.door; f.vx = 0; f.vy = 0; return; }   // the hop into the door
     f.state = "walk"; f.vx = 0; f.vy = 0; f.goal = null; f.tried = {}; f.clearTo = null; f.slip = false; f.lowSlip = false; f.tilt = 0;
     f.spin = 0; f.spinV = 0; f.fallTop = null;
@@ -750,10 +758,11 @@
     f.sprint = !!p && p.r - p.l > DOG_LONG * W.squareW;   // a long box: room for a run-up
     f.dash = false;
     if (p) {
-      // the run-up: from where it started running this way on this box to the end of its top
+      // the run-up: from where it started running this way on this box to the box's edge; about half
+      // a square of it (45%, so a dog that lands in the middle of a small phone-size square counts)
       if (f.runKey !== p.key || f.runDir !== f.dir) { f.runKey = p.key; f.runDir = f.dir; f.runFrom = f.x; }
-      var runway = ((f.dir > 0 ? p.sr : p.sl) - f.runFrom) * f.dir;
-      f.dash = !f.sprint && runway >= 0.5 * (p.sr - p.sl) && !!nextBoxAhead(f, p);   // half a square: enough to jump across
+      var runway = ((f.dir > 0 ? p.r : p.l) - f.runFrom) * f.dir;
+      f.dash = !f.sprint && runway >= DOG_RUNUP * (p.r - p.l) && !!nextBoxAhead(f, p);
     }
     var nx = f.x + f.dir * f.speed * (f.sprint || f.dash ? DOG_SPRINT : 1) * dt;
     if (ground) {
@@ -780,7 +789,7 @@
   function dogOffEdge(f, p) {
     var edge = f.dir > 0 ? p.r : p.l, downX = edge + f.dir * (DOG_HW + 0.5);
     var ahead = f.dash && nextBoxAhead(f, p);
-    if (ahead) { dogJump(f, p, ahead.x); return; }
+    if (ahead) { if (dbg) f.jumpTo = ahead.b.key; dogJump(f, p, ahead.x); return; }
     if (f.sprint && !hitsBox(f.x + f.dir * 8, p.t - 8, DOG_HW, DOG_H)) {
       f.state = "fall"; f.vy = -160; f.vx = f.dir * f.speed * DOG_SPRINT * 2.2; f.clearTo = null;   // out it flies
       return;
@@ -825,6 +834,13 @@
       if (d < bd) { bd = d; best = g; }
     });
     return best;
+  }
+
+  // A speech bubble over a figure's head, on the side with more room.
+  function say(f, text) {
+    effects = effects.filter(function (e) { return !(e.type === "say" && e.who === f); });   // one bubble at a time
+    var side = f.x > W.width - 70 ? -1 : 1;
+    effects.push({ type: "say", text: text, who: f, x: f.x + side * 5, y: f.y - standExtents(f)[1] - 2, t: 0, dir: side, life: 1.3 });
   }
 
   // Caught up with: the Ditto jumps in fright and runs off ahead of the dog.
@@ -1005,10 +1021,11 @@
     var L = f.ladder;
     if (!L || W.ladders.indexOf(L) < 0) { f.state = "fall"; f.vy = 0; f.vx = 0; f.ladder = null; return; }
     f.x = L.x;
+    if (f.climbPause > 0) { f.climbPause -= dt; return; }   // clicked: hanging on, telling you off
     f.y -= CLIMB * dt;
     if (f.y <= L.top) {
       // hop off the top of the ladder onto the flat part of the square
-      f.y = L.top; f.ladder = null; f.dir = L.exitDir;
+      f.y = L.top; f.ladder = null; f.dir = L.exitDir; f.nags = 0;
       var T = 2 * 95 / GRAVITY;
       f.state = "fall"; f.vy = -95; f.vx = (L.exitX - f.x) / T; f.clearTo = null; f.tried = {};
     }
@@ -1490,14 +1507,15 @@
   function drawEffects(dt, fade) {
     effects.forEach(function (e) {
       e.t += dt;
-      if (e.type === "bark") {                      // a cartoon "Woof!" bubble
-        var kb = e.t / 0.9;
+      if (e.type === "say") {                       // a cartoon speech bubble: "Woof!", "Stop it!"…
+        var kb = e.t / e.life;
         if (kb >= 1) { e.done = true; return; }
         ctx.save();
         ctx.globalAlpha = fade * (kb < 0.75 ? 1 : (1 - kb) / 0.25);
         var bx = e.x, by = e.y - 4 * Math.min(1, kb * 4);
         ctx.font = "800 7.5px -apple-system, system-ui, sans-serif";
-        var bw = ctx.measureText("Woof!").width + 7;
+        var bw = ctx.measureText(e.text).width + 7;
+        bx = clamp(bx, window.scrollX + bw / 2 + 2, window.scrollX + cw - bw / 2 - 2);   // stays on screen
         ctx.fillStyle = colors.card;
         ctx.strokeStyle = colors.ink;
         ctx.lineWidth = 1;
@@ -1507,7 +1525,7 @@
         ctx.fill(); ctx.stroke();
         ctx.fillStyle = colors.ink;
         ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillText("Woof!", bx, by - 4.6);
+        ctx.fillText(e.text, bx, by - 4.6);
         ctx.restore();
         return;
       }
@@ -1624,7 +1642,7 @@
       if (f.bounce > 0) f.bounce -= dt;
       if (f.squash > 0) f.squash -= dt;
       if (f.grow > 0) f.grow -= dt;
-      var moving = f.state === "climb" || f.state === "exit" || f.state === "crawl" || f.state === "pull" ||
+      var moving = (f.state === "climb" && !(f.climbPause > 0)) || f.state === "exit" || f.state === "crawl" || f.state === "pull" ||
         f.state === "ramp" || (f.state === "walk" && f.wave <= 0);
       // hands and knees step in time with the speed: crawling up a corner goes 1.4 times as fast
       if (moving) f.phase += dt * (f.dog ? (f.sprint || f.dash ? 17 * DOG_SPRINT : 17) : f.state === "climb" ? 9 : f.state === "crawl" ? 8 : f.state === "pull" ? 11.2 : 11);
@@ -1803,10 +1821,16 @@
   function onClick(e) {
     if (!enabled || isInteractive(e.target)) return;
     var f = figureAt(e.clientX, e.clientY);
+    if (f && f.state === "climb" && !f.dog) {
+      f.climbPause = LADDER_PAUSE;
+      say(f, f.nags ? NAGS[Math.floor(Math.random() * NAGS.length)] : "Stop it!");
+      f.nags = (f.nags || 0) + 1;
+      return;
+    }
     if (!f || (f.state !== "walk" && f.state !== "crawl")) return;
     if (f.dog) {                                    // a wag and a bark, then off he runs again
       f.wag = 1.4; f.bark = 0.55;
-      effects.push({ type: "bark", x: f.x + f.dir * 6, y: f.y - DOG_H - 2, t: 0, dir: f.dir });
+      effects.push({ type: "say", text: "Woof!", x: f.x + f.dir * 6, y: f.y - DOG_H - 2, t: 0, dir: f.dir, life: 0.9 });
       return;
     }
     if (f.state === "crawl") { f.crawlLeft = 0; return; }   // a crawler stands up as soon as there's room
@@ -1864,8 +1888,8 @@
         onCorner: onCorner, crawlerPoints: crawlerPoints, stats: function () { return stats; },
         arriveDog: arriveDog, dogs: dogs, people: people, announce: function () { return notes[0] || null; }, notes: function () { return notes; },
         setHatChance: function (p) { HAT_CHANCE = p; },
-        step: function (n) {                     // run n frames by hand (a hidden preview gets no animation frames)
-          for (var i = 0; i < n; i++) { if (raf) cancelAnimationFrame(raf); raf = 0; frame((last || performance.now()) + 1000 / 60); }
+        step: function (n, ms) {                 // run n frames by hand (a hidden preview gets no animation frames)
+          for (var i = 0; i < n; i++) { if (raf) cancelAnimationFrame(raf); raf = 0; frame((last || performance.now()) + (ms || 1000 / 60)); }
         },
         poofTimes: function () { return poofTimes; }
       };
