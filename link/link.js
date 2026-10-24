@@ -181,6 +181,8 @@ function stopPolling() {
 function enterEditor(remote) {
   if (THEN_HOME) {
     stopPolling();
+    S.rev = remote.rev;                            // the iPhone has connected: now it counts as linked
+    persist();
     try { localStorage.setItem(USE_KEY, "1"); } catch (e) {}
     location.replace("../#linked");
     return;

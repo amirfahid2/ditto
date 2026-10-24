@@ -25,7 +25,8 @@ function savedLink() {
   } catch (e) { return null; }
 }
 
-export const isLinked = () => !!savedLink();
+// linked = the iPhone has connected at least once (opening /link saves a code before any scan)
+export const isLinked = () => { const s = savedLink(); return !!(s && s.rev > 0); };
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const phoneBlank = (sq) => !sq.isFolder && !sq.name && !sq.text;
