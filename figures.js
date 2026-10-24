@@ -64,7 +64,8 @@
   var pending = 0, lastArrival = 0, lastRelease = 0, history = [], poofTimes = [];
   var pendingDogs = 0, nextDogAt = 0, doorClicks = 0;
   var colors = { ink: "#16262E", muted: "#64808B", accent: "#0E7C86", card: "#FFFFFF" };
-  var stats = { released: 0, exited: 0, giants: 0, dogs: 0 };   // giants: not built yet, so always 0
+  var stats = { released: 0, exited: 0, giants: 0, dogs: 0, eggs: {} };   // giants: not built yet, so always 0
+  var announce = null, dogSoon = false;          // the "Easter egg unlocked" note; the first dog right after it
   var canvas, ctx, ui, entryBtn, exitBtn, dpr = 1, cw = 0, ch = 0, timeScale = 1;
   var entryOpen = false, exitOpen = false, entryK = 0, exitK = 0, sceneK = 0;   // the doors: shut by default
   var dbg = null;                // jump/relocation log, only on a local preview
@@ -418,19 +419,42 @@
       if (saved) {
         stats.released = +saved.released || 0; stats.exited = +saved.exited || 0;
         stats.giants = +saved.giants || 0; stats.dogs = +saved.dogs || 0;
+        stats.eggs = saved.eggs && typeof saved.eggs === "object" ? saved.eggs : {};
       }
     } catch (e) {}
+    checkEggs();            // a goal reached before this egg existed counts right away
+  }
+
+  function saveStats() {
+    try { localStorage.setItem(STATS_KEY, JSON.stringify(stats)); } catch (e) {}
+  }
+
+  // Easter eggs unlock from the saved tally, so anyone already past a goal when an egg is added
+  // gets it at once. Each egg reads every counter that shows the goal was met: the dogs need 200
+  // Dittos, through the door or out of the exit (doubled Dittos leave too, so exits can run ahead).
+  var EGGS = [
+    { id: "dogs", title: "Ditto dogs", reached: function () { return stats.released >= DOG_UNLOCK || stats.exited >= DOG_UNLOCK; } },
+  ];
+  function checkEggs() {
+    EGGS.forEach(function (egg) {
+      if (stats.eggs[egg.id] || !egg.reached()) return;
+      stats.eggs[egg.id] = new Date().toISOString().slice(0, 10);
+      saveStats();
+      announce = { text: "Easter egg unlocked: " + egg.title + "!", t: 0 };   // shown the next time the doors are open
+      if (egg.id === "dogs") { dogSoon = true; nextDogAt = 0; }
+    });
   }
 
   function count(key) {
     stats[key]++;
     if (String(stats[key]).length > String(stats[key] - 1).length || (key === "dogs" && stats.dogs === 1)) dirty = true;   // wider or taller: place it again
-    try { localStorage.setItem(STATS_KEY, JSON.stringify(stats)); } catch (e) {}
+    saveStats();
+    checkEggs();
   }
 
   function people() { return figs.filter(function (f) { return !f.dead && !f.dog; }); }
   function dogs() { return figs.filter(function (f) { return !f.dead && f.dog; }); }
-  function dogsUnlocked() { return stats.released >= DOG_UNLOCK; }
+  function dogsUnlocked() { return !!stats.eggs.dogs; }
 
   // New figures come in through the door, one at a time.
   function arrive(n) {
@@ -1454,7 +1478,32 @@
       figs.forEach(function (f) { if (f.y > top && f.y - H < bottom) drawFigure(f, t); });
       drawEffects(dt, scene);
       ctx.globalAlpha = 1;
+      if (announce && enabled) drawAnnounce(dt);
     }
+  }
+
+  // "Easter egg unlocked: …" at the top of the screen for a few seconds, once.
+  function drawAnnounce(dt) {
+    announce.t += dt;
+    var k = announce.t, alpha = k < 0.3 ? k / 0.3 : k < 5.5 ? 1 : 1 - (k - 5.5) / 0.6;
+    if (alpha <= 0) { announce = null; return; }
+    var pop = k < 0.3 ? 0.85 + 0.15 * (k / 0.3) : 1;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.font = "700 13px 'IBM Plex Sans', system-ui, sans-serif";
+    var text = announce.text, w = ctx.measureText(text).width + 30, h = 30;
+    var x = window.scrollX + cw / 2, y = window.scrollY + 46;
+    ctx.translate(x, y); ctx.scale(pop, pop);
+    ctx.fillStyle = colors.accent;
+    ctx.shadowColor = "rgba(0, 0, 0, 0.25)"; ctx.shadowBlur = 10;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(-w / 2, -h / 2, w, h, 15); else ctx.rect(-w / 2, -h / 2, w, h);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#FFFFFF";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(text, 0, 1);
+    ctx.restore();
   }
 
   /* ---------------- loop ---------------- */
@@ -1481,7 +1530,7 @@
     }
     raf = requestAnimationFrame(frame);
     if (enabled && dogsUnlocked()) {
-      if (!nextDogAt) nextDogAt = now + rand(DOG_GAP_MIN, DOG_GAP_MAX) / timeScale;
+      if (!nextDogAt) { nextDogAt = now + (dogSoon ? 1500 : rand(DOG_GAP_MIN, DOG_GAP_MAX)) / timeScale; dogSoon = false; }   // just unlocked: one right away
       if (now >= nextDogAt) { arriveDog(); nextDogAt = now + rand(DOG_GAP_MIN, DOG_GAP_MAX) / timeScale; }
     }
     if (enabled && (pending > 0 || pendingDogs > 0) && entryK > 0.6 && now - lastArrival > ARRIVAL_GAP_MS / timeScale) admitOne(now);
@@ -1729,7 +1778,7 @@
         doors: function () { return { enabled: enabled, entryOpen: entryOpen, exitOpen: exitOpen, entryK: entryK, exitK: exitK, sceneK: sceneK }; }, setSpeed: function (k) { timeScale = k; },
         hitsBox: hitsBox, extents: extents, setGrabChance: function (p) { GRAB_CHANCE = p; },
         onCorner: onCorner, crawlerPoints: crawlerPoints, stats: function () { return stats; },
-        arriveDog: arriveDog, dogs: dogs, people: people,
+        arriveDog: arriveDog, dogs: dogs, people: people, announce: function () { return announce; },
         step: function (n) {                     // run n frames by hand (a hidden preview gets no animation frames)
           for (var i = 0; i < n; i++) { if (raf) cancelAnimationFrame(raf); raf = 0; frame((last || performance.now()) + 1000 / 60); }
         },
