@@ -8,7 +8,6 @@ const RELAY = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? "http://loc
 export const LINK_KEY = "ditto.link.v1";
 export const USE_KEY = "ditto.link.useOnSite";
 const POLL_MS = 10000, SAVE_DELAY_MS = 800, RETRY_MS = 8000;
-const COLORS = ["navy", "teal", "green", "amber", "rose", "purple", "slate"];
 const UUID = /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i;
 
 export function deviceLabel() {
@@ -32,16 +31,23 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
 const phoneBlank = (sq) => !sq.isFolder && !sq.name && !sq.text;
 
 // ---------- the iPhone board <-> the web app's squares ----------
-// The web app knows text squares, "…" blanks and folders of texts one level deep. Everything
-// else a phone square carries (color, border, picture, folders inside folders) is kept from
-// the phone's copy, matched by id, when the board goes back.
+// The web app knows text squares, "…" blanks and folders of texts one level deep, each with the
+// same looks as on the phone (color, border, emoji or picture, name shown or not). What it
+// doesn't show (folders inside folders, blanks inside folders) is kept from the phone's copy,
+// matched by id, when the board goes back.
+export const LOOKS = ["color", "border", "image", "showName"];
+
+function withLooks(out, sq) {
+  LOOKS.forEach((k) => { if (sq[k] != null) out[k] = sq[k]; });
+  return out;
+}
 
 function webSquare(sq) {
   if (sq.isFolder) {
-    return { id: sq.id, type: "folder", name: sq.name || "", items: (sq.items || []).filter(shownInFolder).map(webSquare) };
+    return withLooks({ id: sq.id, type: "folder", name: sq.name || "", items: (sq.items || []).filter(shownInFolder).map(webSquare) }, sq);
   }
   if (phoneBlank(sq)) return { id: sq.id };
-  return { id: sq.id, name: sq.name || "", text: sq.text || "" };
+  return withLooks({ id: sq.id, name: sq.name || "", text: sq.text || "" }, sq);
 }
 
 // A folder on the web app holds texts only: blanks and folders inside it stay on the phone.
@@ -63,16 +69,19 @@ function phoneSquare(sq, originals) {
   const orig = originals.get(sq.id);
   const out = orig ? clone(orig) : { id: sq.id, name: "", text: "", isFolder: false, items: [] };
   if (!UUID.test(out.id)) out.id = crypto.randomUUID().toUpperCase();   // the phone only reads UUIDs
+  const looks = () => LOOKS.forEach((k) => { if (sq[k] != null) out[k] = sq[k]; else delete out[k]; });
   if (sq.type === "folder") {
     out.isFolder = true;
     out.name = sq.name || "";
     out.text = out.text || "";
     out.items = mergeItems(sq.items.map((it) => phoneSquare(it, originals)), orig && orig.isFolder ? orig.items || [] : []);
+    looks();
   } else if (sq.name || sq.text) {
     out.isFolder = false;
     out.name = sq.name || "";
     out.text = sq.text || "";
     if (!orig || orig.isFolder) out.items = [];
+    looks();
   } else if (!orig || !phoneBlank(orig)) {
     // cleared to "…" here: the same as Clear on the phone
     Object.assign(out, { name: "", text: "", isFolder: false, items: [] });
@@ -259,42 +268,15 @@ export async function openPhoneBoard(hooks) {
 
     unsaved() { return !!(P.pending || P.saving); },
 
-    // The phone's look for a square: color, border ring, emoji or picture.
-    decorate(el, sq) {
-      const orig = P.originals.get(sq.id);
-      if (!orig) return;
-      const color = COLORS.includes(orig.color) ? `var(--c-${orig.color})` : null;
-      if (color) { el.classList.add("colored"); el.style.background = color; }
-      if (!phoneBlank(orig)) {
-        const raw = orig.border == null ? "black" : orig.border;
-        const ring = raw === "none" ? null : raw === "black" ? "var(--ink)" : COLORS.includes(raw) ? `var(--c-${raw})` : null;
-        if (ring) {
-          const r = document.createElement("span");
-          r.className = "ring";
-          r.style.boxShadow = `inset 0 0 0 1.5px ${ring}`;
-          el.append(r);
-        }
-      }
-      const img = typeof orig.image === "string" ? orig.image : "";
-      const showName = orig.showName !== false;
-      const nameEl = el.querySelector(".name");
-      if (img.startsWith("emoji:")) {
-        const e = document.createElement("div");
-        e.className = "emoji" + (showName ? "" : " big");
-        e.textContent = img.slice(6);
-        el.insertBefore(e, el.firstChild);
-        if (!showName && nameEl) nameEl.remove();
-      } else if (img.startsWith("file:")) {
-        const url = P.pictures.get(img.slice(5));
-        if (url) {
-          el.classList.add("pic");
-          const pic = document.createElement("img");
-          pic.src = url;
-          pic.alt = "";
-          el.insertBefore(pic, el.firstChild);
-          if (nameEl) { if (showName) nameEl.classList.add("cap"); else nameEl.remove(); }
-        }
-      }
+    // A picture on the phone's board ("file:NAME"), decrypted: an object URL, or null while loading.
+    pictureUrl(name) { return P.pictures.get(name) || null; },
+
+    // A new picture for a square: sealed and uploaded first, like the /link editor does.
+    async addPicture(bytes, ext) {
+      const name = `${crypto.randomUUID().toUpperCase()}.${ext}`;
+      await client.putPicture(name, bytes);
+      P.pictures.set(name, URL.createObjectURL(new Blob([bytes], { type: ext === "png" ? "image/png" : "image/jpeg" })));
+      return "file:" + name;
     },
 
     stop,

@@ -454,7 +454,7 @@
     padding: 8px 18px !important;
     font-weight: 600;
   }
-  .sheet label:not(.opt-row) {
+  .sheet label:not(.opt-row):not(.check-row) {
     display: block;
     font-size: 12px;
     font-weight: 600;
@@ -509,6 +509,30 @@
     color: var(--ink);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
   }
+  /* looks: the same choices as on the iPhone */
+  .look-top { display: flex; gap: 14px; align-items: flex-start; }
+  .look-colors { flex: 1; min-width: 0; }
+  .look-preview { width: 78px; flex-shrink: 0; margin-top: 14px; pointer-events: none; box-shadow: var(--shadow); }
+  .look-preview .name { font-size: 13px; }
+  .look-preview .name.long { font-size: 11px; }
+  .look-preview .emoji { font-size: 22px; }
+  .look-preview .emoji.big { font-size: 32px; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sw {
+    width: 30px; height: 30px; border-radius: 50%; border: none; padding: 0; cursor: pointer;
+    background: var(--card); box-shadow: inset 0 0 0 1px var(--line); font: 600 10.5px "IBM Plex Sans", sans-serif; color: var(--muted);
+  }
+  .sw.txt { width: auto; padding: 0 10px; border-radius: 999px; }
+  .sw[aria-pressed="true"] { outline: 2.5px solid var(--accent); outline-offset: 2px; }
+  .sw:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; }
+  .pic-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .sheet input.emoji-input { width: 64px; text-align: center; font-size: 20px; padding: 7px; }
+  .btn-quiet {
+    font-family: inherit; font-size: 14px; font-weight: 600; border-radius: 999px; padding: 8px 14px; cursor: pointer;
+    border: 1.5px solid var(--line); background: var(--card); color: var(--ink);
+  }
+  .btn-quiet:disabled { opacity: 0.5; cursor: default; }
+  .check-row { display: flex; gap: 8px; align-items: center; font-size: 14px; margin: 12px 2px 0; cursor: pointer; }
   .danger-row {
     display: flex;
     gap: 10px;
@@ -671,6 +695,25 @@
     <label for="textInput">Text to copy</label>
     <textarea id="textInput" placeholder="e.g. Please order Rocephin 2 grams IV q8 for 7 days along with probiotic"></textarea>
   </div>
+  <div class="looks" id="looks">
+    <div class="look-top">
+      <div class="sq look-preview" id="lookPreview" aria-hidden="true"></div>
+      <div class="look-colors">
+        <label>Color</label>
+        <div class="swatches" id="colorSwatches" role="group" aria-label="Color"></div>
+      </div>
+    </div>
+    <label>Border</label>
+    <div class="swatches" id="borderSwatches" role="group" aria-label="Border"></div>
+    <label for="emojiInput">Emoji or photo</label>
+    <div class="pic-row">
+      <input type="text" id="emojiInput" class="emoji-input" placeholder="🙂" maxlength="16" autocomplete="off" aria-label="Emoji">
+      <button type="button" class="btn-quiet" id="photoBtn">Add photo</button>
+      <button type="button" class="btn-quiet" id="pictureRemove">Remove</button>
+      <input type="file" id="photoInput" accept="image/*" hidden>
+    </div>
+    <label class="check-row" id="showNameRow"><input type="checkbox" id="showNameToggle"> Show the name with the picture</label>
+  </div>
   <div class="danger-row" id="dangerRow">
     <button id="clearBtn">Clear to "&hellip;"</button>
     <button class="btn-delete" id="deleteBtn">Delete square</button>
@@ -782,14 +825,14 @@
   function cleanEntry(sq) {
     if (!sq || typeof sq !== "object") return { id: uid() };
     if (sq.type === "folder") {
-      var f = { id: uid(), type: "folder", name: (typeof sq.name === "string" && sq.name) ? sq.name : "Folder", items: [] };
+      var f = cleanLooks(sq, { id: uid(), type: "folder", name: (typeof sq.name === "string" && sq.name) ? sq.name : "Folder", items: [] });
       if (Array.isArray(sq.items)) {
         sq.items.forEach(function (it) {
           if (!it || typeof it !== "object") return;
           var iname = (typeof it.name === "string") ? it.name : "";
           var itext = (typeof it.text === "string") ? it.text : "";
           if (!iname && !itext) return;
-          f.items.push({ id: uid(), name: iname || itext.slice(0, 12), text: itext });
+          f.items.push(cleanLooks(it, { id: uid(), name: iname || itext.slice(0, 12), text: itext }));
         });
       }
       return f;
@@ -797,7 +840,20 @@
     var name = (typeof sq.name === "string") ? sq.name : "";
     var text = (typeof sq.text === "string") ? sq.text : "";
     if (!name && !text) return { id: uid() };
-    return { id: uid(), name: name || text.slice(0, 12), text: text };
+    return cleanLooks(sq, { id: uid(), name: name || text.slice(0, 12), text: text });
+  }
+
+  // Only looks Ditto knows: a color or border swatch, an emoji, or a photo kept in this browser.
+  function cleanLooks(from, to) {
+    if (COLORS.indexOf(from.color) >= 0) to.color = from.color;
+    if (from.border === "none" || from.border === "black" || COLORS.indexOf(from.border) >= 0) to.border = from.border;
+    var img = from.image;
+    if (typeof img === "string") {
+      if (img.indexOf("emoji:") === 0 && img.length > 6 && img.length <= 22) to.image = img;
+      else if (/^data:image\/(png|jpeg);base64,[A-Za-z0-9+\/=]+$/.test(img) && img.length < 1500000) to.image = img;
+    }
+    if (from.showName === false && to.image) to.showName = false;
+    return to;
   }
 
   /* ---------- rendering ---------- */
@@ -809,6 +865,60 @@
     name.textContent = label;
     if (label.length > 8) name.classList.add("long");
     return name;
+  }
+
+  /* ---------- looks: color, border, emoji or photo (the same as on the iPhone) ---------- */
+
+  var COLORS = ["navy", "teal", "green", "amber", "rose", "purple", "slate"];
+  var COLOR_NAMES = { navy: "Dark blue", teal: "Teal", green: "Green", amber: "Amber", rose: "Rose", purple: "Purple", slate: "Slate" };
+  var LOOKS = ["color", "border", "image", "showName"];
+
+  function copyLooks(from, to) {
+    LOOKS.forEach(function (k) { if (from[k] != null) to[k] = from[k]; else delete to[k]; });
+    return to;
+  }
+
+  // "file:NAME" pictures belong to the iPhone's board; "data:" ones are kept in this browser
+  function pictureSrc(image) {
+    if (image.indexOf("data:image/") === 0) return image;
+    if (image.indexOf("file:") === 0 && phone) return phone.pictureUrl(image.slice(5));
+    return null;
+  }
+
+  // Automatic border (no "border" key) = the ink-colored ring on every filled square, as on the iPhone.
+  function decorate(el, sq) {
+    var color = COLORS.indexOf(sq.color) >= 0 ? "var(--c-" + sq.color + ")" : null;
+    if (color) { el.classList.add("colored"); el.style.background = color; }
+    if (isSet(sq)) {
+      var raw = sq.border == null ? "black" : sq.border;
+      var ring = raw === "none" ? null : raw === "black" ? "var(--ink)" : COLORS.indexOf(raw) >= 0 ? "var(--c-" + raw + ")" : null;
+      if (ring) {
+        var r = document.createElement("span");
+        r.className = "ring";
+        r.style.boxShadow = "inset 0 0 0 1.5px " + ring;
+        el.appendChild(r);
+      }
+    }
+    var img = typeof sq.image === "string" ? sq.image : "";
+    var showName = sq.showName !== false;
+    var nameEl = el.querySelector(".name");
+    if (img.indexOf("emoji:") === 0) {
+      var e = document.createElement("div");
+      e.className = "emoji" + (showName ? "" : " big");
+      e.textContent = img.slice(6);
+      el.insertBefore(e, el.firstChild);
+      if (!showName && nameEl) nameEl.remove();
+    } else if (img) {
+      var src = pictureSrc(img);
+      if (src) {
+        el.classList.add("pic");
+        var pic = document.createElement("img");
+        pic.src = src;
+        pic.alt = "";
+        el.insertBefore(pic, el.firstChild);
+        if (nameEl) { if (showName) nameEl.classList.add("cap"); else nameEl.remove(); }
+      }
+    }
   }
 
   function render() {
@@ -838,7 +948,7 @@
         b.appendChild(dots);
         b.setAttribute("aria-label", "Empty square — tap to set up");
       }
-      if (phone) phone.decorate(b, sq);
+      decorate(b, sq);
       attachPressEvents(b, { kind: "top", index: i },
         function (el) { onSquareTap(i, el); },
         function () { openEditor({ kind: "square", index: i }); });
@@ -881,7 +991,7 @@
       t.setAttribute("aria-label", "Copy " + (item.name || ""));
       t.dataset.folder = fIdx;
       t.dataset.item = j;
-      if (phone) phone.decorate(t, item);
+      decorate(t, item);
       attachPressEvents(t, { kind: "item", folder: fIdx, item: j },
         function (el) { copySquare(item, el); },
         function () { openEditor({ kind: "item", folder: fIdx, item: j }); });
@@ -1179,7 +1289,7 @@
         var entry, at = drop.at;
         if (ref.kind === "top") {
           var sq = state.squares.splice(fromIndex, 1)[0];
-          entry = { id: sq.id, name: sq.name || (sq.text || "").slice(0, 12), text: sq.text || "" };
+          entry = copyLooks(sq, { id: sq.id, name: sq.name || (sq.text || "").slice(0, 12), text: sq.text || "" });
         } else {
           var src = state.squares[ref.folder];
           entry = src.items.splice(ref.item, 1)[0];
@@ -1192,7 +1302,7 @@
       } else if (drop && drop.out != null) {
         var from = state.squares[ref.folder];
         var it = from.items.splice(ref.item, 1)[0];
-        state.squares.splice(drop.out, 0, { id: it.id, name: it.name, text: it.text });
+        state.squares.splice(drop.out, 0, copyLooks(it, { id: it.id, name: it.name, text: it.text }));
         showToast("Moved out of “" + (from.name || "Folder") + "”");
       }
       save();
@@ -1227,6 +1337,16 @@
   var editTarget = null;
   var editType = "text";
   var deleteArmed = false;
+  var look = {};            // the looks being chosen in the box; applied to the square on Done
+  var lookPreview = document.getElementById("lookPreview");
+  var colorSwatches = document.getElementById("colorSwatches");
+  var borderSwatches = document.getElementById("borderSwatches");
+  var emojiInput = document.getElementById("emojiInput");
+  var photoBtn = document.getElementById("photoBtn");
+  var photoInput = document.getElementById("photoInput");
+  var pictureRemove = document.getElementById("pictureRemove");
+  var showNameRow = document.getElementById("showNameRow");
+  var showNameToggle = document.getElementById("showNameToggle");
 
   function openSheet(sheet) {
     scrim.classList.add("open");
@@ -1262,12 +1382,141 @@
     deleteBtn.classList.remove("confirm");
   }
 
+  function editingFolder() {
+    var sq = getEditSquare();
+    if (editTarget && editTarget.kind === "square" && sq && !isSet(sq)) return editType === "folder";
+    return !!(sq && isFolder(sq));
+  }
+
+  function swatch(group, value, label, style, cls, text) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "sw" + (cls ? " " + cls : "");
+    b.title = label;
+    b.setAttribute("aria-label", label);
+    if (style) b.setAttribute("style", style);
+    if (text) b.textContent = text;
+    b.dataset.value = value === null ? "" : value;
+    b.addEventListener("click", function () {
+      if (value === null) delete look[group]; else look[group] = value;
+      showLooks();
+    });
+    return b;
+  }
+
+  function buildSwatches() {
+    colorSwatches.innerHTML = "";
+    colorSwatches.appendChild(swatch("color", null, editingFolder() ? "Folder blue" : "Plain", editingFolder() ? "background: var(--folder)" : ""));
+    COLORS.forEach(function (c) { colorSwatches.appendChild(swatch("color", c, COLOR_NAMES[c], "background: var(--c-" + c + ")")); });
+    borderSwatches.innerHTML = "";
+    borderSwatches.appendChild(swatch("border", null, "Automatic", "", "txt", "Auto"));
+    borderSwatches.appendChild(swatch("border", "none", "No border", "", "txt", "None"));
+    borderSwatches.appendChild(swatch("border", "black", "Black", "box-shadow: inset 0 0 0 3px var(--ink)"));
+    COLORS.forEach(function (c) { borderSwatches.appendChild(swatch("border", c, COLOR_NAMES[c] + " border", "box-shadow: inset 0 0 0 3px var(--c-" + c + ")")); });
+  }
+
+  // Bring the box in line with the draft: pressed swatches, picture controls, the preview square.
+  function showLooks() {
+    [["color", colorSwatches], ["border", borderSwatches]].forEach(function (g) {
+      Array.prototype.forEach.call(g[1].children, function (b) {
+        b.setAttribute("aria-pressed", String(b.dataset.value === (look[g[0]] == null ? "" : look[g[0]])));
+      });
+    });
+    var img = look.image || "";
+    if (document.activeElement !== emojiInput) emojiInput.value = img.indexOf("emoji:") === 0 ? img.slice(6) : "";
+    photoBtn.textContent = img && img.indexOf("emoji:") !== 0 ? "Change photo" : "Add photo";
+    pictureRemove.disabled = !img;
+    showNameRow.hidden = !img;
+    showNameToggle.checked = look.showName !== false;
+    var name = nameInput.value.trim(), text = textInput.value.trim(), folder = editingFolder();
+    var fake = copyLooks(look, { id: "preview", name: name || (folder ? "Folder" : ""), text: folder ? "" : text });
+    if (folder) { fake.type = "folder"; fake.items = []; }
+    lookPreview.className = "sq look-preview" + (folder ? " folder" : isSet(fake) ? "" : " blank");
+    lookPreview.removeAttribute("style");
+    lookPreview.innerHTML = "";
+    if (isSet(fake)) lookPreview.appendChild(labelDiv(fake));
+    else { var dots = document.createElement("div"); dots.className = "name"; dots.textContent = "…"; lookPreview.appendChild(dots); }
+    decorate(lookPreview, fake);
+  }
+
+  nameInput.addEventListener("input", showLooks);
+  textInput.addEventListener("input", showLooks);
+  emojiInput.addEventListener("input", function () {
+    var t = emojiInput.value.trim(), g = "";
+    if (t && typeof Intl !== "undefined" && Intl.Segmenter) { var it = new Intl.Segmenter().segment(t)[Symbol.iterator]().next(); g = it.value ? it.value.segment : ""; }
+    else g = Array.from(t)[0] || "";
+    if (g) { look.image = "emoji:" + g; }
+    else if ((look.image || "").indexOf("emoji:") === 0) { delete look.image; delete look.showName; }
+    showLooks();
+  });
+  emojiInput.addEventListener("blur", showLooks);
+  photoBtn.addEventListener("click", function () { photoInput.value = ""; photoInput.click(); });
+  pictureRemove.addEventListener("click", function () { delete look.image; delete look.showName; showLooks(); });
+  showNameToggle.addEventListener("change", function () {
+    if (showNameToggle.checked) delete look.showName; else look.showName = false;
+    showLooks();
+  });
+  photoInput.addEventListener("change", function () {
+    var file = photoInput.files && photoInput.files[0];
+    if (!file) return;
+    photoBtn.disabled = true;
+    photoBtn.textContent = "Adding…";
+    var target = editTarget;
+    shrinkPicture(file).then(function (p) {
+      // on the iPhone's board the photo is sealed and uploaded; here it's kept in this browser
+      return phone ? phone.addPicture(p.bytes, p.ext) : blobToDataUrl(p.blob);
+    }).then(function (image) {
+      if (editTarget !== target) return;
+      look.image = image;
+      showLooks();
+    }, function () {
+      showToast("That photo couldn't be added");
+    }).then(function () { photoBtn.disabled = false; showLooks(); });
+  });
+
+  // Same as the iPhone: at most 400 px on the long side, JPEG 0.85, PNG if it has transparency.
+  function shrinkPicture(file) {
+    var load = window.createImageBitmap ? createImageBitmap(file) : new Promise(function (res, rej) {
+      var im = new Image();
+      im.onload = function () { res(im); };
+      im.onerror = rej;
+      im.src = URL.createObjectURL(file);
+    });
+    return load.then(function (bmp) {
+      var scale = Math.min(1, 400 / Math.max(bmp.width, bmp.height));
+      var w = Math.max(1, Math.round(bmp.width * scale)), h = Math.max(1, Math.round(bmp.height * scale));
+      var c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      var g = c.getContext("2d");
+      g.drawImage(bmp, 0, 0, w, h);
+      var alpha = false;
+      if (/png|webp|gif|avif/.test(file.type)) {
+        var px = g.getImageData(0, 0, w, h).data;
+        for (var i = 3; i < px.length; i += 4) if (px[i] < 255) { alpha = true; break; }
+      }
+      return new Promise(function (res) { c.toBlob(res, alpha ? "image/png" : "image/jpeg", 0.85); }).then(function (blob) {
+        return blob.arrayBuffer().then(function (buf) { return { blob: blob, bytes: new Uint8Array(buf), ext: alpha ? "png" : "jpg" }; });
+      });
+    });
+  }
+
+  function blobToDataUrl(blob) {
+    return new Promise(function (res, rej) {
+      var r = new FileReader();
+      r.onload = function () { res(r.result); };
+      r.onerror = rej;
+      r.readAsDataURL(blob);
+    });
+  }
+
   function setEditType(t) {
     editType = t;
     segText.classList.toggle("on", t === "text");
     segFolder.classList.toggle("on", t === "folder");
     textField.hidden = (t === "folder");
     nameInput.placeholder = (t === "folder") ? "e.g. IVF" : "e.g. PNA";
+    buildSwatches();
+    showLooks();
   }
   segText.addEventListener("click", function () { setEditType("text"); });
   segFolder.addEventListener("click", function () { setEditType("folder"); });
@@ -1320,6 +1569,9 @@
     if (target.isNew) dangerRow.hidden = true;   // a square being added: Cancel is the way out
     nameInput.value = (sq && sq.name) || "";
     textInput.value = (sq && sq.text) || "";
+    look = copyLooks(sq || {}, {});
+    buildSwatches();
+    showLooks();
     openSheet(editSheet);
     if ((target.kind === "square" && !isSet(sq)) || isNewItem) {
       setTimeout(function () { nameInput.focus(); }, 280);
@@ -1349,17 +1601,19 @@
         sq.name = name || text.slice(0, 12);
         sq.text = text;
       }
+      copyLooks(isSet(sq) ? look : {}, sq);
     } else {
       var folder = state.squares[editTarget.folder];
       if (folder && isFolder(folder)) {
         if (editTarget.item < 0) {
-          if (name || text) folder.items.push({ id: uid(), name: name || text.slice(0, 12), text: text });
+          if (name || text) folder.items.push(copyLooks(look, { id: uid(), name: name || text.slice(0, 12), text: text }));
         } else if (!name && !text) {
           folder.items.splice(editTarget.item, 1);
         } else {
           var it = folder.items[editTarget.item];
           it.name = name || text.slice(0, 12);
           it.text = text;
+          copyLooks(look, it);
         }
       }
     }
@@ -1372,6 +1626,7 @@
     if (!editTarget || editTarget.kind !== "square") return;
     var sq = state.squares[editTarget.index];
     delete sq.name; delete sq.text; delete sq.type; delete sq.items;
+    copyLooks({}, sq);
     save();
     render();
     closeSheets();
@@ -1414,7 +1669,14 @@
   document.getElementById("shareBtn").addEventListener("click", function () {
     var nonBlank = state.squares.filter(isSet);
     if (!nonBlank.length) { showToast("Nothing to share yet"); return; }
-    var url = location.origin + location.pathname + "#share=" + encodeShare({ app: "tapcopy", v: 3, squares: nonBlank });
+    var shareable = nonBlank.map(function (sq) {
+      var out = JSON.parse(JSON.stringify(sq));
+      [out].concat(out.items || []).forEach(function (q) {
+        if (typeof q.image === "string" && q.image.indexOf("emoji:") !== 0) { delete q.image; delete q.showName; }
+      });
+      return out;
+    });
+    var url = location.origin + location.pathname + "#share=" + encodeShare({ app: "tapcopy", v: 3, squares: shareable });
     var copied = function () { showToast("Share link copied — send it to a friend"); };
     if (navigator.share) {
       navigator.share({ title: "Ditto list", url: url }).catch(function () {});
