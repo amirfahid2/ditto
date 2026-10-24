@@ -98,6 +98,7 @@ button, input, textarea, select { font: inherit; color: inherit; }
 .crumbs .sep { color: var(--muted); }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 12px; }
 .hint { color: var(--muted); font-size: 13.5px; margin: 14px 2px 0; }
+.then-home { color: var(--ink); font-weight: 600; }
 .use-here { display: flex; gap: 9px; align-items: flex-start; color: var(--muted); font-size: 13.5px; line-height: 1.45; margin: 12px 2px 0; cursor: pointer; }
 .use-here input { margin-top: 2px; flex-shrink: 0; }
 .use-here b { color: var(--ink); font-weight: 600; }

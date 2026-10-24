@@ -6,6 +6,8 @@ import { qrSvg } from "./qr.js";
 const RELAY = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? "http://localhost:8672" : "https://ditto-relay.ditto-relay.workers.dev";
 const STORE_KEY = "ditto.link.v1";
 const USE_KEY = "ditto.link.useOnSite";   // dittotap.com shows the iPhone's squares (link/phone-board.js)
+// came from "Use my iPhone's squares here" on dittotap.com: once linked, go back there with them on
+const THEN_HOME = new URLSearchParams(location.search).get("then") === "home";
 const PAIR_POLL_MS = 2000, PAIR_POLL_LIMIT_MS = 10 * 60 * 1000;
 const EDIT_POLL_MS = 10000, SAVE_DELAY_MS = 1500;
 const COLORS = ["navy", "teal", "green", "amber", "rose", "purple", "slate"];
@@ -145,6 +147,7 @@ async function startPairing(fresh) {
   $("unlinkBtn").hidden = true;
   $("status").hidden = true;
   $("qr").innerHTML = qrSvg(pairUrl(S.secret), { ecl: "M", border: 3, dark: "#16262E" });
+  $("thenHome").hidden = !THEN_HOME;
   showWaiting(true);
   pairStarted = Date.now();
   pollPairing();
@@ -176,6 +179,12 @@ function stopPolling() {
 
 // ---------- editor ----------
 function enterEditor(remote) {
+  if (THEN_HOME) {
+    stopPolling();
+    try { localStorage.setItem(USE_KEY, "1"); } catch (e) {}
+    location.replace("../#linked");
+    return;
+  }
   applyRemote(remote);
   $("pairView").hidden = true;
   $("editorView").hidden = false;

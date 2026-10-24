@@ -220,6 +220,49 @@
     text-overflow: ellipsis;
   }
   .grid.waiting { opacity: 0.35; pointer-events: none; }
+  .link-card {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 10px 12px;
+    background: var(--card);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    padding: 12px 40px 12px 14px;
+    margin: 0 0 14px;
+    position: relative;
+  }
+  .link-card[hidden] { display: none; }
+  .link-card-icon { width: 30px; height: 30px; flex-shrink: 0; fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linecap: round; }
+  .link-card-text { flex: 1 1 calc(100% - 42px); min-width: 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
+  .link-card-text b { display: block; color: var(--ink); font-size: 14.5px; font-weight: 600; margin-bottom: 1px; }
+  .link-card-go {
+    margin-left: 42px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    border: none;
+    border-radius: 999px;
+    padding: 9px 15px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    cursor: pointer;
+  }
+  .link-card-close {
+    position: absolute;
+    top: 4px;
+    right: 6px;
+    width: 30px;
+    height: 30px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 50%;
+  }
+  .link-card-go:focus-visible, .link-card-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .phone-conflict {
     background: var(--card);
     border: 1.5px solid var(--accent);
@@ -550,6 +593,15 @@
     <button class="arrange-btn" id="arrangeBtn">Arrange</button>
   </header>
   <p class="hint" id="mainHint">Tap a square to copy its text. Press and hold to edit.</p>
+  <div class="link-card" id="linkCard" hidden>
+    <svg class="link-card-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="2.6"/><path d="M10.5 18.5h3"/></svg>
+    <div class="link-card-text">
+      <b>Have Ditto on your iPhone?</b>
+      <span>Link this browser once by scanning a code, and your iPhone's squares show up here. Tap to copy; changes go back to your phone.</span>
+    </div>
+    <button type="button" class="link-card-go" id="linkCardGo">Use my iPhone's squares here</button>
+    <button type="button" class="link-card-close" id="linkCardClose" aria-label="Hide this">&times;</button>
+  </div>
   <div class="phone-conflict" id="phoneConflict" hidden>
     <span id="phoneConflictText">Your iPhone changed the squares while you were editing here.</span>
     <div class="row">
@@ -1419,6 +1471,8 @@
   var restoreBtn = document.getElementById("restoreBtn");
   var phoneConflict = document.getElementById("phoneConflict");
   var phoneStarting = false, picturesWaiting = false;
+  var linkCard = document.getElementById("linkCard"), CARD_KEY = "ditto.linkCard.hidden";
+  var ON_A_PHONE = Math.min(screen.width || 9999, screen.height || 9999) < 500;   // there, the app is the place
 
   function stored(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
   function isLinked() {
@@ -1451,7 +1505,13 @@
     return arranging || !!document.querySelector(".sheet.open") || !!document.querySelector(".ghost");
   }
 
+  // "Use my iPhone's squares here", for whoever isn't using them yet (hidden for good with its ×)
+  function showLinkCard() {
+    linkCard.hidden = !!phone || phoneStarting || ON_A_PHONE || stored(CARD_KEY) === "1";
+  }
+
   function useSquares(squares) {
+    showLinkCard();
     state = phone ? { squares: squares, options: local.options } : local;
     if (openFolderId !== null && indexById(openFolderId) < 0) openFolderId = null;
     restoreBtn.hidden = !!phone;
@@ -1461,6 +1521,7 @@
   function startPhone(then) {
     if (phone || phoneStarting) return;
     phoneStarting = true;
+    showLinkCard();
     grid.classList.add("waiting");
     savedNote.textContent = "Loading your iPhone's squares…";
     import("./link/phone-board.js").then(function (lib) {
@@ -1513,6 +1574,10 @@
         openFolderId = null;
         useSquares(phone.squares);
         phoneNote();
+        if (location.hash === "#linked") {   // just paired at dittotap.com/link
+          try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+          showToast("Linked. These are your iPhone's squares now");
+        }
       }
       if (then) then();
     }, function () {
@@ -1533,6 +1598,17 @@
     useSquares(null);
     phoneNote();
   }
+
+  document.getElementById("linkCardGo").addEventListener("click", function () {
+    if (!isLinked()) { location.href = "link/?then=home"; return; }   // pair first, then come back here
+    try { localStorage.setItem(USE_KEY, "1"); } catch (e) {}
+    startPhone();
+  });
+  document.getElementById("linkCardClose").addEventListener("click", function () {
+    try { localStorage.setItem(CARD_KEY, "1"); } catch (e) {}
+    linkCard.hidden = true;
+    showToast("You can still turn it on in Options");
+  });
 
   phoneToggle.addEventListener("change", function () {
     try {
@@ -1589,6 +1665,7 @@
   });
 
   render();
+  showLinkCard();
   if (phoneWanted()) startPhone(checkShareHash);   // a shared list then goes onto the iPhone's board
   else checkShareHash();
 })();
@@ -1600,6 +1677,6 @@ if ("serviceWorker" in navigator) {
   });
 }
 </script>
-<script src="figures.js" defer data-boxes=".sq, .folder-panel, .store, .arrange-btn, .wrap > footer button, .saved-note, .wordmark, .phone-conflict" data-grab=".sq, .folder-panel, .store" data-board=".grid > .sq" data-text-tops=".wordmark, .saved-note" data-sky=".wordmark" data-ignore=".scrim, .sheet, .ghost"></script>
+<script src="figures.js" defer data-boxes=".sq, .folder-panel, .store, .arrange-btn, .wrap > footer button, .saved-note, .wordmark, .phone-conflict, .link-card" data-grab=".sq, .folder-panel, .store" data-board=".grid > .sq" data-text-tops=".wordmark, .saved-note" data-sky=".wordmark" data-ignore=".scrim, .sheet, .ghost"></script>
 </body>
 </html>
