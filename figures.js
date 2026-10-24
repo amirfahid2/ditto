@@ -57,6 +57,7 @@
   // too (1 to 20 s apart, and one for every 10 door clicks). They chase Dittos and look for the exit.
   var DOG_UNLOCK = 200, DOG_GAP_MIN = 1000, DOG_GAP_MAX = 20000, DOG_CLICKS = 10;
   var DOG_HW = 4.8, DOG_H = 9.2, DOG_MIN = 34, DOG_MAX = 44, DOG_CAP = SMALL ? 6 : 12;
+  var DOG_LONG = 1.5, DOG_SPRINT = 1.5;   // a box wider than 1.5 squares: run 1.5 times as fast, leap far off it
 
   var W = { width: 0, height: 0, ground: 0, boxes: [], ladders: [], door: null, entry: null };
   var figs = [], effects = [];
@@ -64,7 +65,7 @@
   var pending = 0, lastArrival = 0, lastRelease = 0, history = [], poofTimes = [];
   var pendingDogs = 0, nextDogAt = 0, doorClicks = 0;
   var colors = { ink: "#16262E", muted: "#64808B", accent: "#0E7C86", card: "#FFFFFF" };
-  var stats = { released: 0, exited: 0, giants: 0, dogs: 0, eggs: {} };   // giants: not built yet, so always 0
+  var stats = { released: 0, exited: 0, giants: 0, dogsExited: 0, eggs: {} };   // giants: not built yet, so always 0
   var announce = null, dogSoon = false;          // the "Easter egg unlocked" note; the first dog right after it
   var canvas, ctx, ui, entryBtn, exitBtn, dpr = 1, cw = 0, ch = 0, timeScale = 1;
   var entryOpen = false, exitOpen = false, entryK = 0, exitK = 0, sceneK = 0;   // the doors: shut by default
@@ -158,6 +159,8 @@
     }
     var heights = W.boxes.filter(function (b) { return b.board; }).map(function (b) { return b.b - b.t; }).sort(function (a, b) { return a - b; });
     W.squareH = heights.length ? heights[heights.length >> 1] : 100;
+    var widths = W.boxes.filter(function (b) { return b.board; }).map(function (b) { return b.r - b.l; }).sort(function (a, b) { return a - b; });
+    W.squareW = widths.length ? widths[widths.length >> 1] : 100;
     rideAlong();
     buildEntry();
     buildLadders();
@@ -418,7 +421,7 @@
       var saved = JSON.parse(localStorage.getItem(STATS_KEY) || "null");
       if (saved) {
         stats.released = +saved.released || 0; stats.exited = +saved.exited || 0;
-        stats.giants = +saved.giants || 0; stats.dogs = +saved.dogs || 0;
+        stats.giants = +saved.giants || 0; stats.dogsExited = +saved.dogsExited || 0;
         stats.eggs = saved.eggs && typeof saved.eggs === "object" ? saved.eggs : {};
       }
     } catch (e) {}
@@ -440,6 +443,7 @@
       if (stats.eggs[egg.id] || !egg.reached()) return;
       stats.eggs[egg.id] = new Date().toISOString().slice(0, 10);
       saveStats();
+      dirty = true;                                 // the tally gets a row: place it again
       announce = { text: "Easter egg unlocked: " + egg.title + "!", t: 0 };   // shown the next time the doors are open
       if (egg.id === "dogs") { dogSoon = true; nextDogAt = 0; }
     });
@@ -447,7 +451,7 @@
 
   function count(key) {
     stats[key]++;
-    if (String(stats[key]).length > String(stats[key] - 1).length || (key === "dogs" && stats.dogs === 1)) dirty = true;   // wider or taller: place it again
+    if (String(stats[key]).length > String(stats[key] - 1).length) dirty = true;   // a digit wider: place it again
     saveStats();
     checkEggs();
   }
@@ -468,7 +472,7 @@
   function admitOne(now) {
     lastArrival = now;
     var dog = pendingDogs > 0 && (pending <= 0 || Math.random() < 0.5);
-    if (dog) { pendingDogs--; count("dogs"); } else { pending--; count("released"); }
+    if (dog) pendingDogs--; else { pending--; count("released"); }
     if (!W.entry) {                                   // no room for the door: drop from just above the title
       var anchor = ds.sky && document.querySelector(ds.sky);
       var a = anchor ? docRect(anchor) : (W.boxes[0] || { l: W.width / 2 - 20, r: W.width / 2 + 20 });
@@ -490,6 +494,12 @@
   }
 
   function onGround(f) { return Math.abs(f.y - W.ground) < 0.75; }
+
+  // The page edges are walls, but only for going further out: something that ended up closer
+  // to the edge (a long leap, a resize) can always walk back in.
+  function pastEdge(nx, dir, margin) {
+    return (dir < 0 && nx < margin) || (dir > 0 && nx > W.width - margin);
+  }
 
   // Somewhere to head for on the ground: a ladder up, or the exit, but only one that lies ahead.
   // A walker keeps going the way it's facing and turns only at a wall, an edge or a bump (with
@@ -684,7 +694,7 @@
         f.state = "exit"; f.exitT = 0; f.door = W.door;
         return;
       }
-      if (nx < 4 || nx > W.width - 4) { f.dir = -f.dir; f.goal = null; return; }   // page edge: turn around
+      if (pastEdge(nx, f.dir, 4)) { f.dir = -f.dir; f.goal = null; return; }   // page edge: turn around
       if (hitsBox(nx, W.ground)) {
         if (!hitsBox(nx, W.ground, HALF_WC, HC)) { startCrawl(f, 14); return; }
         f.dir = -f.dir; f.goal = { wander: true }; f.bounce = 1;
@@ -727,7 +737,8 @@
       f.platform = p.key;                           // on a new box: head for the side nearer the exit
       f.dir = W.door.x >= f.x ? 1 : -1;
     }
-    var nx = f.x + f.dir * f.speed * dt;
+    f.sprint = !!p && p.r - p.l > DOG_LONG * W.squareW;   // a long box: room for a run-up
+    var nx = f.x + f.dir * f.speed * (f.sprint ? DOG_SPRINT : 1) * dt;
     if (ground) {
       if (W.door && (Math.abs(nx - W.door.x) < 2 || (f.x - W.door.x) * (nx - W.door.x) < 0)) {
         if (!exitOpen) { f.dir = -f.dir; return; }
@@ -735,7 +746,7 @@
         f.state = "fall"; f.vy = -150; f.vx = 0; f.clearTo = null;
         return;
       }
-      if (nx < 6 || nx > W.width - 6 || hitsBox(nx, W.ground, DOG_HW, DOG_H)) { f.dir = -f.dir; f.chase = null; return; }   // a wall: back he comes
+      if (pastEdge(nx, f.dir, 6) || hitsBox(nx, W.ground, DOG_HW, DOG_H)) { f.dir = -f.dir; f.chase = null; return; }   // a wall: back he comes
       f.x = nx;
       return;
     }
@@ -747,9 +758,14 @@
     dogOffEdge(f, p);
   }
 
-  // The end of a box: hop down beside it, else jump across to the next box, else turn around.
+  // The end of a box: off a long one, a long leap; otherwise hop down beside it, else jump across
+  // to the next box, else turn around.
   function dogOffEdge(f, p) {
     var edge = f.dir > 0 ? p.r : p.l, downX = edge + f.dir * (DOG_HW + 0.5);
+    if (f.sprint && !hitsBox(f.x + f.dir * 8, p.t - 8, DOG_HW, DOG_H)) {
+      f.state = "fall"; f.vy = -160; f.vx = f.dir * f.speed * DOG_SPRINT * 2.2; f.clearTo = null;   // out it flies
+      return;
+    }
     if (downX > 5 && downX < W.width - 5 && !hitsBox(downX, p.t + DOG_H + 2, DOG_HW, DOG_H) && dropTarget(downX, p.t) !== null) {
       f.state = "fall"; f.vy = -80; f.vx = f.dir * 70; f.clearTo = downX;   // up and out over the rounded corner
       return;
@@ -790,7 +806,7 @@
     var step = f.crawlSpeed * dt;
     var nx = f.x + f.dir * step;
     if (onGround(f)) {
-      if (nx < 6 || nx > W.width - 6) { f.dir = -f.dir; return; }
+      if (pastEdge(nx, f.dir, 6)) { f.dir = -f.dir; return; }
       if (hitsBox(nx, W.ground, HALF_WC, HC)) { f.dir = -f.dir; return; }
       f.x = nx;
     } else {
@@ -994,7 +1010,7 @@
     f.y = f.door.y;
     f.scale = 1 - 0.85 * k;
     f.alpha = 1 - k;
-    if (k >= 1) { f.dead = true; if (!f.dog) count("exited"); if (dbg) dbg.push({ kind: "gone", why: f.dog ? "dog exit" : "exit", id: f.id }); }
+    if (k >= 1) { f.dead = true; count(f.dog ? "dogsExited" : "exited"); if (dbg) dbg.push({ kind: "gone", why: f.dog ? "dog exit" : "exit", id: f.id }); }
   }
 
   function onCorner(f) {
@@ -1362,7 +1378,7 @@
   var STATS_LABEL = "500 10.5px 'IBM Plex Sans', system-ui, sans-serif", STATS_NUM = "700 10.5px 'IBM Plex Sans', system-ui, sans-serif";
   function statsRows() {
     var rows = [["Dittos released:", stats.released], ["Dittos exited:", stats.exited]];
-    if (stats.dogs > 0) rows.push(["Ditto dogs released:", stats.dogs]);
+    if (dogsUnlocked()) rows.push(["Ditto dogs exited:", stats.dogsExited]);   // once the dogs are unlocked
     rows.push(["Giants released:", stats.giants]);
     return rows;
   }
@@ -1543,7 +1559,7 @@
       var moving = f.state === "climb" || f.state === "exit" || f.state === "crawl" || f.state === "pull" ||
         f.state === "ramp" || (f.state === "walk" && f.wave <= 0);
       // hands and knees step in time with the speed: crawling up a corner goes 1.4 times as fast
-      if (moving) f.phase += dt * (f.dog ? 17 : f.state === "climb" ? 9 : f.state === "crawl" ? 8 : f.state === "pull" ? 11.2 : 11);
+      if (moving) f.phase += dt * (f.dog ? (f.sprint ? 17 * DOG_SPRINT : 17) : f.state === "climb" ? 9 : f.state === "crawl" ? 8 : f.state === "pull" ? 11.2 : 11);
       if (f.wag > 0) f.wag -= dt;
       if (f.bark > 0) f.bark -= dt;
       if (f.state === "walk") walk(f, dt);
