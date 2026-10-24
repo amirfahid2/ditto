@@ -2000,7 +2000,8 @@
 <script>
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", function () {
-    navigator.serviceWorker.register("sw.js").catch(function () {});
+    // updateViaCache "none": the browser checks for a new sw.js without its own cached copy
+    navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch(function () {});
   });
 }
 </script>
