@@ -107,22 +107,6 @@
   }
   [hidden] { display: none !important; }   /* hidden wins over a component's own display */
   .wordmark span { color: inherit; }
-  .about-btn {
-    margin-right: auto;
-    align-self: center;
-    font-family: "IBM Plex Sans", sans-serif;
-    font-size: 12.5px;
-    font-weight: 600;
-    color: var(--accent);
-    background: var(--card);
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    padding: 5px 11px;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  .about-btn:hover { border-color: var(--accent); }
-  .about-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .hint {
     margin: 2px 2px 14px;
     font-size: 12.5px;
@@ -209,6 +193,29 @@
     font-size: 11.5px;
     font-weight: 500;
   }
+  /* "What is this site? Click here": a square of its own, after "Add square" */
+  .sq.about-sq {
+    background: transparent;
+    box-shadow: none;
+    border: 1.5px dashed var(--line);
+    color: var(--muted);
+    gap: 6px;
+  }
+  .sq.about-sq .about-sign {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    color: var(--accent);
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .sq.about-sq .plus-label { text-align: center; line-height: 1.3; padding: 0 4px; }
+  .sq.about-sq:hover { border-color: var(--accent); }
 
   .sq.folder { background: var(--folder); }
   .sq.folder .fcap {
@@ -336,8 +343,8 @@
     50% { transform: rotate(1.3deg); }
     100% { transform: rotate(-1.3deg); }
   }
-  .grid.arranging .sq:not(.plus) { animation: wiggle 0.35s ease-in-out infinite; touch-action: none; }
-  .grid.arranging .sq.plus { opacity: 0.25; pointer-events: none; }
+  .grid.arranging .sq:not(.plus):not(.about-sq) { animation: wiggle 0.35s ease-in-out infinite; touch-action: none; }
+  .grid.arranging .sq.plus, .grid.arranging .sq.about-sq { opacity: 0.25; pointer-events: none; }
   .sq.drag-src { opacity: 0.35; animation: none; }
   .grid.arranging .sq.drop-into { animation: none; transform: scale(1.07); outline: 3px solid var(--accent); outline-offset: 2px; }
   .folder-panel.drop-into { outline: 3px solid var(--accent); outline-offset: 2px; }
@@ -361,7 +368,7 @@
     transform: scale(1.06);
   }
   @media (prefers-reduced-motion: reduce) {
-    .grid.arranging .sq:not(.plus) { animation: none; outline: 2px dashed var(--accent); outline-offset: -2px; }
+    .grid.arranging .sq:not(.plus):not(.about-sq) { animation: none; outline: 2px dashed var(--accent); outline-offset: -2px; }
     .sq.flash { animation: none; background: var(--flash); }
     .folder-panel { animation: none; }
     .sheet, .sheet.open { transition: none; }
@@ -642,7 +649,6 @@
 <div class="wrap">
   <header>
     <div class="wordmark">Dit<span>to</span></div>
-    <button type="button" class="about-btn" id="aboutBtn">What is this site? Click here</button>
     <button class="arrange-btn" id="arrangeBtn">Arrange</button>
   </header>
   <p class="hint" id="mainHint">Tap a square to copy its text. Press and hold to edit.</p>
@@ -966,6 +972,14 @@
       openEditor({ kind: "square", index: state.squares.length - 1, isNew: true });
     });
     grid.appendChild(plus);
+
+    var about = document.createElement("button");
+    about.type = "button";
+    about.className = "sq about-sq";
+    about.setAttribute("aria-label", "What is this site? Click here");
+    about.innerHTML = '<div class="about-sign">?</div><div class="plus-label">What is this site? Click here</div>';
+    about.addEventListener("click", openIntroBox);
+    grid.appendChild(about);
 
     if (openFolderId !== null) {
       var fIdx = -1;
@@ -1925,12 +1939,13 @@
   }
   document.getElementById("linkCardGo").addEventListener("click", useIphoneSquares);
 
-  // "What is this site? Click here": a short show-and-tell in a box in the middle of the screen
-  document.getElementById("aboutBtn").addEventListener("click", function () {
+  // "What is this site? Click here" (the square after "Add square"): a short show-and-tell in a
+  // box in the middle of the screen
+  function openIntroBox() {
     import("./intro.js").then(function (m) {
       m.openIntro({ linked: !!phone, onPhone: ON_A_PHONE, onLink: useIphoneSquares });
     }, function () { location.href = "about/"; });
-  });
+  }
   document.getElementById("linkCardClose").addEventListener("click", function () {
     try { localStorage.setItem(CARD_KEY, "1"); } catch (e) {}
     linkCard.hidden = true;
@@ -2005,6 +2020,6 @@ if ("serviceWorker" in navigator) {
   });
 }
 </script>
-<script src="figures.js" defer data-boxes=".sq, .folder-panel, .store, .arrange-btn, .about-btn, .wrap > footer button, .saved-note, .wordmark, .phone-conflict, .link-card" data-grab=".sq, .folder-panel, .store" data-board=".grid > .sq" data-text-tops=".wordmark, .saved-note" data-sky=".wordmark" data-ignore=".scrim, .sheet, .ghost, .ix-back"></script>
+<script src="figures.js" defer data-boxes=".sq, .folder-panel, .store, .arrange-btn, .wrap > footer button, .saved-note, .wordmark, .phone-conflict, .link-card" data-grab=".sq, .folder-panel, .store" data-board=".grid > .sq" data-text-tops=".wordmark, .saved-note" data-sky=".wordmark" data-ignore=".scrim, .sheet, .ghost, .ix-back"></script>
 </body>
 </html>

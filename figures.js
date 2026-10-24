@@ -748,7 +748,14 @@
       (f.chase.x - f.x) * f.dir > 0 ? f.chase : null;
     if (target && Math.abs(target.x - f.x) < 8) { scare(target, f); f.chase = null; f.chaseT = rand(1.5, 3); }
     f.sprint = !!p && p.r - p.l > DOG_LONG * W.squareW;   // a long box: room for a run-up
-    var nx = f.x + f.dir * f.speed * (f.sprint ? DOG_SPRINT : 1) * dt;
+    f.dash = false;
+    if (p) {
+      // the run-up: from where it started running this way on this box to the end of its top
+      if (f.runKey !== p.key || f.runDir !== f.dir) { f.runKey = p.key; f.runDir = f.dir; f.runFrom = f.x; }
+      var runway = ((f.dir > 0 ? p.sr : p.sl) - f.runFrom) * f.dir;
+      f.dash = !f.sprint && runway >= 0.5 * (p.sr - p.sl) && !!nextBoxAhead(f, p);   // half a square: enough to jump across
+    }
+    var nx = f.x + f.dir * f.speed * (f.sprint || f.dash ? DOG_SPRINT : 1) * dt;
     if (ground) {
       if (W.door && (Math.abs(nx - W.door.x) < 2 || (f.x - W.door.x) * (nx - W.door.x) < 0)) {
         if (!exitOpen) { f.dir = -f.dir; return; }
@@ -768,10 +775,12 @@
     dogOffEdge(f, p);
   }
 
-  // The end of a box: off a long one, a long leap; otherwise hop down beside it, else jump across
-  // to the next box, else turn around.
+  // The end of a box: with a run-up of half a square and a square ahead, a jump across to it; off a
+  // long box, a long leap; otherwise hop down beside it, else jump across anyway, else turn around.
   function dogOffEdge(f, p) {
     var edge = f.dir > 0 ? p.r : p.l, downX = edge + f.dir * (DOG_HW + 0.5);
+    var ahead = f.dash && nextBoxAhead(f, p);
+    if (ahead) { dogJump(f, p, ahead.x); return; }
     if (f.sprint && !hitsBox(f.x + f.dir * 8, p.t - 8, DOG_HW, DOG_H)) {
       f.state = "fall"; f.vy = -160; f.vx = f.dir * f.speed * DOG_SPRINT * 2.2; f.clearTo = null;   // out it flies
       return;
@@ -780,19 +789,31 @@
       f.state = "fall"; f.vy = -80; f.vx = f.dir * 70; f.clearTo = downX;   // up and out over the rounded corner
       return;
     }
+    var next = nextBoxAhead(f, p);
+    if (next) { dogJump(f, p, next.x); return; }
+    f.dir = -f.dir;
+  }
+
+  // The next box along on the same row, just across the gap, with room for a dog on top.
+  function nextBoxAhead(f, p) {
     var next = null;
     W.boxes.forEach(function (b) {
       if (b === p || Math.abs(b.t - p.t) > 2) return;
       var g = f.dir > 0 ? b.l - p.r : p.l - b.r;
       if (g >= 0 && g <= 18 && (!next || g < next.g)) next = { b: b, g: g };
     });
-    var landX = next && (f.dir > 0 ? next.b.sl + DOG_HW : next.b.sr - DOG_HW);
-    if (next && !hitsBox(landX, next.b.t, DOG_HW, DOG_H)) {
-      var T = 2 * 105 / GRAVITY;
-      f.state = "fall"; f.vy = -105; f.vx = (landX - f.x) / T; f.clearTo = null;
-      return;
-    }
-    f.dir = -f.dir;
+    if (!next) return null;
+    var x = f.dir > 0 ? next.b.sl + DOG_HW + 6 : next.b.sr - DOG_HW - 6;
+    return hitsBox(x, next.b.t, DOG_HW, DOG_H) ? null : { b: next.b, x: x };
+  }
+
+  // A jump from the end of box p to x on the next box's top, kept low enough to stay under
+  // anything above (between rows there's only a little headroom).
+  function dogJump(f, p, toX) {
+    var l = Math.min(f.x, toX) - DOG_HW, r = Math.max(f.x, toX) + DOG_HW, room = 40;
+    W.boxes.forEach(function (o) { if (o.b <= p.t + 0.5 && r > o.l && l < o.r) room = Math.min(room, p.t - o.b); });
+    var rise = clamp(room - DOG_H - 1, 1.2, 12), vy = Math.sqrt(2 * GRAVITY * rise), T = 2 * vy / GRAVITY;
+    f.state = "fall"; f.vy = -vy; f.vx = (toX - f.x) / T; f.clearTo = null;
   }
 
   // The nearest Ditto ahead on the same level, if it's not too far off.
@@ -1606,7 +1627,7 @@
       var moving = f.state === "climb" || f.state === "exit" || f.state === "crawl" || f.state === "pull" ||
         f.state === "ramp" || (f.state === "walk" && f.wave <= 0);
       // hands and knees step in time with the speed: crawling up a corner goes 1.4 times as fast
-      if (moving) f.phase += dt * (f.dog ? (f.sprint ? 17 * DOG_SPRINT : 17) : f.state === "climb" ? 9 : f.state === "crawl" ? 8 : f.state === "pull" ? 11.2 : 11);
+      if (moving) f.phase += dt * (f.dog ? (f.sprint || f.dash ? 17 * DOG_SPRINT : 17) : f.state === "climb" ? 9 : f.state === "crawl" ? 8 : f.state === "pull" ? 11.2 : 11);
       if (f.wag > 0) f.wag -= dt;
       if (f.bark > 0) f.bark -= dt;
       if (f.state === "walk") walk(f, dt);
