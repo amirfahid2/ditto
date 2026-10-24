@@ -58,6 +58,10 @@
   var DOG_UNLOCK = 200, DOG_GAP_MIN = 1000, DOG_GAP_MAX = 20000, DOG_CLICKS = 10;
   var DOG_HW = 4.8, DOG_H = 9.2, DOG_MIN = 34, DOG_MAX = 44, DOG_CAP = SMALL ? 6 : 12;
   var DOG_LONG = 1.5, DOG_SPRINT = 1.5;   // a box wider than 1.5 squares: run 1.5 times as fast, leap far off it
+  var DOG_MEET_MS = 600;                   // a newborn puppy can't make another one straight away
+  // The second easter egg: after 1000 Dittos, 1 in 50 that come through the door wears a tall striped
+  // hat. A hat makes a Ditto 6 px taller, and it can't be doubled or go poof (it can still leave).
+  var HAT_UNLOCK = 1000, HAT_CHANCE = 1 / 50, HAT_H = 6;
 
   var W = { width: 0, height: 0, ground: 0, boxes: [], ladders: [], door: null, entry: null };
   var figs = [], effects = [];
@@ -66,7 +70,7 @@
   var pendingDogs = 0, nextDogAt = 0, doorClicks = 0;
   var colors = { ink: "#16262E", muted: "#64808B", accent: "#0E7C86", card: "#FFFFFF" };
   var stats = { released: 0, exited: 0, giants: 0, dogsExited: 0, eggs: {} };   // giants: not built yet, so always 0
-  var announce = null, dogSoon = false;          // the "Easter egg unlocked" note; the first dog right after it
+  var notes = [], dogSoon = false;               // "Easter egg unlocked" notes, one after another; the first dog right after
   var canvas, ctx, ui, entryBtn, exitBtn, dpr = 1, cw = 0, ch = 0, timeScale = 1;
   var entryOpen = false, exitOpen = false, entryK = 0, exitK = 0, sceneK = 0;   // the doors: shut by default
   var dbg = null;                // jump/relocation log, only on a local preview
@@ -242,8 +246,19 @@
     return null;
   }
 
-  function extents(f) {
+  // The size of a character standing up: a dog, a Ditto, or a Ditto in a hat.
+  function standExtents(f) {
     if (f.dog) return [DOG_HW, DOG_H];
+    return [HALF_W, f.hat ? H + HAT_H : H];
+  }
+
+  function bodyHits(f, x, y) {
+    var e = standExtents(f);
+    return hitsBox(x, y, e[0], e[1]);
+  }
+
+  function extents(f) {
+    if (f.dog || f.hat) return standExtents(f);     // hats never crawl, hang or pull up
     if (f.state === "crawl" || f.state === "pull") return [HALF_WC, HC];
     if (f.state === "hang") return [HALF_WH, H];
     if ((f.state === "fall" || f.state === "slip") && f.lowSlip) return [HALF_WC, HC];   // still crouched, sliding off a low ledge
@@ -437,6 +452,7 @@
   // Dittos, through the door or out of the exit (doubled Dittos leave too, so exits can run ahead).
   var EGGS = [
     { id: "dogs", title: "Ditto dogs", reached: function () { return stats.released >= DOG_UNLOCK || stats.exited >= DOG_UNLOCK; } },
+    { id: "hats", title: "Ditto hats", reached: function () { return stats.released >= HAT_UNLOCK || stats.exited >= HAT_UNLOCK; } },
   ];
   function checkEggs() {
     EGGS.forEach(function (egg) {
@@ -444,7 +460,7 @@
       stats.eggs[egg.id] = new Date().toISOString().slice(0, 10);
       saveStats();
       dirty = true;                                 // the tally gets a row: place it again
-      announce = { text: "Easter egg unlocked: " + egg.title + "!", t: 0 };   // shown the next time the doors are open
+      notes.push({ text: "Easter egg unlocked: " + egg.title + "!", t: 0 });   // shown the next time the doors are open
       if (egg.id === "dogs") { dogSoon = true; nextDogAt = 0; }
     });
   }
@@ -478,18 +494,18 @@
       var a = anchor ? docRect(anchor) : (W.boxes[0] || { l: W.width / 2 - 20, r: W.width / 2 + 20 });
       var s = makeFig(rand(a.l + 4, Math.max(a.l + 5, a.r - 4)), -rand(20, 50));
       s.state = "fall";
-      if (dog) makeDog(s);
+      if (dog) makeDog(s); else if (stats.eggs.hats && Math.random() < HAT_CHANCE) s.hat = true;
       return;
     }
     var f = makeFig(W.entry.x, W.entry.y);
     f.state = "enter"; f.enterT = 0; f.dir = 1; f.alpha = 0; f.scale = 0.2;
-    if (dog) makeDog(f);
+    if (dog) makeDog(f); else if (stats.eggs.hats && Math.random() < HAT_CHANCE) f.hat = true;
   }
 
   function makeDog(f) {
     f.dog = true;
     f.speed = rand(DOG_MIN, DOG_MAX);
-    f.wag = 0; f.bark = 0; f.chase = null; f.chaseT = 0; f.toExit = false; f.platform = null;
+    f.wag = 0; f.bark = 0; f.chase = null; f.chaseT = 0; f.toExit = false;
     return f;
   }
 
@@ -531,14 +547,15 @@
 
   // Where would a figure dropping straight down at x from y end up? null if onto a box
   // with no room even to crawl.
-  function dropTarget(x, y) {
-    var land = null;
+  function dropTarget(x, y, f) {
+    var land = null, stands = function (yy) { return f ? !bodyHits(f, x, yy) : !hitsBox(x, yy); };
     W.boxes.forEach(function (b) {
       if (x + HALF_W > b.l && x - HALF_W < b.r && b.t >= y && (!land || b.t < land.t)) land = b;
     });
-    if (!land || land.t > W.ground) return hitsBox(x, W.ground) ? null : W.ground;
+    if (!land || land.t > W.ground) return stands(W.ground) ? W.ground : null;
     if (x < land.sl || x > land.sr) return W.ground;   // beside its rounded corner: slides past it
-    return (hitsBox(x, land.t) && hitsBox(x, land.t, HALF_WC, HC)) ? null : land.t;
+    var crouch = !(f && f.hat) && !hitsBox(x, land.t, HALF_WC, HC);
+    return stands(land.t) || crouch ? land.t : null;
   }
 
   // A drop at x would clip the rounded corner of a box below: move outside it (in the
@@ -576,13 +593,13 @@
     });
     var options = [];
     var landX = neighbour ? (f.dir > 0 ? neighbour.sl + 3 : neighbour.sr - 3) : 0;
-    if (!crawling && neighbour && !hitsBox(landX, neighbour.t)) options.push("jump");
+    if (!crawling && neighbour && !bodyHits(f, landX, neighbour.t)) options.push("jump");
     var nearX = clearDrop(edge + f.dir * (HALF_W + 0.5), f.y, f.dir);
-    if (!hitsBox(nearX, f.y + 1) && dropTarget(nearX, f.y) !== null) options.push("near");
+    if (!bodyHits(f, nearX, f.y + 1) && dropTarget(nearX, f.y, f) !== null) options.push("near");
     var farX = null;
     if (neighbour && gap >= 2 * HALF_W + 1.5) {
       farX = (f.dir > 0 ? neighbour.l : neighbour.r) - f.dir * (HALF_W + 0.5);
-      if (!hitsBox(farX, f.y + 1) && dropTarget(farX, f.y) !== null) options.push("far");
+      if (!bodyHits(f, farX, f.y + 1) && dropTarget(farX, f.y, f) !== null) options.push("far");
     }
     if (!options.length) { f.dir = -f.dir; return; }
     var pick = options[Math.floor(Math.random() * options.length)];
@@ -668,7 +685,7 @@
     var step = f.speed * dt;
     if (f.dismount !== null) {
       var d = f.dismount - f.x, s = Math.sign(d) * Math.min(Math.abs(d), step);
-      if (hitsBox(f.x + s, f.y)) { f.dismount = null; f.climbAfter = null; return; }
+      if (bodyHits(f, f.x + s, f.y)) { f.dismount = null; f.climbAfter = null; return; }
       f.x += s; f.dir = Math.sign(d) || f.dir;
       if (Math.abs(f.dismount - f.x) < 0.5) {
         f.dismount = null;
@@ -695,8 +712,8 @@
         return;
       }
       if (pastEdge(nx, f.dir, 4)) { f.dir = -f.dir; f.goal = null; return; }   // page edge: turn around
-      if (hitsBox(nx, W.ground)) {
-        if (!hitsBox(nx, W.ground, HALF_WC, HC)) { startCrawl(f, 14); return; }
+      if (bodyHits(f, nx, W.ground)) {
+        if (!f.hat && !hitsBox(nx, W.ground, HALF_WC, HC)) { startCrawl(f, 14); return; }
         f.dir = -f.dir; f.goal = { wander: true }; f.bounce = 1;
         return;
       }
@@ -707,9 +724,9 @@
     if (!p) { f.state = "fall"; f.vy = 0; f.vx = 0; return; }
     var px = f.x + f.dir * step;
     if (px >= p.sl && px <= p.sr) {
-      if (hitsBox(px, f.y)) {
-        // low ceiling: get down and crawl under it, or turn back if even that won't fit
-        if (!hitsBox(px, f.y, HALF_WC, HC)) startCrawl(f, 10); else f.dir = -f.dir;
+      if (bodyHits(f, px, f.y)) {
+        // low ceiling: get down and crawl under it, or turn back if even that won't fit (or a hat won't)
+        if (!f.hat && !hitsBox(px, f.y, HALF_WC, HC)) startCrawl(f, 10); else f.dir = -f.dir;
         return;
       }
       f.x = px;
@@ -718,25 +735,18 @@
     stepOffEdge(f, p, false);
   }
 
-  // A dog runs: after the nearest Ditto on its level, else (on the ground) for the exit, where it
-  // hops in. Page edges and boxes are walls; at the end of a box it hops down beside it.
+  // A dog runs straight on, chasing any Ditto ahead of it on its level, and hops into the exit
+  // when it gets there. Like every character it turns only when it bumps into someone (or runs
+  // into a wall); at the end of a box it hops down beside it, or leaps off a long one.
   function dogWalk(f, dt) {
     if (f.bark > 0) return;                         // stops for a bark, then runs on
     var ground = onGround(f), p = ground ? null : platformUnder(f.x, f.y);
     if (!ground && !p) { f.state = "fall"; f.vy = 0; f.vx = 0; return; }
     f.chaseT -= dt;
     if (f.chaseT <= 0) { f.chase = pickChase(f); f.chaseT = rand(2, 5); }
-    var target = f.chase && !f.chase.dead && f.chase.state === "walk" && Math.abs(f.chase.y - f.y) < 2 ? f.chase : null;
-    if (target) {
-      var dx = target.x - f.x;
-      if (Math.abs(dx) > 3) f.dir = dx > 0 ? 1 : -1;
-      if (Math.abs(dx) < 8) { scare(target, f); f.chase = null; f.chaseT = rand(1.5, 3); }
-    } else if (ground && W.door && exitOpen) {
-      f.dir = W.door.x >= f.x ? 1 : -1;            // nose toward the way out
-    } else if (p && f.platform !== p.key && W.door) {
-      f.platform = p.key;                           // on a new box: head for the side nearer the exit
-      f.dir = W.door.x >= f.x ? 1 : -1;
-    }
+    var target = f.chase && !f.chase.dead && f.chase.state === "walk" && Math.abs(f.chase.y - f.y) < 2 &&
+      (f.chase.x - f.x) * f.dir > 0 ? f.chase : null;
+    if (target && Math.abs(target.x - f.x) < 8) { scare(target, f); f.chase = null; f.chaseT = rand(1.5, 3); }
     f.sprint = !!p && p.r - p.l > DOG_LONG * W.squareW;   // a long box: room for a run-up
     var nx = f.x + f.dir * f.speed * (f.sprint ? DOG_SPRINT : 1) * dt;
     if (ground) {
@@ -785,11 +795,11 @@
     f.dir = -f.dir;
   }
 
-  // The nearest Ditto on the same level, if it's not too far off.
+  // The nearest Ditto ahead on the same level, if it's not too far off.
   function pickChase(f) {
     var best = null, bd = 170;
     figs.forEach(function (g) {
-      if (g.dog || g.dead || g.state !== "walk" || Math.abs(g.y - f.y) > 2) return;
+      if (g.dog || g.dead || g.state !== "walk" || Math.abs(g.y - f.y) > 2 || (g.x - f.x) * f.dir <= 0) return;
       var d = Math.abs(g.x - f.x);
       if (d < bd) { bd = d; best = g; }
     });
@@ -837,14 +847,14 @@
 
   // How far the figure can turn about the middle of its body before it would reach a box.
   function spinRoom(f) {
-    var mid = f.y - H / 2, gap = Infinity;
+    var hh = standExtents(f)[1], mid = f.y - hh / 2, gap = Infinity;
     W.boxes.forEach(function (b) {
-      if (b.b < mid - H / 2 - 4 || b.t > mid + H / 2 + 4) return;
+      if (b.b < mid - hh / 2 - 4 || b.t > mid + hh / 2 + 4) return;
       if (b.l >= f.x) gap = Math.min(gap, b.l - f.x); else if (b.r <= f.x) gap = Math.min(gap, f.x - b.r);
     });
     gap = Math.min(gap, f.x - 1, W.width - 1 - f.x) - 0.8;
     for (var a = SPIN_MAX; a > 0.02; a -= 0.05) {
-      if (HALF_W * Math.cos(a) + (H / 2) * Math.sin(a) <= gap) return a;   // half the width, turned by a
+      if (HALF_W * Math.cos(a) + (hh / 2) * Math.sin(a) <= gap) return a;   // half the width, turned by a
     }
     return 0;
   }
@@ -865,15 +875,15 @@
       f.x = nx; f.y = ny;
       return;
     }
-    if (f.clearTo === null && !f.dog && tryGrab(f, nx, ny)) return;
+    if (f.clearTo === null && !f.dog && !f.hat && tryGrab(f, nx, ny)) return;
     var land = null;
     W.boxes.forEach(function (b) {
       if (nx >= b.sl - 0.5 && nx <= b.sr + 0.5 && b.t >= f.y - 0.01 && b.t <= ny && (!land || b.t < land.t)) land = b;
     });
     if (land && land.t <= W.ground) {
       var lx = clamp(nx, land.sl, land.sr);
-      if (!hitsBox(lx, land.t, f.dog ? DOG_HW : HALF_W, f.dog ? DOG_H : H)) { f.x = lx; f.y = land.t; touchDown(f, f.vy); return; }
-      if (!f.dog && !hitsBox(lx, land.t, HALF_WC, HC)) {          // too low to stand: land crouched and crawl
+      if (!bodyHits(f, lx, land.t)) { f.x = lx; f.y = land.t; touchDown(f, f.vy); return; }
+      if (!f.dog && !f.hat && !hitsBox(lx, land.t, HALF_WC, HC)) {          // too low to stand: land crouched and crawl
         f.x = lx; f.y = land.t; touchDown(f, 0); startCrawl(f, 12);
         return;
       }
@@ -1031,7 +1041,7 @@
     if (!force && !inside) return;
     var best = null, bd = Infinity;
     function consider(x, y, state, d) { if (d < bd) { bd = d; best = { x: x, y: y, state: state }; } }
-    var sw = f.dog ? DOG_HW : HALF_W, sh = f.dog ? DOG_H : H;
+    var se = standExtents(f), sw = se[0], sh = se[1];
     if (inside) {
       // step out sideways into the gap and keep falling: the smallest, most natural move
       [inside.l - sw - 0.5, inside.r + sw + 0.5].forEach(function (x) {
@@ -1042,7 +1052,7 @@
       if (b.sr - b.sl < 2) return;
       var x = clamp(f.x, b.sl, b.sr), d = Math.abs(x - f.x) + Math.abs(b.t - f.y);
       if (!hitsBox(x, b.t, sw, sh)) consider(x, b.t, "walk", d);
-      else if (!f.dog && !hitsBox(x, b.t, HALF_WC, HC)) consider(x, b.t, "crawl", d);
+      else if (!f.dog && !f.hat && !hitsBox(x, b.t, HALF_WC, HC)) consider(x, b.t, "crawl", d);
     });
     var gx = clamp(f.x, 6, W.width - 6);
     if (!hitsBox(gx, W.ground, sw, sh)) consider(gx, W.ground, "walk", Math.abs(gx - f.x) + Math.abs(W.ground - f.y));
@@ -1067,6 +1077,7 @@
         var left = a.x <= b.x ? a : b, right = left === a ? b : a;
         left.dir = -1; right.dir = 1; left.bounce = right.bounce = 0.7;
         left.goal = right.goal = null;
+        if (a.hat || b.hat) continue;                   // a hat never doubles
         if (now - a.lastHit > COOLDOWN && now - b.lastHit > COOLDOWN) {
           a.lastHit = b.lastHit = now;
           replicate((a.x + b.x) / 2, a.y, now);
@@ -1075,25 +1086,36 @@
     }
   }
 
-  // Two dogs that bump into each other turn away from each other, and a puppy pops up between them.
+  // Two dogs that bump into each other bounce apart, and a puppy pops up between them, every time.
+  // They're pulled clear of each other at once, so one bump is one puppy (not a bump that lasts and
+  // then waits out a cooldown, which was why some meetings made no puppy).
   function dogsMeet(a, b, now) {
     var left = a.x <= b.x ? a : b, right = left === a ? b : a;
     left.dir = -1; right.dir = 1; left.chase = right.chase = null; left.chaseT = right.chaseT = 0.8;
-    if (now - a.lastHit < COOLDOWN || now - b.lastHit < COOLDOWN) return;
+    var gap = 2 * DOG_HW + 1.5 - (right.x - left.x);
+    if (gap > 0) {
+      if (!pastEdge(left.x - gap / 2, -1, 6) && !hitsBox(left.x - gap / 2, left.y, DOG_HW, DOG_H)) left.x -= gap / 2;
+      if (!pastEdge(right.x + gap / 2, 1, 6) && !hitsBox(right.x + gap / 2, right.y, DOG_HW, DOG_H)) right.x += gap / 2;
+    }
+    var newborn = now - a.lastHit < DOG_MEET_MS || now - b.lastHit < DOG_MEET_MS;   // only a puppy just born waits
+    if (dbg) dbg.push({ kind: "dogmeet", newborn: newborn });
+    if (newborn) return;
     a.lastHit = b.lastHit = now;
+    var spots = [(left.x + right.x) / 2, left.x, right.x], x = null;
+    for (var i = 0; i < spots.length && x === null; i++) if (!hitsBox(spots[i], a.y, DOG_HW, DOG_H)) x = spots[i];
+    if (x === null) return;
     var pack = dogs();
     if (pack.length >= DOG_CAP) poof(pack.reduce(function (o, d) { return d.born < o.born ? d : o; }));
-    var x = (a.x + b.x) / 2;
-    if (hitsBox(x, a.y, DOG_HW, DOG_H)) return;
     var n = makeDog(makeFig(x, a.y));
     n.lastHit = now; n.grow = 0.3; n.dir = Math.random() < 0.5 ? -1 : 1;
+    if (dbg) dbg.push({ kind: "puppy", id: n.id });
     effects.push({ type: "pop", x: x, y: a.y - DOG_H / 2, t: 0 });
   }
 
   // A collision doubles them: a new figure pops up right there and walks off its own way.
   function replicate(x, y, now) {
     var alive = people();
-    if (alive.length >= CAP) poofForRoom(alive);
+    if (alive.length >= CAP && !poofForRoom(alive)) return;   // nobody left who can go poof
     if (hitsBox(x, y)) return;
     var n = makeFig(x, y);
     n.lastHit = now;
@@ -1112,16 +1134,19 @@
   // One goes poof to make room at the cap. A crowd that keeps doubling in one spot fills the
   // cap over and over: 15 of these within 10 s and the 30 most crowded go poof at once.
   function poofForRoom(alive) {
-    poof(alive.reduce(function (o, f) { return f.born < o.born ? f : o; }));
+    var can = alive.filter(function (f) { return !f.hat; });   // a hat never goes poof
+    if (!can.length) return false;
+    poof(can.reduce(function (o, f) { return f.born < o.born ? f : o; }));
     var now = performance.now();
     poofTimes.push(now);
     while (poofTimes.length && now - poofTimes[0] > CRUSH_MS / timeScale) poofTimes.shift();
     if (poofTimes.length >= CRUSH_POOFS) breakUpCrowd();
+    return true;
   }
 
   function breakUpCrowd() {
     poofTimes = [];
-    var alive = people().filter(function (f) { return f.state !== "exit"; });
+    var alive = people().filter(function (f) { return f.state !== "exit" && !f.hat; });
     alive.forEach(function (f) {
       f.crowd = 0;
       alive.forEach(function (g) {
@@ -1247,7 +1272,8 @@
     if (f.state === "hang" && f.grab) { drawHanger(f, t); return; }
     ctx.save();
     ctx.translate(f.x, f.y);
-    if (f.spin) { ctx.translate(0, -H / 2); ctx.rotate(f.spin); ctx.translate(0, H / 2); }   // tumbling
+    var mid = standExtents(f)[1] / 2;
+    if (f.spin) { ctx.translate(0, -mid); ctx.rotate(f.spin); ctx.translate(0, mid); }   // tumbling
     var sq = f.squash > 0 ? f.squash / 0.22 : 0;          // landing squash
     var grow = f.grow > 0 ? 1 - 0.7 * f.grow / 0.3 : 1;   // a newborn pops up from small
     ctx.scale((f.state === "climb" ? 1 : f.dir) * f.scale * grow * (1 + 0.28 * sq), f.scale * grow * (1 - 0.28 * sq));
@@ -1276,6 +1302,26 @@
     ctx.stroke();
     ctx.beginPath();
     ctx.arc(0, -12.7, 1.95, 0, Math.PI * 2);
+    ctx.stroke();
+    if (f.hat) drawHat();
+    ctx.restore();
+  }
+
+  // A tall top hat in red and white stripes, a little crooked, sitting on the head.
+  function drawHat() {
+    var bottom = -14.2, top = -12.7 - 1.95 - HAT_H + 0.65, w = 3.4, band = (bottom - top) / 4;
+    ctx.save();
+    ctx.translate(0.2, 0);
+    ctx.rotate(-0.09);
+    for (var i = 0; i < 4; i++) {
+      ctx.fillStyle = i % 2 ? "#FFFFFF" : "#D62828";
+      ctx.fillRect(-w / 2, bottom - (i + 1) * band, w, band + 0.05);
+    }
+    ctx.lineWidth = 0.7;
+    ctx.strokeRect(-w / 2, top, w, bottom - top);
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(-2.8, bottom); ctx.lineTo(2.8, bottom);    // the brim
     ctx.stroke();
     ctx.restore();
   }
@@ -1494,20 +1540,21 @@
       figs.forEach(function (f) { if (f.y > top && f.y - H < bottom) drawFigure(f, t); });
       drawEffects(dt, scene);
       ctx.globalAlpha = 1;
-      if (announce && enabled) drawAnnounce(dt);
+      if (notes.length && enabled) drawAnnounce(dt);
     }
   }
 
   // "Easter egg unlocked: …" at the top of the screen for a few seconds, once.
   function drawAnnounce(dt) {
-    announce.t += dt;
-    var k = announce.t, alpha = k < 0.3 ? k / 0.3 : k < 5.5 ? 1 : 1 - (k - 5.5) / 0.6;
-    if (alpha <= 0) { announce = null; return; }
+    var note = notes[0];
+    note.t += dt;
+    var k = note.t, alpha = k < 0.3 ? k / 0.3 : k < 5.5 ? 1 : 1 - (k - 5.5) / 0.6;
+    if (alpha <= 0) { notes.shift(); return; }
     var pop = k < 0.3 ? 0.85 + 0.15 * (k / 0.3) : 1;
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.font = "700 13px 'IBM Plex Sans', system-ui, sans-serif";
-    var text = announce.text, w = ctx.measureText(text).width + 30, h = 30;
+    var text = note.text, w = ctx.measureText(text).width + 30, h = 30;
     var x = window.scrollX + cw / 2, y = window.scrollY + 46;
     ctx.translate(x, y); ctx.scale(pop, pop);
     ctx.fillStyle = colors.accent;
@@ -1794,7 +1841,8 @@
         doors: function () { return { enabled: enabled, entryOpen: entryOpen, exitOpen: exitOpen, entryK: entryK, exitK: exitK, sceneK: sceneK }; }, setSpeed: function (k) { timeScale = k; },
         hitsBox: hitsBox, extents: extents, setGrabChance: function (p) { GRAB_CHANCE = p; },
         onCorner: onCorner, crawlerPoints: crawlerPoints, stats: function () { return stats; },
-        arriveDog: arriveDog, dogs: dogs, people: people, announce: function () { return announce; },
+        arriveDog: arriveDog, dogs: dogs, people: people, announce: function () { return notes[0] || null; }, notes: function () { return notes; },
+        setHatChance: function (p) { HAT_CHANCE = p; },
         step: function (n) {                     // run n frames by hand (a hidden preview gets no animation frames)
           for (var i = 0; i < n; i++) { if (raf) cancelAnimationFrame(raf); raf = 0; frame((last || performance.now()) + 1000 / 60); }
         },
