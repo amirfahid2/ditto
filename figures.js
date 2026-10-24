@@ -36,6 +36,7 @@
     (ds.ignore ? ", " + ds.ignore : "");
   var TEXT_SELECTOR = "p, h1, h2, h3, h4, li, a, label, button, .wordmark";
   var STORE_KEY = "ditto.figures";
+  var STATS_KEY = "ditto.figures.stats";   // the tally over the exit door, kept in this browser
 
   var H = 14.6, HALF_W = 3;      // standing: feet to top of head, half the body width
   var HC = 8.4, HALF_WC = 5;     // crawling on hands and knees
@@ -56,7 +57,8 @@
   var figs = [], effects = [];
   var enabled = false, dirty = true, raf = 0, last = 0, nextId = 1;
   var pending = 0, lastArrival = 0, lastRelease = 0, history = [], poofTimes = [];
-  var colors = { ink: "#16262E", muted: "#64808B", accent: "#0E7C86" };
+  var colors = { ink: "#16262E", muted: "#64808B", accent: "#0E7C86", card: "#FFFFFF" };
+  var stats = { released: 0, exited: 0, giants: 0 };   // giants: not built yet, so always 0
   var canvas, ctx, ui, entryBtn, exitBtn, dpr = 1, cw = 0, ch = 0, timeScale = 1;
   var entryOpen = false, exitOpen = false, entryK = 0, exitK = 0, sceneK = 0;   // the doors: shut by default
   var dbg = null;                // jump/relocation log, only on a local preview
@@ -151,6 +153,7 @@
     buildEntry();
     buildLadders();
     buildDoor();
+    placeStats();
     // ladders are rebuilt on every layout change: keep climbers on the one at the same spot
     figs.forEach(function (f) {
       if (f.ladder) f.ladder = sameLadder(f.ladder);
@@ -346,11 +349,42 @@
     }
   }
 
+  // The tally sits right above the exit door's sign; when something is in the way, beside the
+  // door, else higher up the right side. Checked against the words themselves, not whole
+  // paragraph boxes (a short footer line leaves the rest of its row free).
+  function placeStats() {
+    W.stats = null;
+    var D = W.door;
+    if (!D) return;
+    var size = statsSize(), lines = textLines(), pad = 4;
+    var spots = [{ r: D.x + 7, b: D.y - 24 }, { r: D.x - 10, b: D.y - 1 }];
+    for (var b = D.y - 30; b > D.y - 240; b -= 6) spots.push({ r: D.x + 7, b: b });
+    for (var i = 0; i < spots.length; i++) {
+      var S = spots[i], l = Math.max(4, S.r - size.w) - pad, t = S.b - size.h - pad;
+      if (regionClear(l, t, S.r + pad, S.b + pad, W.boxes) && regionClear(l, t, S.r + pad, S.b + pad, lines)) { W.stats = S; return; }
+    }
+    W.stats = spots[0];
+  }
+
+  function textLines() {
+    var out = [], els = document.querySelectorAll(TEXT_SELECTOR), range = document.createRange();
+    for (var i = 0; i < els.length; i++) {
+      if ((ui && ui.contains(els[i])) || !inFlow(els[i])) continue;
+      range.selectNodeContents(els[i]);
+      var rs = range.getClientRects();
+      for (var j = 0; j < rs.length; j++) {
+        if (rs[j].width && rs[j].height) out.push({ l: rs[j].left + window.scrollX, t: rs[j].top + window.scrollY, r: rs[j].right + window.scrollX, b: rs[j].bottom + window.scrollY });
+      }
+    }
+    return out;
+  }
+
   function readColors() {
     var cs = getComputedStyle(document.documentElement);
     colors.ink = (cs.getPropertyValue("--ink") || "").trim() || colors.ink;
     colors.muted = (cs.getPropertyValue("--muted") || "").trim() || colors.muted;
     colors.accent = (cs.getPropertyValue("--accent") || "").trim() || colors.accent;
+    colors.card = (cs.getPropertyValue("--card") || "").trim() || colors.card;
   }
 
   /* ---------------- figures ---------------- */
@@ -367,6 +401,21 @@
     return f;
   }
 
+  // The tally: every figure that comes through the top door, every one that leaves by the exit.
+  // It lives in this browser's storage, so it survives reloads until the site data is cleared.
+  function loadStats() {
+    try {
+      var saved = JSON.parse(localStorage.getItem(STATS_KEY) || "null");
+      if (saved) { stats.released = +saved.released || 0; stats.exited = +saved.exited || 0; stats.giants = +saved.giants || 0; }
+    } catch (e) {}
+  }
+
+  function count(key) {
+    stats[key]++;
+    if (String(stats[key]).length > String(stats[key] - 1).length) dirty = true;   // a digit wider: place it again
+    try { localStorage.setItem(STATS_KEY, JSON.stringify(stats)); } catch (e) {}
+  }
+
   // New figures come in through the door, one at a time.
   function arrive(n) {
     pending = Math.min(pending + n, Math.max(0, CAP - figs.length));
@@ -375,6 +424,7 @@
   function admitOne(now) {
     lastArrival = now;
     pending--;
+    count("released");
     if (!W.entry) {                                   // no room for the door: drop from just above the title
       var anchor = ds.sky && document.querySelector(ds.sky);
       var a = anchor ? docRect(anchor) : (W.boxes[0] || { l: W.width / 2 - 20, r: W.width / 2 + 20 });
@@ -775,7 +825,7 @@
     f.y = f.door.y;
     f.scale = 1 - 0.85 * k;
     f.alpha = 1 - k;
-    if (k >= 1) { f.dead = true; if (dbg) dbg.push({ kind: "gone", why: "exit", id: f.id }); }
+    if (k >= 1) { f.dead = true; count("exited"); if (dbg) dbg.push({ kind: "gone", why: "exit", id: f.id }); }
   }
 
   function onCorner(f) {
@@ -1086,6 +1136,50 @@
       ctx.fillText("EXIT", D.x, D.y - 16);
       ctx.restore();
     }
+    drawStats(exitK);
+  }
+
+  // Dittos released / Dittos exited / Giants released, on a small card; gone when the exit shuts.
+  var STATS_LABEL = "500 10.5px 'IBM Plex Sans', system-ui, sans-serif", STATS_NUM = "700 10.5px 'IBM Plex Sans', system-ui, sans-serif";
+  function statsRows() {
+    return [["Dittos released:", stats.released], ["Dittos exited:", stats.exited], ["Giants released:", stats.giants]];
+  }
+
+  function statsSize() {
+    var rows = statsRows(), lw = 0, nw = 0;
+    if (!ctx) return { w: 130, h: rows.length * 13 + 9 };
+    ctx.save();
+    ctx.font = STATS_LABEL;
+    rows.forEach(function (r) { lw = Math.max(lw, ctx.measureText(r[0]).width); });
+    ctx.font = STATS_NUM;
+    rows.forEach(function (r) { nw = Math.max(nw, ctx.measureText(String(r[1])).width); });
+    ctx.restore();
+    return { w: Math.ceil(lw + nw + 26), h: rows.length * 13 + 9 };
+  }
+
+  function drawStats(k) {
+    var S = W.stats;
+    if (!S || k < 0.01) return;
+    var rows = statsRows(), label = STATS_LABEL, num = STATS_NUM, size = statsSize();
+    ctx.save();
+    var w = size.w, h = size.h, l = Math.max(4, S.r - w), t = S.b - h;
+    ctx.globalAlpha = k;
+    ctx.fillStyle = colors.card;
+    ctx.shadowColor = "rgba(22, 38, 46, 0.16)";
+    ctx.shadowBlur = 6;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(l, t, w, h, 8); else ctx.rect(l, t, w, h);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.textBaseline = "middle";
+    rows.forEach(function (r, i) {
+      var y = t + 11 + i * 13;
+      ctx.font = label; ctx.fillStyle = colors.muted; ctx.textAlign = "left";
+      ctx.fillText(r[0], l + 9, y);
+      ctx.font = num; ctx.fillStyle = colors.ink; ctx.textAlign = "right";
+      ctx.fillText(String(r[1]), l + w - 9, y);
+    });
+    ctx.restore();
   }
 
   function drawEffects(dt, fade) {
@@ -1369,6 +1463,7 @@
   function init() {
     injectCss();
     buildUi();
+    loadStats();
     computeWorld();
     // every visit starts with the door shut (and forget the old on/off setting)
     try { localStorage.removeItem(STORE_KEY); } catch (e) {}
@@ -1400,7 +1495,7 @@
         arrive: arrive, releaseOne: releaseOne, pending: function () { return pending; },
         doors: function () { return { enabled: enabled, entryOpen: entryOpen, exitOpen: exitOpen, entryK: entryK, exitK: exitK, sceneK: sceneK }; }, setSpeed: function (k) { timeScale = k; },
         hitsBox: hitsBox, extents: extents, setGrabChance: function (p) { GRAB_CHANCE = p; },
-        onCorner: onCorner, crawlerPoints: crawlerPoints,
+        onCorner: onCorner, crawlerPoints: crawlerPoints, stats: function () { return stats; },
         step: function (n) {                     // run n frames by hand (a hidden preview gets no animation frames)
           for (var i = 0; i < n; i++) { if (raf) cancelAnimationFrame(raf); raf = 0; frame((last || performance.now()) + 1000 / 60); }
         },
