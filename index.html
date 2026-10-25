@@ -94,7 +94,7 @@
 
   header {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     justify-content: space-between;
     gap: 12px;
     padding: 6px 2px 2px;
@@ -128,13 +128,28 @@
     border-radius: 999px;
     padding: 6px 14px;
   }
+  .settings-btn {
+    width: 38px;
+    height: 38px;
+    margin-right: -6px;
+    display: grid;
+    place-items: center;
+    border: none;
+    border-radius: 50%;
+    background: none;
+    color: var(--accent);
+    cursor: pointer;
+  }
+  .settings-btn:hover { background: var(--field); }
+  .settings-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .settings-btn svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; }
 
   .grid {
     display: grid;
     grid-template-columns: repeat(var(--cols, 3), 1fr);
     gap: 11px;
   }
-  /* more squares per row (Options): smaller squares, smaller words */
+  /* more squares per row (Settings): smaller squares, smaller words */
   .grid.cols-4 .sq { border-radius: 17px; padding: 6px; }
   .grid.cols-4 .sq .name { font-size: 16px; }
   .grid.cols-4 .sq .name.long { font-size: 12.5px; }
@@ -247,7 +262,7 @@
     opacity: 0.75;
   }
 
-  /* the iPhone's squares (Options ▸ Use my iPhone's squares): its colors, borders, emoji, pictures */
+  /* the iPhone's squares (Settings ▸ Use my iPhone's squares): its colors, borders, emoji, pictures */
   .sq.colored { color: #FFFFFF; }
   .sq .ring { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; }
   .sq .emoji { font-size: 30px; line-height: 1; }
@@ -417,25 +432,8 @@
     .sheet, .sheet.open { transition: none; }
   }
 
-  footer {
-    margin-top: 26px;
-    display: flex;
-    justify-content: center;
-    gap: 18px;
-    flex-wrap: wrap;
-  }
-  footer button {
-    font-family: inherit;
-    font-size: 12.5px;
-    color: var(--muted);
-    background: none;
-    border: none;
-    padding: 6px;
-    cursor: pointer;
-    text-decoration: underline;
-    text-underline-offset: 3px;
-  }
-  footer button#shareBtn { color: var(--accent); font-weight: 600; }
+  .saved-note { margin-top: 12px; }
+  .site-links { margin-top: 10px; text-align: center; }
 
   /* bottom sheet */
   .scrim {
@@ -661,6 +659,30 @@
     cursor: pointer;
   }
   .opt-text { display: block; }
+  /* Settings: headed groups like the iPhone's; a row with › opens something */
+  .set-head {
+    margin: 18px 2px 2px;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .set-head:first-of-type { margin-top: 6px; }
+  .opt-go {
+    width: 100%;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    background: none;
+    border: none;
+    cursor: pointer;
+  }
+  .opt-go .chev { font-size: 24px; line-height: 1; color: var(--muted); padding: 0 2px; }
+  .opt-go:hover .opt-name { color: var(--accent); }
+  .set-buttons { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .set-note { margin: 10px 2px 0; }
+  .sheet-head-gap { width: 64px; }
   .opt-name { display: block; font-size: 15px; font-weight: 600; }
   .opt-desc { display: block; font-size: 13px; color: var(--muted); line-height: 1.45; margin-top: 3px; }
   .switch {
@@ -732,7 +754,10 @@
 <div class="wrap">
   <header>
     <div class="wordmark">Dit<span>to</span></div>
-    <button class="arrange-btn" id="arrangeBtn">Arrange</button>
+    <button type="button" class="settings-btn" id="settingsBtn" aria-label="Settings" title="Settings">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z"/><path d="M19.4 13.5a7.7 7.7 0 0 0 0-3l2-1.6-2-3.4-2.4 1a7.6 7.6 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.5A7.6 7.6 0 0 0 7 6.5l-2.4-1-2 3.4 2 1.6a7.7 7.7 0 0 0 0 3l-2 1.6 2 3.4 2.4-1a7.6 7.6 0 0 0 2.6 1.5l.4 2.5h4l.4-2.5a7.6 7.6 0 0 0 2.6-1.5l2.4 1 2-3.4-2-1.6Z"/></svg>
+    </button>
+    <button type="button" class="arrange-btn on" id="arrangeDone" hidden>Done</button>
   </header>
   <p class="hint" id="mainHint">Tap a square to copy its text. Press and hold to edit.</p>
   <div class="link-card" id="linkCard" hidden>
@@ -752,18 +777,12 @@
     </div>
   </div>
   <div class="grid" id="grid"></div>
-  <footer>
-    <button id="shareBtn">Share my list</button>
-    <button id="optionsBtn">Options</button>
-    <button id="backupBtn">Copy backup</button>
-    <button id="restoreBtn">Restore backup</button>
-  </footer>
-  <p class="hint saved-note" id="savedNote" style="margin-top:10px">Your squares are saved in this browser on this device only. <b>Copy backup</b> puts them on your clipboard as text you can keep in Notes or an email; <b>Restore backup</b> pastes that text back here or on another device.</p>
+  <p class="hint saved-note" id="savedNote" hidden></p>
   <div class="stores">
     <a class="store" href="https://apps.apple.com/app/id6810430522"><small>Download on the</small>App Store</a>
     <span class="store soon" aria-label="Ditto for Android is coming soon to Google Play"><small>Coming soon for Android</small>Google Play</span>
   </div>
-  <p class="hint" style="margin-top:6px"><a href="about/">About Ditto</a> · <a href="privacy.html">Privacy</a> · <a href="mailto:amirfahid@gmail.com?subject=Ditto">Support</a></p>
+  <p class="hint site-links"><a href="about/">About Ditto</a> · <a href="privacy.html">Privacy</a> · <a href="mailto:amirfahid@gmail.com?subject=Ditto">Support</a></p>
 </div>
 
 <div class="scrim" id="scrim"></div>
@@ -839,9 +858,18 @@
 
 <div class="sheet" id="optionsSheet">
   <div class="sheet-head">
-    <div class="sheet-title">Options</div>
+    <span class="sheet-head-gap"></span>
+    <div class="sheet-title">Settings</div>
     <button class="btn-save" id="optionsDone">Done</button>
   </div>
+  <div class="set-head">Board</div>
+  <button type="button" class="opt-row opt-go" id="arrangeGo">
+    <span class="opt-text">
+      <span class="opt-name">Arrange squares</span>
+      <span class="opt-desc">Drag squares to move them, or drop one on a folder to put it inside.</span>
+    </span>
+    <span class="chev" aria-hidden="true">&rsaquo;</span>
+  </button>
   <label class="opt-row" for="combineToggle">
     <span class="opt-text">
       <span class="opt-name">Combine quick taps</span>
@@ -861,6 +889,7 @@
     <button type="button" class="seg-btn" data-cols="5">5</button>
     <button type="button" class="seg-btn" data-cols="6">6</button>
   </div>
+  <div class="set-head">Your iPhone</div>
   <label class="opt-row" for="phoneToggle">
     <span class="opt-text">
       <span class="opt-name">Use my iPhone's squares</span>
@@ -868,6 +897,20 @@
     </span>
     <input type="checkbox" class="switch" id="phoneToggle">
   </label>
+  <div class="set-head">Share</div>
+  <button type="button" class="opt-row opt-go" id="shareBtn">
+    <span class="opt-text">
+      <span class="opt-name">Share my list</span>
+      <span class="opt-desc">A link with your squares and folders (not photos) to send to someone. They choose whether to add them.</span>
+    </span>
+    <span class="chev" aria-hidden="true">&rsaquo;</span>
+  </button>
+  <div class="set-head">Backup</div>
+  <div class="set-buttons">
+    <button type="button" class="btn-quiet" id="backupBtn">Copy backup</button>
+    <button type="button" class="btn-quiet" id="restoreBtn">Restore backup</button>
+  </div>
+  <p class="opt-desc set-note" id="backupNote"></p>
   <div class="version">Ditto v3.0</div>
 </div>
 
@@ -1257,19 +1300,26 @@
 
   /* ---------- arrange mode ---------- */
 
-  var arrangeBtn = document.getElementById("arrangeBtn");
+  // Arrange starts from Settings; while it's on, Done takes the gear's place, as on the iPhone.
+  var settingsBtn = document.getElementById("settingsBtn");
+  var arrangeDone = document.getElementById("arrangeDone");
   var mainHint = document.getElementById("mainHint");
   var HINT_TAP = mainHint.textContent;
   var HINT_ARRANGE = "Drag squares to move them. Drop one on the middle of a folder to put it inside. Tap a folder to open it and drag its texts out.";
-  arrangeBtn.addEventListener("click", function () {
-    arranging = !arranging;
+  function setArranging(on) {
+    arranging = on;
     if (arranging) openFolderId = null;
     grid.classList.toggle("arranging", arranging);
-    arrangeBtn.textContent = arranging ? "Done" : "Arrange";
-    arrangeBtn.classList.toggle("on", arranging);
+    settingsBtn.hidden = arranging;
+    arrangeDone.hidden = !arranging;
     mainHint.textContent = arranging ? HINT_ARRANGE : HINT_TAP;
     render();
+  }
+  document.getElementById("arrangeGo").addEventListener("click", function () {
+    closeSheets();
+    setArranging(true);
   });
+  arrangeDone.addEventListener("click", function () { setArranging(false); });
 
   var DRAG_START_PX = 6;    // a press that moves less than this is a tap
   var EDGE_DWELL_MS = 350;  // resting on a folder's edge this long moves the square past it
@@ -1963,10 +2013,14 @@
       render();
     });
   });
-  document.getElementById("optionsBtn").addEventListener("click", function () {
+  var backupNote = document.getElementById("backupNote");
+  settingsBtn.addEventListener("click", function () {
     combineToggle.checked = !!state.options.combineTaps;
     showColumns();
     showPhoneOption();
+    backupNote.innerHTML = phone
+      ? "<b>Copy backup</b> puts your iPhone's squares on your clipboard as text you can keep. To restore a backup here, turn off Use my iPhone's squares first."
+      : "Your squares are saved in this browser on this device only. <b>Copy backup</b> puts them on your clipboard as text you can keep in Notes or an email; <b>Restore backup</b> pastes that text back here or on another device.";
     openSheet(optionsSheet);
   });
   document.getElementById("optionsDone").addEventListener("click", closeSheets);
@@ -1982,8 +2036,7 @@
   var LINK_KEY = "ditto.link.v1", USE_KEY = "ditto.link.useOnSite";
   var phoneToggle = document.getElementById("phoneToggle");
   var phoneDesc = document.getElementById("phoneDesc");
-  var savedNote = document.getElementById("savedNote");
-  var SAVED_NOTE = savedNote.innerHTML;
+  var savedNote = document.getElementById("savedNote");   // the line under the board, only for the iPhone's squares
   var restoreBtn = document.getElementById("restoreBtn");
   var phoneConflict = document.getElementById("phoneConflict");
   var phoneStarting = false, picturesWaiting = false;
@@ -2015,16 +2068,20 @@
       : "Link this browser to Ditto on your iPhone first, at <a href=\"link/\">dittotap.com/link</a>. Then this shows your iPhone's squares here: tap to copy, and changes go to your iPhone.";
   }
 
-  function phoneNote(kind, text) {
-    if (!phone) { savedNote.innerHTML = SAVED_NOTE; return; }
-    savedNote.textContent = "These are your iPhone's squares, linked at dittotap.com/link. Changes you make here go to your iPhone the next time you open Ditto. To use this browser's own squares, turn off Use my iPhone's squares in Options.";
-    if (text) {
+  function setNote(main, kind, status) {
+    savedNote.textContent = main || "";
+    if (status) {
       var st = document.createElement("span");
       st.className = "phone-status";
       st.dataset.kind = kind;
-      st.textContent = text;
+      st.textContent = status;
       savedNote.appendChild(st);
     }
+    savedNote.hidden = !main && !status;
+  }
+  function phoneNote(kind, text) {
+    if (!phone) { setNote(); return; }
+    setNote("These are your iPhone's squares. Changes you make here go to your iPhone the next time you open Ditto. To use this browser's own squares, turn off Use my iPhone's squares in Settings.", kind, text);
   }
 
   function busy() {
@@ -2051,7 +2108,7 @@
     phoneStarting = true;
     showLinkCard();
     grid.classList.add("waiting");
-    savedNote.textContent = "Loading your iPhone's squares…";
+    setNote("Loading your iPhone's squares…");
     import("./link/phone-board.js").then(function (lib) {
       phoneLib = lib;
       return lib.openPhoneBoard({
@@ -2093,12 +2150,7 @@
           showLinkCard();
           showToast("Your iPhone isn't linked to this browser any more. Use my iPhone's squares here links it again");
         } else {
-          savedNote.innerHTML = SAVED_NOTE;
-          var st = document.createElement("span");
-          st.className = "phone-status";
-          st.dataset.kind = "error";
-          st.textContent = "Can't reach your iPhone's squares right now, so these are this browser's own.";
-          savedNote.appendChild(st);
+          setNote("", "error", "Can't reach your iPhone's squares right now, so these are this browser's own.");
         }
       } else {
         phone = res;
@@ -2147,7 +2199,7 @@
   document.getElementById("linkCardClose").addEventListener("click", function () {
     try { localStorage.setItem(CARD_KEY, "1"); } catch (e) {}
     linkCard.hidden = true;
-    showToast("You can still turn it on in Options");
+    showToast("You can still turn it on in Settings (the gear at the top)");
   });
 
   phoneToggle.addEventListener("change", function () {
@@ -2185,6 +2237,7 @@
   var restoreInput = document.getElementById("restoreInput");
   document.getElementById("restoreBtn").addEventListener("click", function () {
     restoreInput.value = "";
+    closeSheets();
     openSheet(restoreSheet);
   });
   document.getElementById("restoreCancel").addEventListener("click", closeSheets);
@@ -2218,6 +2271,6 @@ if ("serviceWorker" in navigator) {
   });
 }
 </script>
-<script src="figures.js" defer data-boxes=".sq, .folder-panel, .store, .arrange-btn, .wrap > footer button, .saved-note, .wordmark, .phone-conflict, .link-card" data-grab=".sq, .folder-panel, .store" data-board=".grid > .sq" data-text-tops=".wordmark, .saved-note" data-sky=".wordmark" data-ignore=".scrim, .sheet, .ghost, .ix-back"></script>
+<script src="figures.js" defer data-boxes=".sq, .folder-panel, .store, .settings-btn, .arrange-btn, .saved-note, .wordmark, .phone-conflict, .link-card" data-grab=".sq, .folder-panel, .store" data-board=".grid > .sq" data-text-tops=".wordmark, .saved-note" data-sky=".wordmark" data-ignore=".scrim, .sheet, .ghost, .ix-back"></script>
 </body>
 </html>
