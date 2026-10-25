@@ -162,6 +162,8 @@
   .layout-ctl .seg { margin-top: 10px; }
   .layout-ctl .seg-btn { padding: 8px 4px; font-size: 13px; line-height: 1.2; }
   .layout-ctl .opt-desc { margin: 8px 2px 0; }
+  .layout-ctl .ctl-cap { margin: 12px 2px 0; font-size: 12px; font-weight: 600; color: var(--muted); }
+  .layout-ctl .ctl-cap + .seg { margin-top: 6px; }
   .layout-ctl .check-row { margin-top: 10px; }
   .layout-ctl .check-row small { display: block; color: var(--muted); font-size: 12.5px; font-weight: 400; }
   /* more squares per row (Settings): smaller squares, smaller words */
@@ -402,6 +404,10 @@
     pointer-events: auto;
   }
   .grid.arranging .sq .arr-edit:hover { background: rgba(0, 0, 0, 0.75); }
+  /* small squares (5 or 6 across a phone): a smaller "…" so the name still shows */
+  .grid.arranging.cols-5 .sq .arr-edit, .grid.arranging.cols-6 .sq .arr-edit {
+    top: 3px; right: 3px; width: 15px; height: 15px; font-size: 10px; padding-bottom: 4px;
+  }
   .folder-panel .sq { border-radius: 16px; }
 
   @keyframes copyflash {
@@ -1085,9 +1091,9 @@
 
   /* ---------- grid layout ---------- */
   // This browser's choice (kept in local.options, not part of the board):
-  //   fit "grid"  Same grid: a set number of squares per row (3-6); squares grow or shrink with the page
-  //       "size"  Same size squares: squares stay one size; a wider window fits more of them in a row
-  //       "page"  Fit to page: squares grow or shrink so the whole board fits in the window
+  //   fit "grid"  Same grid: a set number of squares per row (columns, 3-6); squares grow or shrink with the page
+  //       "size"  Same size squares: squares stay one size; per row (perRow, 3-8) or Auto, as many as fit
+  //       "page"  Fit to page: squares grow or shrink so the whole board fits in the window; per row or Auto
   //   matchPhone  3 per row, as on the iPhone, so each square sits where it does there (off by default)
   var GAP = 11, SIZES = { s: 90, m: 120, l: 150 }, FIT_MIN = 60, FIT_MAX = 240;
   var wrapEl = document.querySelector(".wrap");
@@ -1099,7 +1105,8 @@
       fit: o.fit === "size" || o.fit === "page" ? o.fit : "grid",
       size: SIZES[o.squareSize] ? o.squareSize : "m",
       match: !!o.matchPhone,
-      cols: +o.columns >= 3 && +o.columns <= 6 ? +o.columns : 3
+      cols: +o.columns >= 3 && +o.columns <= 6 ? +o.columns : 3,
+      perRow: +o.perRow >= 3 && +o.perRow <= 8 ? +o.perRow : 0    // 0 = Auto
     };
   }
 
@@ -1113,20 +1120,25 @@
     // the layout choices above the board would otherwise shrink them)
     if (!arranging) restTop = grid.getBoundingClientRect().top + window.scrollY;
     if (o.fit === "grid") return { cols: o.match ? 3 : o.cols, size: 0 };
+    var perRow = o.match ? 3 : o.perRow;   // 0 = Auto
+    var across = function (c) { return (availW - (c - 1) * GAP) / c; };   // the widest a square can be, c per row
     if (o.fit === "size") {
       var sz = SIZES[o.size];
-      return o.match ? { cols: 3, size: Math.min(sz, (availW - 2 * GAP) / 3) } : { cols: fitAcross(sz), size: sz };
+      // a set number per row keeps the size unless the window is too narrow for them
+      return perRow ? { cols: perRow, size: Math.min(sz, across(perRow)) } : { cols: fitAcross(sz), size: sz };
     }
     // Fit to page: the biggest squares that fit across and down
     var availH = window.innerHeight - restTop - 16;
     var best = { cols: 3, size: 0 };
-    for (var c = o.match ? 3 : 1; c <= (o.match ? 3 : tiles); c++) {
+    for (var c = perRow || 1; c <= (perRow || tiles); c++) {
       var rows = Math.ceil(tiles / c);
-      var size = Math.min((availW - (c - 1) * GAP) / c, (availH - (rows - 1) * GAP) / rows);
+      var size = Math.min(across(c), (availH - (rows - 1) * GAP) / rows);
       if (size > best.size) best = { cols: c, size: size };
     }
     best.size = Math.min(FIT_MAX, best.size);
-    if (best.size < FIT_MIN) best = { cols: o.match ? 3 : fitAcross(FIT_MIN), size: FIT_MIN };   // too many: scroll
+    if (best.size < FIT_MIN) {   // too many to fit: small squares, and the page scrolls
+      best = perRow ? { cols: perRow, size: Math.min(FIT_MIN, across(perRow)) } : { cols: fitAcross(FIT_MIN), size: FIT_MIN };
+    }
     return best;
   }
 
@@ -2084,8 +2096,8 @@
 
   // The grid layout choices: in Settings, and above the board while arranging (the same controls twice)
   var FITS = [
-    ["page", "Fit to page", "Squares grow or shrink so the whole board fits in the window, with no scrolling."],
-    ["size", "Same size squares", "Squares stay one size. A wider window fits more of them in a row."],
+    ["page", "Fit to page", "Squares grow or shrink so the whole board fits in the window, with no scrolling. Auto picks the best number per row."],
+    ["size", "Same size squares", "Squares stay one size. Auto fits as many in a row as the window has room for."],
     ["grid", "Same grid", "The same number of squares in every row. Squares grow or shrink with the window."]
   ];
   var layoutCtls = document.querySelectorAll("[data-layout-ctl]");
@@ -2095,12 +2107,15 @@
         FITS.map(function (f) { return '<button type="button" class="seg-btn" data-fit="' + f[0] + '">' + f[1] + '</button>'; }).join("") +
       '</div>' +
       '<p class="opt-desc" data-fit-desc></p>' +
-      '<div class="seg" role="group" aria-label="Squares per row" data-show="grid">' +
-        [3, 4, 5, 6].map(function (n) { return '<button type="button" class="seg-btn" data-cols="' + n + '">' + n + ' per row</button>'; }).join("") +
-      '</div>' +
-      '<div class="seg" role="group" aria-label="Square size" data-show="size">' +
+      '<div data-show="size"><div class="ctl-cap">Square size</div><div class="seg" role="group" aria-label="Square size">' +
         [["s", "Small"], ["m", "Medium"], ["l", "Large"]].map(function (z) { return '<button type="button" class="seg-btn" data-size="' + z[0] + '">' + z[1] + '</button>'; }).join("") +
-      '</div>' +
+      '</div></div>' +
+      '<div data-show="grid" data-per-row><div class="ctl-cap">Squares per row</div><div class="seg" role="group" aria-label="Squares per row">' +
+        [3, 4, 5, 6].map(function (n) { return '<button type="button" class="seg-btn" data-cols="' + n + '">' + n + '</button>'; }).join("") +
+      '</div></div>' +
+      '<div data-show="size page" data-per-row><div class="ctl-cap">Squares per row</div><div class="seg" role="group" aria-label="Squares per row">' +
+        [[0, "Auto"], [3, "3"], [4, "4"], [5, "5"], [6, "6"], [7, "7"], [8, "8"]].map(function (n) { return '<button type="button" class="seg-btn" data-per="' + n[0] + '">' + n[1] + '</button>'; }).join("") +
+      '</div></div>' +
       '<label class="check-row"><input type="checkbox" data-match> <span>Match my iPhone\'s grid' +
         '<small>3 squares per row, like the iPhone, so each square sits where it does there.</small></span></label>';
     box.addEventListener("click", function (e) {
@@ -2109,6 +2124,7 @@
       if (b.dataset.fit) setLayout("fit", b.dataset.fit);
       else if (b.dataset.cols) setLayout("columns", +b.dataset.cols);
       else if (b.dataset.size) setLayout("squareSize", b.dataset.size);
+      else if (b.dataset.per) setLayout("perRow", +b.dataset.per);
     });
     box.addEventListener("change", function (e) {
       if (e.target.matches("[data-match]")) setLayout("matchPhone", e.target.checked);
@@ -2126,8 +2142,9 @@
       box.querySelectorAll("[data-fit]").forEach(function (b) { b.classList.toggle("on", b.dataset.fit === o.fit); });
       box.querySelectorAll("[data-cols]").forEach(function (b) { b.classList.toggle("on", +b.dataset.cols === o.cols); });
       box.querySelectorAll("[data-size]").forEach(function (b) { b.classList.toggle("on", b.dataset.size === o.size); });
+      box.querySelectorAll("[data-per]").forEach(function (b) { b.classList.toggle("on", +b.dataset.per === o.perRow); });
       box.querySelectorAll("[data-show]").forEach(function (g) {
-        g.hidden = g.dataset.show !== o.fit || (o.match && g.dataset.show === "grid");   // matching: 3 per row
+        g.hidden = g.dataset.show.split(" ").indexOf(o.fit) < 0 || (o.match && g.hasAttribute("data-per-row"));   // matching: 3 per row
       });
       box.querySelector("[data-fit-desc]").textContent = FITS.filter(function (f) { return f[0] === o.fit; })[0][2];
       box.querySelector("[data-match]").checked = o.match;
