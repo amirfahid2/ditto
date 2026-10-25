@@ -131,8 +131,30 @@
 
   .grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(var(--cols, 3), 1fr);
     gap: 11px;
+  }
+  /* more squares per row (Options): smaller squares, smaller words */
+  .grid.cols-4 .sq { border-radius: 17px; padding: 6px; }
+  .grid.cols-4 .sq .name { font-size: 16px; }
+  .grid.cols-4 .sq .name.long { font-size: 12.5px; }
+  .grid.cols-5 .sq, .grid.cols-6 .sq { border-radius: 14px; padding: 4px; gap: 2px; }
+  .grid.cols-5 .sq .name { font-size: 13.5px; }
+  .grid.cols-5 .sq .name.long { font-size: 10.5px; }
+  .grid.cols-6 .sq .name { font-size: 12px; }
+  .grid.cols-6 .sq .name.long { font-size: 9.5px; }
+  .grid.cols-5 .sq .emoji, .grid.cols-6 .sq .emoji { font-size: 20px; }
+  .grid.cols-5 .sq .fcap, .grid.cols-6 .sq .fcap { font-size: 9px; }
+  .grid.cols-5 .plus-label, .grid.cols-6 .plus-label { display: none; }
+  .grid.cols-5 .folder-panel .sq, .grid.cols-6 .folder-panel .sq { border-radius: 12px; }
+  /* where the browser can, words follow the square's own width (6 across a phone is only ~48 px) */
+  @supports (font-size: 1cqw) {
+    .grid .sq { container-type: inline-size; }
+    .grid.grid .sq .name { font-size: clamp(8.5px, 19cqw, 19px); }
+    .grid.grid .sq .name.long { font-size: clamp(7.5px, 14.5cqw, 14.5px); }
+    .grid.grid .sq.blank .name { font-size: clamp(14px, 24cqw, 24px); }
+    .grid.grid .sq .emoji { font-size: clamp(13px, 24cqw, 30px); }
+    .grid.grid .sq .emoji.big { font-size: clamp(18px, 37cqw, 46px); }
   }
 
   .sq {
@@ -325,9 +347,30 @@
   }
   .folder-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(var(--cols, 3), 1fr);
     gap: 9px;
   }
+  /* Arrange mode: the "…" on each filled square opens its editor, as on the iPhone */
+  .sq .arr-edit { display: none; }
+  .grid.arranging .sq .arr-edit {
+    display: flex;
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    z-index: 2;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.55);
+    color: #FFFFFF;
+    font: 700 13px/1 "IBM Plex Sans", sans-serif;
+    padding-bottom: 6px;
+    cursor: pointer;
+    pointer-events: auto;
+  }
+  .grid.arranging .sq .arr-edit:hover { background: rgba(0, 0, 0, 0.75); }
   .folder-panel .sq { border-radius: 16px; }
 
   @keyframes copyflash {
@@ -760,6 +803,18 @@
     </span>
     <input type="checkbox" class="switch" id="combineToggle">
   </label>
+  <div class="opt-row opt-cols">
+    <span class="opt-text">
+      <span class="opt-name">Squares per row</span>
+      <span class="opt-desc">How many squares fit across the board on this website.</span>
+    </span>
+  </div>
+  <div class="seg cols-seg" id="colsSeg" role="group" aria-label="Squares per row">
+    <button type="button" class="seg-btn" data-cols="3">3</button>
+    <button type="button" class="seg-btn" data-cols="4">4</button>
+    <button type="button" class="seg-btn" data-cols="5">5</button>
+    <button type="button" class="seg-btn" data-cols="6">6</button>
+  </div>
   <label class="opt-row" for="phoneToggle">
     <span class="opt-text">
       <span class="opt-name">Use my iPhone's squares</span>
@@ -927,8 +982,29 @@
     }
   }
 
+  function columns() {
+    var n = state.options && +state.options.columns;
+    return n >= 3 && n <= 6 ? n : 3;
+  }
+
+  // In Arrange mode, a "…" in the corner of a filled square (or folder, or folder text) opens it
+  // for editing, as on the iPhone. It doesn't start a drag.
+  function editBadge(el, target, name) {
+    var e = document.createElement("span");
+    e.className = "arr-edit";
+    e.setAttribute("role", "button");
+    e.setAttribute("aria-label", "Edit " + (name || "square"));
+    e.textContent = "…";
+    e.addEventListener("pointerdown", function (ev) { ev.stopPropagation(); });
+    e.addEventListener("click", function (ev) { ev.stopPropagation(); openEditor(target); });
+    el.appendChild(e);
+  }
+
   function render() {
     grid.innerHTML = "";
+    var cols = columns();
+    grid.style.setProperty("--cols", cols);
+    grid.className = grid.className.replace(/\s*cols-\d/g, "") + (cols !== 3 ? " cols-" + cols : "");
     state.squares.forEach(function (sq, i) {
       var b = document.createElement("button");
       b.type = "button";
@@ -955,6 +1031,7 @@
         b.setAttribute("aria-label", "Empty square — tap to set up");
       }
       decorate(b, sq);
+      if (isSet(sq)) editBadge(b, { kind: "square", index: i }, sq.name);
       attachPressEvents(b, { kind: "top", index: i },
         function (el) { onSquareTap(i, el); },
         function () { openEditor({ kind: "square", index: i }); });
@@ -986,7 +1063,7 @@
       state.squares.forEach(function (sq, i) { if (sq.id === openFolderId) fIdx = i; });
       if (fIdx < 0 || !isFolder(state.squares[fIdx])) { openFolderId = null; return; }
       var panel = buildFolderPanel(fIdx);
-      var after = grid.children[Math.floor(fIdx / 3) * 3 + 3] || null;
+      var after = grid.children[Math.floor(fIdx / cols) * cols + cols] || null;   // after the folder's row
       grid.insertBefore(panel, after);
     }
   }
@@ -1006,6 +1083,7 @@
       t.dataset.folder = fIdx;
       t.dataset.item = j;
       decorate(t, item);
+      editBadge(t, { kind: "item", folder: fIdx, item: j }, item.name);
       attachPressEvents(t, { kind: "item", folder: fIdx, item: j },
         function (el) { copySquare(item, el); },
         function () { openEditor({ kind: "item", folder: fIdx, item: j }); });
@@ -1766,8 +1844,21 @@
   /* ---------- options ---------- */
 
   var combineToggle = document.getElementById("combineToggle");
+  var colsSeg = document.getElementById("colsSeg");
+  function showColumns() {
+    Array.prototype.forEach.call(colsSeg.children, function (b) { b.classList.toggle("on", +b.dataset.cols === columns()); });
+  }
+  Array.prototype.forEach.call(colsSeg.children, function (b) {
+    b.addEventListener("click", function () {
+      local.options.columns = +b.dataset.cols;    // a setting for this browser, not part of the board
+      try { localStorage.setItem(KEY, JSON.stringify(local)); } catch (e) {}
+      showColumns();
+      render();
+    });
+  });
   document.getElementById("optionsBtn").addEventListener("click", function () {
     combineToggle.checked = !!state.options.combineTaps;
+    showColumns();
     showPhoneOption();
     openSheet(optionsSheet);
   });

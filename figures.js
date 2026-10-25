@@ -334,26 +334,36 @@
     if (!board.length) return;
     var texts = textRects();
     function addLadder(x, top, bottom, exitBox, exitDir) {
-      if (x < 6 || x > W.width - 6 || bottom - top < H * 2) return;
-      if (!regionClear(x - 5, top - H, x + 5, bottom - 0.5, W.boxes)) return;
-      if (!regionClear(x - 4.5, top - 4, x + 4.5, bottom - 0.5, texts)) return;
+      if (x < 6 || x > W.width - 6 || bottom - top < H * 2) return false;
+      if (!regionClear(x - 5, top - H, x + 5, bottom - 0.5, W.boxes)) return false;
+      if (!regionClear(x - 4.5, top - 4, x + 4.5, bottom - 0.5, texts)) return false;
       for (var i = 0; i < W.ladders.length; i++) {
         var o = W.ladders[i];
-        if (Math.abs(o.x - x) < 12 && bottom > o.top && top < o.bottom) return;   // conflicts with an existing ladder
+        if (Math.abs(o.x - x) < 12 && bottom > o.top && top < o.bottom) return false;   // conflicts with an existing ladder
       }
       // step off the top onto the flat part of that square
       var exitX = exitDir > 0 ? exitBox.sl + 5 : exitBox.sr - 5;
       W.ladders.push({ x: x, top: top, bottom: bottom, exitX: exitX, exitDir: exitDir });
+      return true;
     }
     var topRow = Math.min.apply(null, board.map(function (b) { return b.t; }));
     var row = board.filter(function (b) { return Math.abs(b.t - topRow) < 3; });
     var first = row.reduce(function (m, b) { return b.l < m.l ? b : m; });
     var lastBox = row.reduce(function (m, b) { return b.r > m.r ? b : m; });
+    // Just outside the ends of the rows, however many squares a row holds; further out only if
+    // something below sticks out past the board.
+    var boardL = Math.min.apply(null, board.map(function (b) { return b.l; }));
+    var boardR = Math.max.apply(null, board.map(function (b) { return b.r; }));
     var minL = Infinity, maxR = -Infinity;
     W.boxes.forEach(function (b) { if (b.b > topRow - 40) { minL = Math.min(minL, b.l); maxR = Math.max(maxR, b.r); } });
-    var leftX = Math.max(minL - 12, 8), rightX = Math.min(maxR + 12, W.width - 8);
-    if (leftX + 4.5 < minL - 1) addLadder(leftX, topRow, W.ground, first, 1);
-    if (rightX - 4.5 > maxR + 1) addLadder(rightX, topRow, W.ground, lastBox, -1);
+    [boardL, minL].some(function (edge) {
+      var x = Math.max(edge - 12, 8);
+      return x + 4.5 < edge - 1 && addLadder(x, topRow, W.ground, first, 1);
+    });
+    [boardR, maxR].some(function (edge) {
+      var x = Math.min(edge + 12, W.width - 8);
+      return x - 4.5 > edge + 1 && addLadder(x, topRow, W.ground, lastBox, -1);
+    });
     board.forEach(function (a) {
       var right = null;
       board.forEach(function (b) {
