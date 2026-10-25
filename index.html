@@ -149,6 +149,21 @@
     grid-template-columns: repeat(var(--cols, 3), 1fr);
     gap: 11px;
   }
+  /* Same size squares / Fit to page: squares of a set size (--sq), and the page as wide as the board */
+  .grid.fixed { grid-template-columns: repeat(var(--cols, 3), var(--sq, 120px)); justify-content: center; }
+  .arrange-layout {
+    background: var(--card);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    padding: 4px 12px 12px;
+    margin: 0 0 12px;
+    max-width: 480px;
+  }
+  .layout-ctl .seg { margin-top: 10px; }
+  .layout-ctl .seg-btn { padding: 8px 4px; font-size: 13px; line-height: 1.2; }
+  .layout-ctl .opt-desc { margin: 8px 2px 0; }
+  .layout-ctl .check-row { margin-top: 10px; }
+  .layout-ctl .check-row small { display: block; color: var(--muted); font-size: 12.5px; font-weight: 400; }
   /* more squares per row (Settings): smaller squares, smaller words */
   .grid.cols-4 .sq { border-radius: 17px; padding: 6px; }
   .grid.cols-4 .sq .name { font-size: 16px; }
@@ -281,6 +296,7 @@
     text-overflow: ellipsis;
   }
   .grid.waiting { opacity: 0.35; pointer-events: none; }
+  .wrap.wide .link-card, .wrap.wide .phone-conflict, .wrap.wide .saved-note { max-width: 560px; }
   .link-card {
     display: flex;
     flex-wrap: wrap;
@@ -776,6 +792,7 @@
       <button type="button" id="phoneKeepMine">Keep mine</button>
     </div>
   </div>
+  <div class="arrange-layout" id="arrangeLayout" hidden><div class="layout-ctl" data-layout-ctl></div></div>
   <div class="grid" id="grid"></div>
   <p class="hint saved-note" id="savedNote" hidden></p>
   <div class="stores">
@@ -879,16 +896,11 @@
   </label>
   <div class="opt-row opt-cols">
     <span class="opt-text">
-      <span class="opt-name">Squares per row</span>
-      <span class="opt-desc">How many squares fit across the board on this website.</span>
+      <span class="opt-name">Grid layout</span>
+      <span class="opt-desc">How the squares fill the page on this website. These are also above the board while you arrange.</span>
     </span>
   </div>
-  <div class="seg cols-seg" id="colsSeg" role="group" aria-label="Squares per row">
-    <button type="button" class="seg-btn" data-cols="3">3</button>
-    <button type="button" class="seg-btn" data-cols="4">4</button>
-    <button type="button" class="seg-btn" data-cols="5">5</button>
-    <button type="button" class="seg-btn" data-cols="6">6</button>
-  </div>
+  <div class="layout-ctl" data-layout-ctl></div>
   <div class="set-head">Your iPhone</div>
   <label class="opt-row" for="phoneToggle">
     <span class="opt-text">
@@ -1071,10 +1083,79 @@
     }
   }
 
-  function columns() {
-    var n = state.options && +state.options.columns;
-    return n >= 3 && n <= 6 ? n : 3;
+  /* ---------- grid layout ---------- */
+  // This browser's choice (kept in local.options, not part of the board):
+  //   fit "grid"  Same grid: a set number of squares per row (3-6); squares grow or shrink with the page
+  //       "size"  Same size squares: squares stay one size; a wider window fits more of them in a row
+  //       "page"  Fit to page: squares grow or shrink so the whole board fits in the window
+  //   matchPhone  3 per row, as on the iPhone, so each square sits where it does there (off by default)
+  var GAP = 11, SIZES = { s: 90, m: 120, l: 150 }, FIT_MIN = 60, FIT_MAX = 240;
+  var wrapEl = document.querySelector(".wrap");
+  var layoutNow = { cols: 3, size: 0 }, restTop = 0;
+
+  function layoutOpts() {
+    var o = (local && local.options) || {};
+    return {
+      fit: o.fit === "size" || o.fit === "page" ? o.fit : "grid",
+      size: SIZES[o.squareSize] ? o.squareSize : "m",
+      match: !!o.matchPhone,
+      cols: +o.columns >= 3 && +o.columns <= 6 ? +o.columns : 3
+    };
   }
+
+  // how many squares per row, and how big (0 = as wide as the page allows)
+  function computeLayout() {
+    var o = layoutOpts();
+    var tiles = state.squares.length + 2;   // the squares, Add square and What is this site
+    var availW = document.documentElement.clientWidth - 32;
+    var fitAcross = function (size) { return Math.max(1, Math.min(tiles, Math.floor((availW + GAP) / (size + GAP)))); };
+    // where the board starts when not arranging (while arranging, Fit to page keeps the sizes it had:
+    // the layout choices above the board would otherwise shrink them)
+    if (!arranging) restTop = grid.getBoundingClientRect().top + window.scrollY;
+    if (o.fit === "grid") return { cols: o.match ? 3 : o.cols, size: 0 };
+    if (o.fit === "size") {
+      var sz = SIZES[o.size];
+      return o.match ? { cols: 3, size: Math.min(sz, (availW - 2 * GAP) / 3) } : { cols: fitAcross(sz), size: sz };
+    }
+    // Fit to page: the biggest squares that fit across and down
+    var availH = window.innerHeight - restTop - 16;
+    var best = { cols: 3, size: 0 };
+    for (var c = o.match ? 3 : 1; c <= (o.match ? 3 : tiles); c++) {
+      var rows = Math.ceil(tiles / c);
+      var size = Math.min((availW - (c - 1) * GAP) / c, (availH - (rows - 1) * GAP) / rows);
+      if (size > best.size) best = { cols: c, size: size };
+    }
+    best.size = Math.min(FIT_MAX, best.size);
+    if (best.size < FIT_MIN) best = { cols: o.match ? 3 : fitAcross(FIT_MIN), size: FIT_MIN };   // too many: scroll
+    return best;
+  }
+
+  function applyLayout() {
+    var L = computeLayout(), size = Math.floor(L.size);
+    layoutNow = L;
+    grid.classList.toggle("fixed", size > 0);
+    grid.style.setProperty("--cols", L.cols);
+    if (size > 0) grid.style.setProperty("--sq", size + "px"); else grid.style.removeProperty("--sq");
+    var w = size > 0 ? L.cols * size + (L.cols - 1) * GAP + 32 : 0;   // the page as wide as the board
+    wrapEl.classList.toggle("wide", w > 480);
+    wrapEl.style.maxWidth = w > 480 ? w + "px" : "";
+    // smaller squares get smaller corners and words: by squares per row, or by size
+    var dense = size > 0 ? (size >= 120 ? 3 : size >= 95 ? 4 : size >= 75 ? 5 : 6) : L.cols;
+    grid.className = grid.className.replace(/\s*cols-\d/g, "") + (dense !== 3 ? " cols-" + dense : "");
+    return L.cols;
+  }
+  function columns() { return layoutNow.cols; }
+
+  var resizeQueued = false;
+  window.addEventListener("resize", function () {
+    if (resizeQueued || layoutOpts().fit === "grid") return;
+    resizeQueued = true;
+    requestAnimationFrame(function () {
+      resizeQueued = false;
+      var before = layoutNow.cols;
+      if (applyLayout() !== before && openFolderId !== null) render();   // the open folder goes under its row
+    });
+  });
 
   // In Arrange mode, a "…" in the corner of a filled square (or folder, or folder text) opens it
   // for editing, as on the iPhone. It doesn't start a drag.
@@ -1091,9 +1172,7 @@
 
   function render() {
     grid.innerHTML = "";
-    var cols = columns();
-    grid.style.setProperty("--cols", cols);
-    grid.className = grid.className.replace(/\s*cols-\d/g, "") + (cols !== 3 ? " cols-" + cols : "");
+    var cols = applyLayout();
     state.squares.forEach(function (sq, i) {
       var b = document.createElement("button");
       b.type = "button";
@@ -1312,6 +1391,7 @@
     grid.classList.toggle("arranging", arranging);
     settingsBtn.hidden = arranging;
     arrangeDone.hidden = !arranging;
+    document.getElementById("arrangeLayout").hidden = !arranging;
     mainHint.textContent = arranging ? HINT_ARRANGE : HINT_TAP;
     render();
   }
@@ -2001,22 +2081,63 @@
   /* ---------- options ---------- */
 
   var combineToggle = document.getElementById("combineToggle");
-  var colsSeg = document.getElementById("colsSeg");
-  function showColumns() {
-    Array.prototype.forEach.call(colsSeg.children, function (b) { b.classList.toggle("on", +b.dataset.cols === columns()); });
-  }
-  Array.prototype.forEach.call(colsSeg.children, function (b) {
-    b.addEventListener("click", function () {
-      local.options.columns = +b.dataset.cols;    // a setting for this browser, not part of the board
-      try { localStorage.setItem(KEY, JSON.stringify(local)); } catch (e) {}
-      showColumns();
-      render();
+
+  // The grid layout choices: in Settings, and above the board while arranging (the same controls twice)
+  var FITS = [
+    ["page", "Fit to page", "Squares grow or shrink so the whole board fits in the window, with no scrolling."],
+    ["size", "Same size squares", "Squares stay one size. A wider window fits more of them in a row."],
+    ["grid", "Same grid", "The same number of squares in every row. Squares grow or shrink with the window."]
+  ];
+  var layoutCtls = document.querySelectorAll("[data-layout-ctl]");
+  Array.prototype.forEach.call(layoutCtls, function (box) {
+    box.innerHTML =
+      '<div class="seg" role="group" aria-label="Grid layout">' +
+        FITS.map(function (f) { return '<button type="button" class="seg-btn" data-fit="' + f[0] + '">' + f[1] + '</button>'; }).join("") +
+      '</div>' +
+      '<p class="opt-desc" data-fit-desc></p>' +
+      '<div class="seg" role="group" aria-label="Squares per row" data-show="grid">' +
+        [3, 4, 5, 6].map(function (n) { return '<button type="button" class="seg-btn" data-cols="' + n + '">' + n + ' per row</button>'; }).join("") +
+      '</div>' +
+      '<div class="seg" role="group" aria-label="Square size" data-show="size">' +
+        [["s", "Small"], ["m", "Medium"], ["l", "Large"]].map(function (z) { return '<button type="button" class="seg-btn" data-size="' + z[0] + '">' + z[1] + '</button>'; }).join("") +
+      '</div>' +
+      '<label class="check-row"><input type="checkbox" data-match> <span>Match my iPhone\'s grid' +
+        '<small>3 squares per row, like the iPhone, so each square sits where it does there.</small></span></label>';
+    box.addEventListener("click", function (e) {
+      var b = e.target.closest("button");
+      if (!b) return;
+      if (b.dataset.fit) setLayout("fit", b.dataset.fit);
+      else if (b.dataset.cols) setLayout("columns", +b.dataset.cols);
+      else if (b.dataset.size) setLayout("squareSize", b.dataset.size);
+    });
+    box.addEventListener("change", function (e) {
+      if (e.target.matches("[data-match]")) setLayout("matchPhone", e.target.checked);
     });
   });
+  function setLayout(key, value) {
+    local.options[key] = value;    // a setting for this browser, not part of the board
+    try { localStorage.setItem(KEY, JSON.stringify(local)); } catch (e) {}
+    showLayout();
+    render();
+  }
+  function showLayout() {
+    var o = layoutOpts();
+    Array.prototype.forEach.call(layoutCtls, function (box) {
+      box.querySelectorAll("[data-fit]").forEach(function (b) { b.classList.toggle("on", b.dataset.fit === o.fit); });
+      box.querySelectorAll("[data-cols]").forEach(function (b) { b.classList.toggle("on", +b.dataset.cols === o.cols); });
+      box.querySelectorAll("[data-size]").forEach(function (b) { b.classList.toggle("on", b.dataset.size === o.size); });
+      box.querySelectorAll("[data-show]").forEach(function (g) {
+        g.hidden = g.dataset.show !== o.fit || (o.match && g.dataset.show === "grid");   // matching: 3 per row
+      });
+      box.querySelector("[data-fit-desc]").textContent = FITS.filter(function (f) { return f[0] === o.fit; })[0][2];
+      box.querySelector("[data-match]").checked = o.match;
+    });
+  }
+  showLayout();
   var backupNote = document.getElementById("backupNote");
   settingsBtn.addEventListener("click", function () {
     combineToggle.checked = !!state.options.combineTaps;
-    showColumns();
+    showLayout();
     showPhoneOption();
     backupNote.innerHTML = phone
       ? "<b>Copy backup</b> puts your iPhone's squares on your clipboard as text you can keep. To restore a backup here, turn off Use my iPhone's squares first."
@@ -2199,6 +2320,7 @@
   document.getElementById("linkCardClose").addEventListener("click", function () {
     try { localStorage.setItem(CARD_KEY, "1"); } catch (e) {}
     linkCard.hidden = true;
+    applyLayout();   // Fit to page: more room for the squares
     showToast("You can still turn it on in Settings (the gear at the top)");
   });
 
