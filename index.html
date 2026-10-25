@@ -696,10 +696,10 @@
     <button type="button" class="seg-btn" id="segFolder">Folder</button>
   </div>
   <label for="nameInput" id="nameLabel">Name on the square</label>
-  <input type="text" id="nameInput" maxlength="40" autocomplete="off" autocapitalize="characters" placeholder="e.g. PNA">
+  <input type="text" id="nameInput" maxlength="40" autocomplete="off" autocapitalize="characters" placeholder="PNA">
   <div id="textField">
     <label for="textInput">Text to copy</label>
-    <textarea id="textInput" placeholder="e.g. Please order Rocephin 2 grams IV q8 for 7 days along with probiotic"></textarea>
+    <textarea id="textInput" placeholder="Please order Rocephin 2 grams IV daily for 7 days along with probiotics"></textarea>
   </div>
   <div class="looks" id="looks">
     <div class="look-top">
@@ -1528,7 +1528,7 @@
     segText.classList.toggle("on", t === "text");
     segFolder.classList.toggle("on", t === "folder");
     textField.hidden = (t === "folder");
-    nameInput.placeholder = (t === "folder") ? "e.g. IVF" : "e.g. PNA";
+    nameInput.placeholder = (t === "folder") ? "IVF" : "PNA";
     buildSwatches();
     showLooks();
   }
@@ -1553,7 +1553,7 @@
     textField.hidden = false;
     clearBtn.hidden = false;
     dangerRow.hidden = false;
-    nameInput.placeholder = "e.g. PNA";
+    nameInput.placeholder = "PNA";
 
     if (target.kind === "square") {
       if (!isSet(sq)) {
@@ -1567,7 +1567,7 @@
         textField.hidden = true;
         clearBtn.hidden = true;
         deleteBtn.textContent = "Delete folder";
-        nameInput.placeholder = "e.g. IVF";
+        nameInput.placeholder = "IVF";
       } else {
         editTitle.textContent = "Edit square";
         clearBtn.textContent = 'Clear to "…"';
