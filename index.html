@@ -821,10 +821,10 @@
     <button type="button" class="seg-btn" id="segFolder">Folder</button>
   </div>
   <label for="nameInput" id="nameLabel">Name on the square</label>
-  <input type="text" id="nameInput" maxlength="40" autocomplete="off" autocapitalize="characters" placeholder="PNA">
+  <input type="text" id="nameInput" maxlength="40" autocomplete="off" autocapitalize="characters">
   <div id="textField">
     <label for="textInput">Text to copy</label>
-    <textarea id="textInput" placeholder="Please order Rocephin 2 grams IV daily for 7 days along with probiotics"></textarea>
+    <textarea id="textInput"></textarea>
   </div>
   <div class="looks" id="looks">
     <div class="look-top">
@@ -1721,7 +1721,10 @@
   }
 
   nameInput.addEventListener("input", showLooks);
-  textInput.addEventListener("input", showLooks);
+  textInput.addEventListener("input", function () {
+    showLooks();
+    if (!textInput.value || textFitted) fitTextBox();
+  });
   emojiInput.addEventListener("input", function () {
     var t = emojiInput.value.trim(), g = "";
     if (t && typeof Intl !== "undefined" && Intl.Segmenter) { var it = new Intl.Segmenter().segment(t)[Symbol.iterator]().next(); g = it.value ? it.value.segment : ""; }
@@ -1849,14 +1852,45 @@
     });
   }
 
+  // The example notes (sample-notes.js): a random one each time, not one of the last 20 shown.
+  var RECENT_NOTES_KEY = "ditto.sampleNotesRecent";
+  function nextSampleNote() {
+    var all = window.DITTO_SAMPLE_NOTES || [];
+    if (!all.length) return null;
+    var recent = [];
+    try { recent = JSON.parse(localStorage.getItem(RECENT_NOTES_KEY) || "[]"); } catch (e) {}
+    if (!Array.isArray(recent)) recent = [];
+    var fresh = [];
+    for (var i = 0; i < all.length; i++) if (recent.indexOf(i) < 0) fresh.push(i);
+    if (!fresh.length) fresh = all.map(function (n, j) { return j; });
+    var pick = fresh[Math.floor(Math.random() * fresh.length)];
+    try { localStorage.setItem(RECENT_NOTES_KEY, JSON.stringify(recent.concat(pick).slice(-20))); } catch (e) {}
+    return all[pick];
+  }
+
+  // While the text is empty the box grows to show the whole example note, as on the iPhone.
+  var textFitted = false;
+  function fitTextBox() {
+    if (textFitted) { textInput.style.height = textInput.style.overflowY = ""; textFitted = false; }
+    if (textInput.value || !textInput.placeholder || textField.hidden) return;
+    textInput.value = textInput.placeholder;
+    var h = textInput.scrollHeight + 2;   // + the border
+    textInput.value = "";
+    if (h > textInput.offsetHeight) {
+      textInput.style.height = h + "px";
+      textInput.style.overflowY = "hidden";   // the whole note shows, so no scroll bar
+      textFitted = true;
+    }
+  }
+
   function setEditType(t) {
     editType = t;
     segText.classList.toggle("on", t === "text");
     segFolder.classList.toggle("on", t === "folder");
     textField.hidden = (t === "folder");
-    nameInput.placeholder = (t === "folder") ? "IVF" : "PNA";
     buildSwatches();
     showLooks();
+    fitTextBox();
   }
   segText.addEventListener("click", function () { setEditType("text"); });
   segFolder.addEventListener("click", function () { setEditType("folder"); });
@@ -1879,7 +1913,6 @@
     textField.hidden = false;
     clearBtn.hidden = false;
     dangerRow.hidden = false;
-    nameInput.placeholder = "PNA";
 
     if (target.kind === "square") {
       if (!isSet(sq)) {
@@ -1893,7 +1926,6 @@
         textField.hidden = true;
         clearBtn.hidden = true;
         deleteBtn.textContent = "Delete folder";
-        nameInput.placeholder = "IVF";
       } else {
         editTitle.textContent = "Edit square";
         clearBtn.textContent = 'Clear to "…"';
@@ -1909,11 +1941,16 @@
     if (target.isNew) dangerRow.hidden = true;   // a square being added: Cancel is the way out
     nameInput.value = (sq && sq.name) || "";
     textInput.value = (sq && sq.text) || "";
+    // an empty name or text shows one of the 60 example notes, as on the iPhone
+    var note = (!nameInput.value || !textInput.value) ? nextSampleNote() : null;
+    nameInput.placeholder = note ? "Example: " + note[0] : "";
+    textInput.placeholder = note ? "Example: " + note[1] : "";
     look = copyLooks(sq || {}, {});
     buildSwatches();
     showLooks();
     setEmojiPicker(false);
     openSheet(editSheet);
+    fitTextBox();
     if ((target.kind === "square" && !isSet(sq)) || isNewItem) {
       setTimeout(function () { nameInput.focus(); }, 280);
     }
@@ -2410,6 +2447,7 @@ if ("serviceWorker" in navigator) {
   });
 }
 </script>
+<script src="sample-notes.js" defer></script>
 <script src="figures.js" defer data-boxes=".sq, .folder-panel, .store, .settings-btn, .arrange-btn, .saved-note, .wordmark, .phone-conflict, .link-card" data-grab=".sq, .folder-panel, .store" data-board=".grid > .sq" data-text-tops=".wordmark, .saved-note" data-sky=".wordmark" data-ignore=".scrim, .sheet, .ghost, .ix-back"></script>
 </body>
 </html>
