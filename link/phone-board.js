@@ -2,7 +2,7 @@
 // (dittotap.com/link) and the option is on, the web app shows the iPhone's board instead of
 // its own. Taps copy, as on the phone; edits go back to the phone through the relay
 // (ditto-relay/PROTOCOL.md v1), sealed with the same key as the /link editor.
-import { LinkClient, deriveLink, unb64url, pictureNames } from "./link-core.js";
+import { LinkClient, deriveLink, unb64url, pictureNames, PICTURE_NAME } from "./link-core.js";
 
 const RELAY = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? "http://localhost:8672" : "https://ditto-relay.ditto-relay.workers.dev";
 export const LINK_KEY = "ditto.link.v1";
@@ -20,7 +20,8 @@ export function deviceLabel() {
 function savedLink() {
   try {
     const saved = JSON.parse(localStorage.getItem(LINK_KEY) || "null");
-    return saved && saved.secret ? saved : null;
+    // a secret is 32 bytes as 43 base64url characters; anything else is no link
+    return saved && typeof saved.secret === "string" && /^[A-Za-z0-9_-]{43}$/.test(saved.secret) ? saved : null;
   } catch (e) { return null; }
 }
 
@@ -65,11 +66,25 @@ export function toPhone(squares, originals) {
   return squares.map((sq) => phoneSquare(sq, originals));
 }
 
+// Only looks the phone knows go to it: a color or border from its palette, an emoji, or a picture
+// kept on the relay. A photo kept in this browser (a "data:" one, say from a shared link) is left
+// off: the phone has no way to show it.
+const COLORS = ["navy", "teal", "green", "amber", "rose", "purple", "slate"];
+function phoneLooks(sq, out) {
+  const set = (k, ok) => { if (ok && sq[k] != null) out[k] = sq[k]; else delete out[k]; };
+  const img = typeof sq.image === "string" ? sq.image : "";
+  const picture = (img.startsWith("emoji:") && img.length > 6 && img.length <= 22) || (img.startsWith("file:") && PICTURE_NAME.test(img.slice(5)));
+  set("color", COLORS.includes(sq.color));
+  set("border", sq.border === "none" || sq.border === "black" || COLORS.includes(sq.border));
+  set("image", picture);
+  set("showName", picture && sq.showName === false);
+}
+
 function phoneSquare(sq, originals) {
   const orig = originals.get(sq.id);
   const out = orig ? clone(orig) : { id: sq.id, name: "", text: "", isFolder: false, items: [] };
   if (!UUID.test(out.id)) out.id = crypto.randomUUID().toUpperCase();   // the phone only reads UUIDs
-  const looks = () => LOOKS.forEach((k) => { if (sq[k] != null) out[k] = sq[k]; else delete out[k]; });
+  const looks = () => phoneLooks(sq, out);
   if (sq.type === "folder") {
     out.isFolder = true;
     out.name = sq.name || "";
@@ -149,32 +164,39 @@ export async function openPhoneBoard(hooks) {
   async function loadPictures() {
     const want = [...pictureNames(P.board)].filter((n) => !P.pictures.has(n) && !P.loading.has(n));
     for (const name of want) {
+      if (stopped) return;
       P.loading.add(name);
+      let got = false;
       try {
         const bytes = await client.getPicture(name);
-        if (bytes) P.pictures.set(name, URL.createObjectURL(new Blob([bytes], { type: name.endsWith(".png") ? "image/png" : "image/jpeg" })));
+        if (bytes && !stopped) { P.pictures.set(name, URL.createObjectURL(new Blob([bytes], { type: name.endsWith(".png") ? "image/png" : "image/jpeg" }))); got = true; }
       } catch (e) { /* shown without its picture */ }
       P.loading.delete(name);
+      if (got) hooks.pictures();   // each picture shows as it comes in, not all of them at the end
     }
-    if (want.length && !stopped) hooks.pictures();
   }
 
+  let polling = false;   // one poll at a time: the tab coming back starts one while the timer's may be running
   async function poll() {
     clearTimeout(pollTimer);
-    if (stopped) return;
+    if (stopped || polling) return;
+    polling = true;
+    let isGone = false;
     if (!document.hidden && !P.pending && !P.saving && !P.conflict && !hooks.busy()) {
       try {
         const r = await client.getBoard(P.rev);
-        if (r.status === "none") return gone();
-        if (r.status === "board" && !P.pending && !P.saving && !hooks.busy()) {
+        if (r.status === "none") isGone = true;
+        else if (r.status === "board" && !P.pending && !P.saving && !hooks.busy()) {
           adopt(r);
           hooks.remote(P.squares, r.envelope.device || "your iPhone");
         }
-        hooks.status("ok", "");
+        if (!isGone) hooks.status("ok", "");
       } catch (e) {
         hooks.status("error", "Can't reach your iPhone's squares right now.");
       }
     }
+    polling = false;
+    if (isGone) return gone();
     pollTimer = setTimeout(poll, POLL_MS);
   }
 
@@ -209,8 +231,13 @@ export async function openPhoneBoard(hooks) {
       }
     } catch (e) {
       P.pending = P.pending || P.squares;
-      hooks.status("error", e.status === 413 ? e.message : "Not saved yet: can't reach the relay. Trying again…");
-      saveTimer = setTimeout(save, RETRY_MS);
+      if (e.status >= 400 && e.status < 500) {
+        // refused (too large, say): the same board again won't do better, so wait for the next edit
+        hooks.status("error", e.status === 413 ? e.message : "Not saved: the relay refused it (" + e.status + ").");
+      } else {
+        hooks.status("error", "Not saved yet: can't reach the relay. Trying again…");
+        saveTimer = setTimeout(save, RETRY_MS);
+      }
     } finally {
       P.saving = false;
     }
@@ -221,6 +248,8 @@ export async function openPhoneBoard(hooks) {
     clearTimeout(saveTimer);
     clearTimeout(pollTimer);
     document.removeEventListener("visibilitychange", onVisible);
+    for (const url of P.pictures.values()) URL.revokeObjectURL(url);
+    P.pictures.clear();
   }
 
   function onVisible() { if (!document.hidden) poll(); }
@@ -258,15 +287,20 @@ export async function openPhoneBoard(hooks) {
       }
     },
 
-    // Turning the option off: send what is still waiting, then stop.
+    // Turning the option off: send what is still waiting, then stop. Resolves false, and keeps
+    // going, when a change couldn't be sent (no relay, or a version still to choose): dropping
+    // it quietly would be worse than staying on.
     async finish() {
       clearTimeout(saveTimer);
       while (P.saving) await new Promise((r) => setTimeout(r, 100));
       if (P.pending && !P.conflict) await save();
+      if (P.pending || P.conflict) return false;
       stop();
+      return true;
     },
 
     unsaved() { return !!(P.pending || P.saving); },
+    conflicted() { return !!P.conflict; },
 
     // A picture on the phone's board ("file:NAME"), decrypted: an object URL, or null while loading.
     pictureUrl(name) { return P.pictures.get(name) || null; },

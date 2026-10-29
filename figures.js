@@ -1209,10 +1209,13 @@
 
   // The canvas covers the layout viewport, which excludes a classic scrollbar: sizing it to
   // innerWidth would squeeze every drawing a few percent to the left.
+  // Its height follows the window (innerHeight): on a phone the browser's bars slide away as the
+  // page scrolls and the window grows, while the layout viewport's height stays as it was.
   function resizeCanvas() {
     var de = document.documentElement;
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
-    cw = de.clientWidth; ch = de.clientHeight;
+    var w = de.clientWidth, h = window.innerHeight, d = Math.min(window.devicePixelRatio || 1, 2);
+    if (w === cw && h === ch && d === dpr) return;   // setting a canvas's size clears it, so only when changed
+    dpr = d; cw = w; ch = h;
     canvas.style.width = cw + "px";
     canvas.style.height = ch + "px";
     canvas.width = Math.round(cw * dpr);
@@ -1625,7 +1628,7 @@
     var dt = last ? clamp((t - last) / 1000, 0, 0.05) * timeScale : 0;   // never backwards
     last = t;
     var de = document.documentElement;
-    if (de.clientWidth !== cw || de.clientHeight !== ch) { resizeCanvas(); dirty = true; }
+    if (de.clientWidth !== cw || window.innerHeight !== ch || Math.min(window.devicePixelRatio || 1, 2) !== dpr) { resizeCanvas(); dirty = true; }
     if (dirty) computeWorld();
     var now = performance.now();
     // the doors swing toward open or shut; the scene fades in and out with the entrance
@@ -1871,10 +1874,18 @@
     kick();
 
     window.addEventListener("resize", function () { resizeCanvas(); markDirty(); }, { passive: true });
-    window.addEventListener("scroll", markDirty, { passive: true });
+    window.addEventListener("scroll", kick, { passive: true });   // boxes are in page coordinates: a scroll needs a redraw, not a re-measure
     if (window.ResizeObserver) new ResizeObserver(markDirty).observe(document.body);
+    // what can't be terrain doesn't call for a re-measure: the canvas itself, the drag ghost (its
+    // position changes with every move), toasts, and the boxes in the middle of the screen
+    var NOT_TERRAIN = ".ghost, .toast, .scrim, .sheet, .ix-back";
     new MutationObserver(function (list) {
-      for (var i = 0; i < list.length; i++) if (!ui.contains(list[i].target)) { dirty = true; return; }
+      for (var i = 0; i < list.length; i++) {
+        var t = list[i].target;
+        if (ui.contains(t) || t === canvas || (t.closest && t.closest(NOT_TERRAIN))) continue;
+        dirty = true;
+        return;
+      }
     }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "style", "hidden"] });
     if (window.matchMedia) {
       var mq = matchMedia("(prefers-color-scheme: dark)");

@@ -21,6 +21,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
   :root {
+    color-scheme: light dark;   /* scroll bars and other browser-drawn parts follow the theme */
     --bg: #F2F5F6;
     --card: #FFFFFF;
     --ink: #16262E;
@@ -415,12 +416,22 @@
   }
   .folder-panel .sq { border-radius: 16px; }
 
+  /* copied: a tint over the square, so a colored or photo square keeps its own background */
   @keyframes copyflash {
-    0% { background: var(--card); }
-    25% { background: var(--flash); }
-    100% { background: var(--card); }
+    0% { opacity: 0; }
+    25% { opacity: 1; }
+    100% { opacity: 0; }
   }
-  .sq.flash { animation: copyflash 0.6s ease; }
+  .sq.flash::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--flash);
+    opacity: 0;
+    pointer-events: none;
+    animation: copyflash 0.6s ease;
+  }
 
   /* arrange mode */
   @keyframes wiggle {
@@ -454,7 +465,6 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .grid.arranging .sq:not(.plus):not(.about-sq) { animation: none; outline: 2px dashed var(--accent); outline-offset: -2px; }
-    .sq.flash { animation: none; background: var(--flash); }
     .folder-panel { animation: none; }
     .sheet, .sheet.open { transition: none; }
   }
@@ -815,7 +825,7 @@
 
 <div class="scrim" id="scrim"></div>
 
-<div class="sheet" id="editSheet">
+<div class="sheet" id="editSheet" role="dialog" aria-modal="true" aria-labelledby="editTitle">
   <div class="sheet-head">
     <button class="btn-cancel" id="editCancel">Cancel</button>
     <div class="sheet-title" id="editTitle">Edit square</div>
@@ -862,20 +872,20 @@
   </div>
 </div>
 
-<div class="sheet" id="restoreSheet">
+<div class="sheet" id="restoreSheet" role="dialog" aria-modal="true" aria-labelledby="restoreTitle">
   <div class="sheet-head">
     <button class="btn-cancel" id="restoreCancel">Cancel</button>
-    <div class="sheet-title">Restore backup</div>
+    <div class="sheet-title" id="restoreTitle">Restore backup</div>
     <button class="btn-save" id="restoreDo">Restore</button>
   </div>
   <label for="restoreInput">Paste your backup here</label>
   <textarea id="restoreInput" placeholder='Paste the text that "Copy backup" put on your clipboard.'></textarea>
 </div>
 
-<div class="sheet" id="importSheet">
+<div class="sheet" id="importSheet" role="dialog" aria-modal="true" aria-labelledby="importTitle">
   <div class="sheet-head">
     <button class="btn-cancel" id="importCancel">Cancel</button>
-    <div class="sheet-title">Shared list</div>
+    <div class="sheet-title" id="importTitle">Shared list</div>
     <button class="btn-save" id="importAdd">Add to my board</button>
   </div>
   <p class="import-desc" id="importDesc"></p>
@@ -884,10 +894,10 @@
   </div>
 </div>
 
-<div class="sheet" id="optionsSheet">
+<div class="sheet" id="optionsSheet" role="dialog" aria-modal="true" aria-labelledby="optionsTitle">
   <div class="sheet-head">
     <span class="sheet-head-gap"></span>
-    <div class="sheet-title">Settings</div>
+    <div class="sheet-title" id="optionsTitle">Settings</div>
     <button class="btn-save" id="optionsDone">Done</button>
   </div>
   <div class="set-head">Board</div>
@@ -967,8 +977,28 @@
       if (!raw) return null;
       var parsed = JSON.parse(raw);
       if (!parsed || !Array.isArray(parsed.squares)) return null;
-      return parsed;
+      return normalize(parsed);
     } catch (e) { return null; }
+  }
+
+  // A saved board that's been damaged (an older version, a bad write) must still show, rather than
+  // leave the page blank for good: every entry is an object with an id, a folder has its list of
+  // texts, and names and texts are strings.
+  function normalize(board) {
+    if (!board.options || typeof board.options !== "object") board.options = { combineTaps: false };
+    function fix(sq) {
+      if (!sq || typeof sq !== "object") return { id: uid() };
+      if (typeof sq.id !== "string" || !sq.id) sq.id = uid();
+      if (sq.name != null && typeof sq.name !== "string") sq.name = String(sq.name);
+      if (sq.text != null && typeof sq.text !== "string") sq.text = String(sq.text);
+      return sq;
+    }
+    board.squares = board.squares.map(fix);
+    board.squares.forEach(function (sq) {
+      if (sq.type !== "folder") return;
+      sq.items = (Array.isArray(sq.items) ? sq.items : []).filter(function (it) { return it && typeof it === "object"; }).map(fix);
+    });
+    return board;
   }
 
   function save() {
@@ -1633,7 +1663,9 @@
   var showNameRow = document.getElementById("showNameRow");
   var showNameToggle = document.getElementById("showNameToggle");
 
+  var sheetOpener = null;   // what had the keyboard focus before a box opened: it gets it back after
   function openSheet(sheet) {
+    if (!document.querySelector(".sheet.open")) sheetOpener = document.activeElement;
     scrim.classList.add("open");
     sheet.classList.add("open");
   }
@@ -1643,6 +1675,8 @@
     restoreSheet.classList.remove("open");
     importSheet.classList.remove("open");
     optionsSheet.classList.remove("open");
+    if (sheetOpener && sheetOpener.focus && document.contains(sheetOpener)) sheetOpener.focus({ preventScroll: true });
+    sheetOpener = null;
     disarmDelete();
     setEmojiPicker(false);
     importReplace.classList.remove("confirm");
@@ -1823,20 +1857,23 @@
   });
 
   // Same as the iPhone: at most 400 px on the long side, JPEG 0.85, PNG if it has transparency.
+  // Decoded through an <img>, which turns a photo the way its EXIF orientation says in every
+  // browser (createImageBitmap doesn't in all of them).
   function shrinkPicture(file) {
-    var load = window.createImageBitmap ? createImageBitmap(file) : new Promise(function (res, rej) {
-      var im = new Image();
-      im.onload = function () { res(im); };
-      im.onerror = rej;
-      im.src = URL.createObjectURL(file);
+    var load = new Promise(function (res, rej) {
+      var im = new Image(), url = URL.createObjectURL(file);
+      im.onload = function () { URL.revokeObjectURL(url); res(im); };
+      im.onerror = function () { URL.revokeObjectURL(url); rej(new Error("The picture couldn't be decoded")); };
+      im.src = url;
     });
-    return load.then(function (bmp) {
-      var scale = Math.min(1, 400 / Math.max(bmp.width, bmp.height));
-      var w = Math.max(1, Math.round(bmp.width * scale)), h = Math.max(1, Math.round(bmp.height * scale));
+    return load.then(function (im) {
+      var iw = im.naturalWidth || im.width, ih = im.naturalHeight || im.height;
+      var scale = Math.min(1, 400 / Math.max(iw, ih));
+      var w = Math.max(1, Math.round(iw * scale)), h = Math.max(1, Math.round(ih * scale));
       var c = document.createElement("canvas");
       c.width = w; c.height = h;
       var g = c.getContext("2d");
-      g.drawImage(bmp, 0, 0, w, h);
+      g.drawImage(im, 0, 0, w, h);
       var alpha = false;
       if (/png|webp|gif|avif/.test(file.type)) {
         var px = g.getImageData(0, 0, w, h).data;
@@ -2275,6 +2312,7 @@
 
   function useSquares(squares) {
     showLinkCard();
+    chain = { ids: [], texts: [], last: 0 };   // quick taps don't join across the two boards
     state = phone ? { squares: squares, options: local.options } : local;
     if (openFolderId !== null && indexById(openFolderId) < 0) openFolderId = null;
     restoreBtn.hidden = !!phone;
@@ -2354,12 +2392,22 @@
 
   function stopPhone() {
     if (!phone) return;
-    phone.finish();
-    phone = null;
-    phoneConflict.hidden = true;
-    openFolderId = null;
-    useSquares(null);
-    phoneNote();
+    var p = phone;
+    phoneToggle.disabled = true;
+    p.finish().then(function (sent) {
+      phoneToggle.disabled = false;
+      if (!sent) {   // the last change hasn't reached the relay: stay on rather than drop it
+        phoneToggle.checked = true;
+        try { localStorage.setItem(USE_KEY, "1"); } catch (e) {}
+        showToast(p.conflicted() ? "Choose a version above first" : "Your last change hasn't reached your iPhone yet. Try again in a moment");
+        return;
+      }
+      phone = null;
+      phoneConflict.hidden = true;
+      openFolderId = null;
+      useSquares(null);
+      phoneNote();
+    });
   }
 
   function useIphoneSquares() {

@@ -1,9 +1,15 @@
 var CACHE = "ditto-v5";
+// What the site needs with no connection: the app, its pages and scripts, and the bridge to the
+// iPhone's squares (which then says "can't reach" instead of failing to load).
+var PRECACHE = ["./", "about/", "privacy.html", "figures.js", "intro.js", "sample-notes.js", "manifest.webmanifest",
+  "icon-180.png", "icon-512.png", "link/link-core.js", "link/phone-board.js"];
+// A page that isn't saved: the app itself for its own addresses, otherwise the browser's offline page
+var SHELL = { "/": "./", "/index.html": "./", "/about": "about/", "/about/": "about/", "/about/index.html": "about/" };
 
 self.addEventListener("install", function (e) {
   e.waitUntil(
     caches.open(CACHE)
-      .then(function (c) { return c.addAll(["./", "about/", "icon-180.png", "icon-512.png"]); })
+      .then(function (c) { return c.addAll(PRECACHE); })
       .then(function () { return self.skipWaiting(); })
   );
 });
@@ -35,17 +41,18 @@ self.addEventListener("fetch", function (e) {
   // Shared boards (/b/) travel in the link's "#…", which a saved copy would keep on disk:
   // never saved, always straight from the network.
   if (url.pathname === "/b" || url.pathname.indexOf("/b/") === 0) return;
-  var inAbout = url.pathname.indexOf("/about/") === 0;
   e.respondWith(
     fresh(e.request).then(function (r) {
       if (r.ok) {
         var copy = r.clone();
-        caches.open(CACHE).then(function (c) { c.put(e.request, copy); });
+        e.waitUntil(caches.open(CACHE).then(function (c) { return c.put(e.request, copy); }));
       }
       return r;
     }).catch(function () {
       return caches.match(e.request, { ignoreSearch: true }).then(function (m) {
-        return m || caches.match(inAbout ? "about/" : "./");
+        if (m) return m;
+        if (e.request.mode === "navigate" && SHELL[url.pathname]) return caches.match(SHELL[url.pathname]);
+        return Response.error();   // a script or picture never saved: a plain failure, not the app's HTML in its place
       });
     })
   );

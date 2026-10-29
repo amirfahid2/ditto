@@ -16,7 +16,7 @@ const COLOR_NAMES = { navy: "Dark blue", teal: "Teal", green: "Green", amber: "A
 const $ = (id) => document.getElementById(id);
 const S = {
   secret: null, link: null, client: null,
-  rev: 0, board: [], path: [], selectedId: null,
+  rev: 0, board: [], path: [], selectedId: null, dragId: null,
   dirty: false, saving: false, saveAgain: false, conflict: null,
   last: null, pictures: new Map(), loadingPictures: new Set(),
 };
@@ -116,13 +116,22 @@ async function copyPairLink() {
   toast(ok ? "Link copied. Paste it in Ditto ▸ Settings ▸ Link to the web." : "Couldn't copy. Scan the code instead.");
 }
 
+// The saved secret, if it is one: 32 bytes as 43 base64url characters. Anything else (a damaged
+// or foreign value) counts as no link, not as an error that leaves the page blank.
+function savedSecret(saved) {
+  if (!saved || typeof saved.secret !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(saved.secret)) return null;
+  const secret = unb64url(saved.secret);
+  return secret.length === 32 ? secret : null;
+}
+
 async function startPairing(fresh) {
   stopPolling();
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem(STORE_KEY) || "null"); } catch (e) {}
-  if (!fresh && saved && saved.secret) {
-    S.secret = unb64url(saved.secret);
-    S.rev = saved.rev || 0;
+  const secret = fresh ? null : savedSecret(saved);
+  if (secret) {
+    S.secret = secret;
+    S.rev = Number(saved.rev) || 0;
   } else {
     S.secret = newSecret();
     S.rev = 0;
@@ -136,10 +145,10 @@ async function startPairing(fresh) {
     const r = await S.client.getBoard();
     if (r.status === "board") return enterEditor(r);
   } catch (e) {
-    // a board that will not open was not sealed with this secret: start over.
-    // (A network error keeps the saved secret; the QR below then waits for the relay.)
-    const unreadable = e.name === "OperationError" || (e instanceof RelayError && e.status === 0);
-    if (unreadable && !fresh) return startPairing(true);
+    // A board that will not decrypt was sealed with another secret: start over with a new one.
+    // Anything else (no network, a relay answer missing its revision) keeps the saved secret,
+    // and the QR below waits for the relay.
+    if (e.name === "OperationError" && !fresh) return startPairing(true);
   }
 
   $("editorView").hidden = true;
@@ -230,7 +239,11 @@ function schedulePoll() {
   pollTimer = setTimeout(pollEditor, EDIT_POLL_MS);
 }
 
+let polling = false;   // one poll at a time: the tab coming back starts one while the timer's may be running
 async function pollEditor() {
+  if (polling) return;
+  polling = true;
+  let gone = false;
   if (!document.hidden && !S.dirty && !S.saving && !S.conflict) {
     try {
       const r = await S.client.getBoard(S.rev);
@@ -239,14 +252,15 @@ async function pollEditor() {
         render();
         toast(`Updated from ${r.envelope.device || "your iPhone"}`);
       } else if (r.status === "none") {
-        // the room is gone: unlinked on the phone, or expired
-        return unlinked("This browser was unlinked from your iPhone.");
+        gone = true;   // the room is gone: unlinked on the phone, or expired
       }
-      if (!S.dirty) setStatus("saved", "Up to date");
+      if (!gone && !S.dirty) setStatus("saved", "Up to date");
     } catch (e) {
       setStatus("error", "Can't reach the relay");
     }
   }
+  polling = false;
+  if (gone) return unlinked("This browser was unlinked from your iPhone.");
   schedulePoll();
 }
 
@@ -264,9 +278,10 @@ async function save() {
   S.saving = true;
   S.dirty = false;
   setStatus("saving", "Saving…");
-  const snapshot = JSON.parse(JSON.stringify(S.board));
+  const snapshot = JSON.parse(JSON.stringify(S.board)), client = S.client;
   try {
-    const r = await S.client.putBoard(S.rev, snapshot, "web", deviceLabel());
+    const r = await client.putBoard(S.rev, snapshot, "web", deviceLabel());
+    if (S.client !== client) return;   // unlinked meanwhile: that was the old room
     if (r.ok) {
       S.rev = r.rev;
       S.last = { from: "web", device: deviceLabel(), at: new Date().toISOString() };
@@ -278,10 +293,17 @@ async function save() {
       await showConflict();
     }
   } catch (e) {
+    if (S.client !== client) return;
     S.dirty = true;
-    setStatus("error", e.status === 413 ? e.message : "Not saved — retrying");
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(save, 8000);
+    if (e instanceof RelayError && e.status >= 400 && e.status < 500) {
+      // the relay refused this board (too large, say): the same board again won't do better, so
+      // wait for the next edit; the page still warns before closing with it unsaved
+      setStatus("error", e.status === 413 ? e.message : "Not saved — the relay refused it (" + e.status + ")");
+    } else {
+      setStatus("error", "Not saved — retrying");
+      saveTimer = setTimeout(save, 8000);
+    }
   } finally {
     S.saving = false;
     if (S.saveAgain) { S.saveAgain = false; save(); }
@@ -320,8 +342,14 @@ function resolveConflict(keepMine) {
 
 function unlinked(message) {
   stopPolling();
+  clearTimeout(saveTimer);
   try { localStorage.removeItem(STORE_KEY); localStorage.removeItem(USE_KEY); } catch (e) {}
-  S.board = []; S.path = []; S.selectedId = null; S.dirty = false;
+  // nothing of the old link carries over: a conflict left showing would stop the next link saving
+  S.board = []; S.path = []; S.selectedId = null; S.dragId = null;
+  S.dirty = false; S.saving = false; S.saveAgain = false; S.conflict = null; S.last = null;
+  $("conflict").hidden = true;
+  for (const url of S.pictures.values()) URL.revokeObjectURL(url);
+  S.pictures.clear(); S.loadingPictures.clear();
   toast(message);
   startPairing(true);
 }
@@ -540,14 +568,22 @@ async function pickPicture(sq, file) {
 }
 
 // Same as the iPhone: at most 400 px on the long side, JPEG 0.85, PNG if it has transparency.
+// Decoded through an <img>, which turns a photo the way its EXIF orientation says in every
+// browser (createImageBitmap doesn't in all of them).
 async function shrinkPicture(file) {
-  const bmp = await createImageBitmap(file);
-  const scale = Math.min(1, 400 / Math.max(bmp.width, bmp.height));
-  const w = Math.max(1, Math.round(bmp.width * scale)), hgt = Math.max(1, Math.round(bmp.height * scale));
+  const im = await new Promise((res, rej) => {
+    const el = new Image(), url = URL.createObjectURL(file);
+    el.onload = () => { URL.revokeObjectURL(url); res(el); };
+    el.onerror = () => { URL.revokeObjectURL(url); rej(new Error("The picture couldn't be decoded")); };
+    el.src = url;
+  });
+  const iw = im.naturalWidth || im.width, ih = im.naturalHeight || im.height;
+  const scale = Math.min(1, 400 / Math.max(iw, ih));
+  const w = Math.max(1, Math.round(iw * scale)), hgt = Math.max(1, Math.round(ih * scale));
   const canvas = document.createElement("canvas");
   canvas.width = w; canvas.height = hgt;
   const ctx = canvas.getContext("2d");
-  ctx.drawImage(bmp, 0, 0, w, hgt);
+  ctx.drawImage(im, 0, 0, w, hgt);
   let alpha = false;
   if (/png|webp|gif|avif/.test(file.type)) {
     const px = ctx.getImageData(0, 0, w, hgt).data;
@@ -714,4 +750,7 @@ $("useHereToggle").addEventListener("change", (e) => {
 document.addEventListener("visibilitychange", () => { if (!document.hidden && !$("editorView").hidden) pollEditor(); });
 window.addEventListener("beforeunload", (e) => { if (S.dirty || S.saving) { e.preventDefault(); e.returnValue = ""; } });
 
-startPairing(false);
+startPairing(false).catch(() => {
+  $("pairView").hidden = false;   // never a blank page: with no code to show, at least say so
+  toast("Something went wrong starting the link. Reload the page to try again.");
+});
