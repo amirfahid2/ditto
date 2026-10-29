@@ -4,7 +4,10 @@
 //
 // Square names and texts only ever reach the page through textContent.
 
-import { decodeBoardLink, BoardLinkError, ERRORS, countLine, labelFor, folderCaption, textStart, substituteTokens } from "./board.js";
+import {
+  decodeBoardLink, BoardLinkError, ERRORS, cleanHash, countLine, labelFor, folderCaption, textStart, preview,
+  isLongName, isIOSDevice, substituteTokens,
+} from "./board.js";
 import { qrEncode } from "../link/qr.js";
 
 const $ = (id) => document.getElementById(id);
@@ -13,10 +16,16 @@ const titleEl = $("title"), countEl = $("count"), hintEl = $("hint"), noticeEl =
 const openRow = $("openRow"), openBtn = $("openBtn");
 const qrCard = $("qrCard"), qrBox = $("qr"), qrNote = $("qrNote"), copyLinkBtn = $("copyLinkBtn");
 const toastEl = $("toast");
+const keepTitle = $("keepTitle"), privacyEl = $("privacy");
 
 const SHARED_TITLE = "A Ditto board was shared with you";
 const QR_NOTE = "Point your iPhone's camera at the code to open this board there.";
 const QR_TOO_LONG = "This board is too big for a QR code. Copy the link and send it to yourself, then open it on your phone.";
+const KEEP_TITLE = "Keep these squares on your iPhone";
+const GET_TITLE = "Get Ditto";
+
+// dittotap:// only has a handler where Ditto can be installed.
+const onIOS = isIOSDevice(navigator);
 
 let board = null;   // the normalized squares, or null while loading or after an error
 let path = [];      // the open folders: path[0] indexes the board, path[1] that folder's items, …
@@ -76,10 +85,11 @@ function flash(el) {
 }
 
 function copySquare(sq, el) {
-  const label = textStart(labelFor(sq), 28);
-  if (!sq.text) { showToast("“" + label + "” has no text to copy"); return; }
-  copyText(substituteTokens(sq.text), el).then((ok) => {
-    if (ok) { flash(el); showToast("Copied “" + label + "”"); }
+  if (!sq.text) { showToast("“" + textStart(labelFor(sq), 28) + "” has no text to copy"); return; }
+  const text = substituteTokens(sq.text);
+  copyText(text, el).then((ok) => {
+    // what was copied, not the square's name: a name can say anything
+    if (ok) { flash(el); showToast("Copied: " + preview(text, 40)); }
     else showToast("Couldn't copy. Try tapping again.");
   });
 }
@@ -116,7 +126,7 @@ function squareEl(sq, expanded) {
     n.className = "name";
     n.dir = "auto";
     n.textContent = label;
-    if (Array.from(label).length > 8) n.classList.add("long");
+    if (isLongName(sq.name)) n.classList.add("long");   // the name's length only, as on the iPhone
     b.appendChild(n);
   }
   if (sq.isFolder) {
@@ -127,9 +137,10 @@ function squareEl(sq, expanded) {
     b.appendChild(cap);
     b.setAttribute("aria-expanded", String(!!expanded));
     if (expanded) b.setAttribute("aria-controls", "folderPanel");
-    b.setAttribute("aria-label", "Folder " + label + ", " + folderCaption(sq).toLowerCase());
+    b.setAttribute("aria-label", "Folder " + label + ", " + folderCaption(sq));
   } else {
     b.setAttribute("aria-label", sq.text ? "Copy " + label : label + ", no text to copy");
+    if (sq.text) b.title = preview(sq.text, 80);   // what a tap copies, before it's tapped
   }
   return b;
 }
@@ -172,10 +183,11 @@ function render(focus) {
   }
 
   let target = null;
-  if (focus && focus.top != null) target = grid.children[focus.top] || null;
+  if (focus && focus.top != null) target = grid.querySelectorAll(":scope > .sq")[focus.top] || null;
   if (focus && panel && focus.item != null) target = panel.querySelectorAll(".folder-grid > .sq")[focus.item] || null;
   if (focus && panel && focus.panel) {
-    target = focus.panel === "first" ? panel.querySelector(".folder-grid > .sq") : null;
+    if (focus.panel === "first") target = panel.querySelector(".folder-grid > .sq");
+    else if (focus.panel === "close") target = panel.querySelector(".panel-btn.close");
     if (!target) target = panel.querySelector(".panel-btn");
   }
   if (target) target.focus({ preventScroll: true });
@@ -200,8 +212,14 @@ function buildPanel(chain) {
     const back = document.createElement("button");
     back.type = "button";
     back.className = "panel-btn";
-    back.dir = "auto";
-    back.textContent = "‹ " + textStart(parent, 18);
+    back.dir = "ltr";   // the chevron stays on the left; the name keeps its own direction
+    const chev = document.createElement("span");
+    chev.className = "chev";
+    chev.setAttribute("aria-hidden", "true");
+    chev.textContent = "‹";
+    const name = document.createElement("bdi");
+    name.textContent = textStart(parent, 18);
+    back.append(chev, name);
     back.setAttribute("aria-label", "Back to " + parent);
     back.addEventListener("click", () => {
       const from = path.pop();
@@ -301,16 +319,27 @@ function qrSvg(text) {
   return { svg, size: q.size };
 }
 
+// A board the app may be able to open (this page could, or a newer Ditto might).
+function hasBoard() {
+  return status === "ok" || status === "newer" || status === "unsupported";
+}
+
+// This page's link as the app reads it: what the page ignores at the end is left off.
+function pageLink() {
+  return location.origin + location.pathname + cleanHash(location.hash);
+}
+
 let qrFor = null;
 function updateQr() {
-  const show = (status === "ok" || status === "newer" || status === "unsupported") && onComputer();
+  const show = hasBoard() && onComputer();
   qrCard.hidden = !show;
-  if (!show || qrFor === location.href) return;
-  qrFor = location.href;
+  const link = show ? pageLink() : null;
+  if (!show || qrFor === link) return;
+  qrFor = link;
   qrBox.textContent = "";
   qrBox.classList.remove("big");
   try {
-    const { svg, size } = qrSvg(location.href);
+    const { svg, size } = qrSvg(link);
     qrBox.appendChild(svg);
     if (size > 90) qrBox.classList.add("big");
     qrBox.hidden = false;
@@ -323,19 +352,25 @@ function updateQr() {
 
 function updateActions() {
   // The app reads the same link; worth a try even when this page can't open it.
-  const canOpen = status === "ok" || status === "newer" || status === "unsupported";
-  openRow.hidden = !canOpen;
-  openBtn.href = "dittotap://b" + location.hash;
+  const canOpen = hasBoard();
+  openRow.hidden = !(canOpen && onIOS);
+  openBtn.href = "dittotap://b" + (canOpen ? cleanHash(location.hash) : "");
   updateQr();
 }
 
 copyLinkBtn.addEventListener("click", () => {
-  copyText(location.href, copyLinkBtn).then((ok) => {
+  copyText(pageLink(), copyLinkBtn).then((ok) => {
     showToast(ok ? "Link copied" : "Couldn't copy. Try again.");
   });
 });
 
 /* ---------- loading the board from the link ---------- */
+
+// The side card talks about "these squares" only while there is a board in the link.
+function setSide(withBoard) {
+  keepTitle.textContent = withBoard ? KEEP_TITLE : GET_TITLE;
+  privacyEl.hidden = !withBoard;
+}
 
 function showBoard(res) {
   board = res.board;
@@ -348,9 +383,10 @@ function showBoard(res) {
   errBody.hidden = true;
   const notes = [];
   if (res.truncated.count) notes.push("This board is very big, so only its first 5,000 squares are here.");
-  if (res.truncated.depth) notes.push("Folders nested more than 16 deep were left out.");
+  if (res.truncated.depth) notes.push("Anything inside folders nested 16 deep was left out.");
   noticeEl.textContent = notes.join(" ");
   noticeEl.hidden = !notes.length;
+  setSide(true);
   render();
 }
 
@@ -366,6 +402,7 @@ function showError(code) {
   countEl.hidden = true;
   hintEl.hidden = true;
   noticeEl.hidden = true;
+  setSide(code === "newer" || code === "unsupported");
 }
 
 async function load() {
@@ -380,6 +417,7 @@ async function load() {
   hintEl.hidden = true;
   noticeEl.hidden = true;
   errBody.hidden = true;
+  setSide(true);
   updateActions();
   let res = null, code = null;
   try {
@@ -398,13 +436,26 @@ window.addEventListener("hashchange", () => {
   load();
 });
 
+// Where focus is on the board, so a new layout can put it back on the same square or button.
+function focusSpot() {
+  const a = document.activeElement;
+  if (!a || !grid.contains(a)) return undefined;
+  const i = Array.prototype.indexOf.call(grid.querySelectorAll(":scope > .sq"), a);
+  if (i >= 0) return { top: i };
+  const j = Array.prototype.indexOf.call(grid.querySelectorAll(".folder-grid > .sq"), a);
+  if (j >= 0) return { item: j };
+  if (a.classList.contains("panel-btn")) return { panel: a.classList.contains("close") ? "close" : "back" };
+  return undefined;
+}
+
 let resizeQueued = false;
 window.addEventListener("resize", () => {
   if (resizeQueued) return;
   resizeQueued = true;
   requestAnimationFrame(() => {
     resizeQueued = false;
-    if (board && path.length && currentCols() !== cols) render();
+    // a turned phone or a wider window: the open folder moves under its new row
+    if (board && path.length && currentCols() !== cols) render(focusSpot());
     updateQr();
   });
 });

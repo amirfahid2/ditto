@@ -1,4 +1,4 @@
-var CACHE = "ditto-v4";
+var CACHE = "ditto-v5";
 
 self.addEventListener("install", function (e) {
   e.waitUntil(
@@ -32,6 +32,9 @@ self.addEventListener("fetch", function (e) {
   if (e.request.method !== "GET") return;
   var url = new URL(e.request.url);
   if (url.origin !== location.origin) return;
+  // Shared boards (/b/) travel in the link's "#…", which a saved copy would keep on disk:
+  // never saved, always straight from the network.
+  if (url.pathname === "/b" || url.pathname.indexOf("/b/") === 0) return;
   var inAbout = url.pathname.indexOf("/about/") === 0;
   e.respondWith(
     fresh(e.request).then(function (r) {

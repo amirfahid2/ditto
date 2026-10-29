@@ -17,7 +17,6 @@
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="The Ditto icon beside colorful squares: A Ditto board for you. Tap a square to copy.">
-<meta property="og:url" content="https://dittotap.com/b/">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="A Ditto board for you">
 <meta name="twitter:description" content="Tap a square to copy its text. Get Ditto to keep them on your iPhone.">
@@ -47,9 +46,9 @@
       <noscript><p class="err-body">Turn on JavaScript to see this board. It's read from the link right here in your browser.</p></noscript>
     </section>
 
-    <aside class="side" aria-label="Keep this board">
+    <aside class="side" aria-labelledby="keepTitle">
       <div class="card keep">
-        <h2>Keep these squares on your iPhone</h2>
+        <h2 id="keepTitle">Keep these squares on your iPhone</h2>
         <p class="card-lede">Ditto puts the text you use again and again one tap away, on your board and in the Ditto keyboard.</p>
         <div class="ctas">
           <a class="btn btn-store" href="https://apps.apple.com/app/apple-store/id6810430522?pt=118936797&amp;ct=shared-board&amp;mt=8" rel="noreferrer">
@@ -72,7 +71,7 @@
         <button type="button" class="btn-quiet" id="copyLinkBtn">Copy link</button>
       </div>
 
-      <p class="privacy">This board is inside the link itself. It isn't stored on dittotap.com or anywhere else.</p>
+      <p class="privacy" id="privacy">This board is inside the link itself. It isn't stored on dittotap.com or anywhere else.</p>
     </aside>
   </main>
 

@@ -10,8 +10,11 @@ export const LIMITS = Object.freeze({
   payloadChars: 200000,   // the "d1=" value, in characters
   jsonBytes: 2000000,     // inflated JSON; inflating stops past this (no zip bombs)
   squares: 5000,          // every kept entry, folders included, in the order they appear
-  depth: 16,              // a folder may sit inside at most 15 others (a top-level folder is depth 1)
+  depth: 16,              // a top-level folder is depth 1; a folder at depth 16 is kept, but empty
 });
+
+// Room for what messengers add at the end of a link (see parseHash), on top of the payload.
+const HASH_SLACK = 64;
 
 export const COLORS = Object.freeze(["navy", "teal", "green", "amber", "rose", "purple", "slate"]);
 const BORDERS = ["none", "black"].concat(COLORS);
@@ -55,19 +58,44 @@ export class BoardLinkError extends Error {
 
 // ---------- the link ----------
 
+const B64 = new Int16Array(128).fill(-1);
+"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_".split("").forEach((c, i) => { B64[c.charCodeAt(0)] = i; });
+
 // "#d1=…" -> { version: "1", payload: "…" }, or null when there is no board in it.
+// Linear time on any input (no backtracking regex over the payload).
 export function parseHash(hash) {
-  let frag = String(hash == null ? "" : hash).replace(/^#/, "");
+  let frag = String(hash == null ? "" : hash);
+  if (frag.charAt(0) === "#") frag = frag.slice(1);
   try { frag = decodeURIComponent(frag); } catch (e) { /* a stray "%" is caught below */ }
-  const m = /^d(\d{1,6})=([\s\S]*)$/.exec(frag);
+  const m = /^d(\d{1,6})=/.exec(frag);
   if (!m) return null;
   // Tolerate what messengers sometimes add at the very end (a period, "=" padding, a space,
   // an "&…" of their own).
-  return { version: m[1], payload: m[2].split("&")[0].replace(/[^A-Za-z0-9_-]+$/, "") };
+  let p = frag.slice(m[0].length);
+  const amp = p.indexOf("&");
+  if (amp >= 0) p = p.slice(0, amp);
+  let end = p.length;
+  while (end > 0) {
+    const c = p.charCodeAt(end - 1);
+    if (c < 128 && B64[c] >= 0) break;
+    end--;
+  }
+  return { version: m[1], payload: p.slice(0, end) };
 }
 
-const B64 = new Int16Array(128).fill(-1);
-"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_".split("").forEach((c, i) => { B64[c.charCodeAt(0)] = i; });
+// Longer than any link this page would read: refused before anything else looks at it.
+export function hashTooLong(hash, limits = LIMITS) {
+  return String(hash == null ? "" : hash).length > limits.payloadChars + HASH_SLACK;
+}
+
+// The link as the app reads it: "#d1=<payload>" without what parseHash ignores, or "" when
+// there is no board in it. Open in Ditto, the QR code and Copy link use this (the app refuses
+// anything outside the base64url alphabet). banner.js has its own copy for the Smart App Banner.
+export function cleanHash(hash, limits = LIMITS) {
+  if (hashTooLong(hash, limits)) return "";
+  const link = parseHash(hash);
+  return link ? "#d" + link.version + "=" + link.payload : "";
+}
 
 // base64url (no padding) -> bytes. Anything outside the alphabet means a broken link.
 export function base64urlToBytes(s) {
@@ -159,10 +187,16 @@ export function isEmojiImage(image) {
 
 function str(v) { return typeof v === "string" ? v : ""; }
 
+// A square worth keeping: an object that is a folder, or has a name or a text.
+function isEntry(it) {
+  if (!it || typeof it !== "object" || Array.isArray(it)) return false;
+  return it.isFolder === true || !!str(it.name) || !!str(it.text);
+}
+
 // The link's squares -> clean squares in the link's own shape (only known keys, defaults left
-// out). Blank "…" slots are dropped, unknown colors and borders become the default, at most
-// LIMITS.squares entries are kept (in the order they appear) and folders past LIMITS.depth are
-// dropped with everything in them.
+// out). Blank "…" slots are dropped, unknown colors and borders become the default and at most
+// LIMITS.squares entries are kept (in the order they appear). As on the iPhone
+// (BoardLink.swift), a folder at depth LIMITS.depth is kept but empty: nothing inside it stays.
 export function normalizeBoard(list, limits = LIMITS) {
   const res = { board: [], squares: 0, folders: 0, truncated: { count: false, depth: false } };
   let kept = 0;
@@ -170,12 +204,14 @@ export function normalizeBoard(list, limits = LIMITS) {
   function walk(items, level) {   // level = how many folders hold this list (0 = the board)
     const out = [];
     if (!Array.isArray(items)) return out;
+    if (level >= limits.depth) {
+      if (items.some(isEntry)) res.truncated.depth = true;
+      return out;
+    }
     for (const it of items) {
-      if (!it || typeof it !== "object" || Array.isArray(it)) continue;
+      if (!isEntry(it)) continue;   // not a square, or a blank slot
       const folder = it.isFolder === true;
       const name = str(it.name), text = folder ? "" : str(it.text);
-      if (!folder && !name && !text) continue;   // a blank slot
-      if (folder && level >= limits.depth) { res.truncated.depth = true; continue; }
       if (kept >= limits.squares) { res.truncated.count = true; break; }
       kept++;
       const sq = {};
@@ -217,6 +253,7 @@ export function parsePayload(bytes) {
 
 // location.hash -> { board, squares, folders, truncated }; throws a BoardLinkError.
 export async function decodeBoardLink(hash, { DecompressionStream: DS = globalThis.DecompressionStream, limits = LIMITS } = {}) {
+  if (hashTooLong(hash, limits)) throw new BoardLinkError("too-big");
   const link = parseHash(hash);
   if (!link) throw new BoardLinkError("none");
   if (link.version !== "1") throw new BoardLinkError("newer");
@@ -239,29 +276,78 @@ export function countLine(squares, folders) {
   return parts.join(" · ");
 }
 
+// Bidi embedding, override and isolate controls: invisible, and they can make shown text read
+// differently from what it is. Taken out of everything the page shows (never out of what a tap
+// copies).
+const BIDI_CONTROLS = /[\u202A-\u202E\u2066-\u2069]/g;
+// Something you can see: not a space, a line break or an invisible formatting character.
+const VISIBLE = /[^\s\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180E\u200B-\u200F\u202A-\u202E\u2060-\u206F\u3164\uFEFF\uFFA0]/u;
+
+export function plainText(s) { return str(s).replace(BIDI_CONTROLS, ""); }
+function hasVisible(s) { return VISIBLE.test(s); }
+
+function cut(s, max, ellipsis) {
+  const chars = Array.from(s.slice(0, max * 2 + 2));   // a character is at most 2 UTF-16 units
+  return chars.length > max ? chars.slice(0, max).join("").trimEnd() + (ellipsis ? "…" : "") : s;
+}
+
 // The start of a text: its first line with something on it, cut to `max` characters.
-export function textStart(text, max = 24) {
-  const line = str(text).split(/\r\n|\r|\n|\u2028|\u2029/).map((l) => l.trim()).find((l) => l) || "";
-  const chars = Array.from(line);
-  return chars.length > max ? chars.slice(0, max).join("").trimEnd() + "…" : line;
+export function textStart(text, max = 24, ellipsis = true) {
+  const line = plainText(text).split(/\r\n|\r|\n|\u2028|\u2029/).map((l) => l.trim()).find(hasVisible) || "";
+  return cut(line, max, ellipsis);
 }
 
-// What a square shows: its name, or the start of its text; "Folder" for a folder with no name.
+// What a tap copies, as one line: every run of spaces and line breaks becomes one space, so
+// nothing after the first line hides. Used for the toast and the square's tooltip.
+export function preview(text, max = 40) {
+  return cut(plainText(text).replace(/\s+/g, " ").trim(), max, true);
+}
+
+// What a square shows, as on the iPhone: its name, or the first 12 characters of its text;
+// "Folder" for a folder with no name, "Square" when there is nothing visible to show.
 export function labelFor(sq) {
-  const name = str(sq && sq.name);
-  if (name.trim()) return name;
+  const name = plainText(sq && sq.name);
+  if (hasVisible(name)) return name;
   if (sq && sq.isFolder) return "Folder";
-  return textStart(sq && sq.text);
+  return textStart(sq && sq.text, 12, false) || "Square";
 }
 
-// "3 texts" / "2 folders, 1 text": what a folder holds, one level down.
+// The iPhone's smaller name size is for names over 8 characters; a text's start never counts.
+export function isLongName(name) {
+  const s = plainText(name);
+  if (!s) return false;
+  if (segmenter) {
+    let n = 0;
+    for (const _ of segmenter.segment(s)) { if (++n > 8) return true; }
+    return false;
+  }
+  return Array.from(s).length > 8;
+}
+
+// Texts inside a folder, counting the ones in folders inside it (Square.textCount on the iPhone).
+export function textCount(sq) {
+  let n = 0;
+  const stack = [(sq && sq.items) || []];
+  while (stack.length) {
+    for (const it of stack.pop()) {
+      if (it.isFolder) stack.push(it.items || []);
+      else n++;
+    }
+  }
+  return n;
+}
+
+// "3 texts" under a folder's name, as on the iPhone ("0 texts" when it's empty).
 export function folderCaption(sq) {
-  const items = (sq && sq.items) || [];
-  const f = items.filter((i) => i.isFolder).length, t = items.length - f;
-  if (!items.length) return "Empty";
-  if (!f) return plural(t, "text", "texts");
-  if (!t) return plural(f, "folder", "folders");
-  return plural(f, "folder", "folders") + ", " + plural(t, "text", "texts");
+  return plural(textCount(sq), "text", "texts");
+}
+
+// "Open in Ditto" only works where Ditto can be installed: iPhone, iPad and iPod touch (an
+// iPad asking for the desktop site says "MacIntel", but has a touch screen).
+export function isIOSDevice(nav) {
+  if (!nav) return false;
+  if (/iPhone|iPad|iPod/.test(String(nav.userAgent || ""))) return true;
+  return nav.platform === "MacIntel" && Number(nav.maxTouchPoints) > 1;
 }
 
 // [TODAY], [TOMORROW] and [TIME] become the real date or time when copied, as in the app.
