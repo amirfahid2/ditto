@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'none'; img-src 'self' data:; script-src 'self'; style-src 'self'; object-src 'none'; frame-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<script src="banner.js"></script>
+<title>Shared Ditto board</title>
+<meta name="description" content="A board of Ditto squares someone shared with you. Tap a square to copy its text, or get Ditto to keep the board on your iPhone.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Ditto">
+<meta property="og:title" content="A Ditto board for you">
+<meta property="og:description" content="Tap a square to copy its text. Get Ditto to keep them on your iPhone.">
+<meta property="og:image" content="https://dittotap.com/b/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The Ditto icon beside colorful squares: A Ditto board for you. Tap a square to copy.">
+<meta property="og:url" content="https://dittotap.com/b/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="A Ditto board for you">
+<meta name="twitter:description" content="Tap a square to copy its text. Get Ditto to keep them on your iPhone.">
+<meta name="twitter:image" content="https://dittotap.com/b/og.png">
+<meta name="theme-color" content="#F2F5F6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F1518" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="../icon-180.png">
+<link rel="apple-touch-icon" href="../icon-180.png">
+<link rel="stylesheet" href="b.css">
+<script type="module" src="view.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="wordmark" href="../about/" aria-label="Ditto, about the app">Ditto</a>
+    <span class="top-note">Shared board</span>
+  </header>
+
+  <main class="layout">
+    <section class="board-col" aria-labelledby="title">
+      <h1 id="title">A Ditto board was shared with you</h1>
+      <p class="count" id="count">Opening the board…</p>
+      <p class="hint" id="hint" hidden>Tap a square to copy its text. Tap a folder to open it.</p>
+      <p class="notice" id="notice" role="note" hidden></p>
+      <p class="err-body" id="errBody" hidden></p>
+      <div class="grid" id="grid" role="group" aria-label="Shared board"></div>
+      <noscript><p class="err-body">Turn on JavaScript to see this board. It's read from the link right here in your browser.</p></noscript>
+    </section>
+
+    <aside class="side" aria-label="Keep this board">
+      <div class="card keep">
+        <h2>Keep these squares on your iPhone</h2>
+        <p class="card-lede">Ditto puts the text you use again and again one tap away, on your board and in the Ditto keyboard.</p>
+        <div class="ctas">
+          <a class="btn btn-store" href="https://apps.apple.com/app/apple-store/id6810430522?pt=118936797&amp;ct=shared-board&amp;mt=8" rel="noreferrer">
+            <span class="stack"><small>Get Ditto on the</small><span>App Store</span></span>
+          </a>
+          <span class="btn btn-soon" aria-label="Ditto for Android is coming soon to Google Play">
+            <span class="stack"><small>Coming soon for Android</small><span>Google Play</span></span>
+          </span>
+        </div>
+        <div class="open-row" id="openRow" hidden>
+          <a class="btn btn-open" id="openBtn" href="dittotap://b">Open in Ditto</a>
+          <p class="open-hint">Have Ditto on this iPhone? Open the board there to keep it. Just installed it? Come back here and tap Open in Ditto.</p>
+        </div>
+      </div>
+
+      <div class="card qr-card" id="qrCard" hidden>
+        <h2>Open it on your phone</h2>
+        <div class="qr" id="qr" role="img" aria-label="QR code of this page's link"></div>
+        <p class="qr-note" id="qrNote">Point your iPhone's camera at the code to open this board there.</p>
+        <button type="button" class="btn-quiet" id="copyLinkBtn">Copy link</button>
+      </div>
+
+      <p class="privacy">This board is inside the link itself. It isn't stored on dittotap.com or anywhere else.</p>
+    </aside>
+  </main>
+
+  <footer>
+    <span>© 2026 Pentapillars, LLC</span>
+    <nav aria-label="Footer">
+      <a href="../about/">About Ditto</a>
+      <a href="../privacy.html">Privacy Policy</a>
+    </nav>
+  </footer>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
