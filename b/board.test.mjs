@@ -356,6 +356,7 @@ test("the site's service worker never saves a shared-board link", async () => {
     location: { origin: "https://dittotap.com" },
     URL,
     Request: class { constructor(req) { this.url = req.url; } },
+    Response: { error: () => ({ ok: false, type: "error" }) },
     fetch: () => Promise.resolve({ ok: true, clone() { return this; } }),
     caches: {
       open: () => Promise.resolve({ put: (k) => { puts.push(k.url || k); }, addAll: () => Promise.resolve() }),
