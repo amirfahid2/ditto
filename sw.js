@@ -1,4 +1,4 @@
-var CACHE = "ditto-v5";
+var CACHE = "ditto-v6";
 // What the site needs with no connection: the app, its pages and scripts, and the bridge to the
 // iPhone's squares (which then says "can't reach" instead of failing to load).
 var PRECACHE = ["./", "about/", "privacy.html", "figures.js", "intro.js", "sample-notes.js", "manifest.webmanifest",
