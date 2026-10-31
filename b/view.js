@@ -22,6 +22,8 @@ const SHARED_TITLE = "A Ditto board was shared with you";
 const QR_NOTE = "Point your iPhone's camera at the code to open this board there.";
 const QR_TOO_LONG = "This board is too big for a QR code. Copy the link and send it to yourself, then open it on your phone.";
 const KEEP_TITLE = "Keep these squares on your iPhone";
+// Elsewhere the card only offers the app: Ditto for Android can't take in a board link yet.
+const KEEP_TITLE_OTHER = "Get Ditto for your phone";
 const GET_TITLE = "Get Ditto";
 
 // dittotap:// only has a handler where Ditto can be installed.
@@ -368,7 +370,7 @@ copyLinkBtn.addEventListener("click", () => {
 
 // The side card talks about "these squares" only while there is a board in the link.
 function setSide(withBoard) {
-  keepTitle.textContent = withBoard ? KEEP_TITLE : GET_TITLE;
+  keepTitle.textContent = withBoard ? (onIOS ? KEEP_TITLE : KEEP_TITLE_OTHER) : GET_TITLE;
   privacyEl.hidden = !withBoard;
 }
 

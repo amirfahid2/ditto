@@ -271,11 +271,9 @@ h1 {
 }
 .btn:active { transform: scale(0.97); }
 .btn-store { background: var(--store); color: var(--store-ink); }
-.btn-store small, .btn-soon small { display: block; font-size: 11px; font-weight: 500; opacity: 0.8; line-height: 1.1; }
-.btn-store span, .btn-soon span { display: block; line-height: 1.15; }
-.btn-store .stack, .btn-soon .stack { text-align: left; }
-.btn-soon { border-color: var(--line); color: var(--muted); cursor: default; }
-.btn-soon:active { transform: none; }
+.btn-store small { display: block; font-size: 11px; font-weight: 500; opacity: 0.8; line-height: 1.1; }
+.btn-store span { display: block; line-height: 1.15; }
+.btn-store .stack { text-align: left; }
 .open-row { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
 .btn-open { background: var(--accent); color: var(--accent-ink); }
 .open-hint { margin: 10px 0 0; font-size: 14px; color: var(--muted); }

@@ -5,6 +5,7 @@
 //   onPhone: this is a phone (no linking a browser to itself); onLink(): "Use my iPhone's squares here"
 
 const APP_STORE = "https://apps.apple.com/app/id6810430522";
+const PLAY_STORE = "https://play.google.com/store/apps/details?id=com.pentapillars.ditto&referrer=utm_source%3Ddittotap%26utm_campaign%3Dsite";
 const MOVE_MS = 700;
 
 const CSS = `
@@ -234,10 +235,10 @@ export function openIntro(opts = {}) {
       },
     },
     {
-      title: "Your squares on your iPhone, too",
+      title: "Your squares on your phone, too",
       text: opts.linked
         ? "You're using your iPhone's squares here. Ditto for iPhone adds a keyboard, so every square is one tap away in any app."
-        : "Ditto for iPhone has the same board plus a keyboard, so every square is one tap away in any app. Link this browser and your iPhone's squares show up here. No account needed: your squares stay on your devices.",
+        : "Ditto for iPhone and Android has the same board plus a keyboard, so every square is one tap away in any app. Link this browser and your iPhone's squares show up here. No account needed: your squares stay on your devices.",
       play() { scene("phone"); return 0; },
       actions() {
         const out = [];
@@ -248,6 +249,8 @@ export function openIntro(opts = {}) {
         }
         const a = el("a", out.length ? "" : "primary"); a.href = APP_STORE; a.target = "_blank"; a.rel = "noopener"; a.textContent = "Get Ditto for iPhone";
         out.push(a);
+        const g = el("a", ""); g.href = PLAY_STORE; g.target = "_blank"; g.rel = "noopener"; g.textContent = "Get Ditto for Android";
+        out.push(g);
         return out;
       },
     },
