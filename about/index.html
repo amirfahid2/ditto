@@ -573,10 +573,11 @@
     typing = null;
   }
 
+  // Each snippet goes on its own, after a blank line, as the Ditto keyboard does.
   function typeIn(text) {
     finishTyping();
     var start = field.textContent;
-    var full = start ? start + (/\s$/.test(start) ? "" : " ") + text : text;
+    var full = start ? start.replace(/\s+$/, "") + "\n\n" + text : text;
     send.disabled = false;
     if (reduceMotion) { field.textContent = full; return; }
     var i = start.length;
