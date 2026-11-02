@@ -458,8 +458,6 @@
 (function () {
   try { if (localStorage.getItem("tapcopy.v1")) document.getElementById("returning").classList.add("on"); } catch (e) {}
 
-  var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
   var CLINIC = { name: "Clinic", folder: true, items: [
     { name: "Hours", color: "teal", text: "We're open Monday to Friday, 8 am – 5 pm." },
     { name: "Refill", color: "navy", text: "Your refill request is in. Please allow 2 business days." },
@@ -564,29 +562,14 @@
   var field = document.getElementById("field");
   var send = document.getElementById("send");
   var thread = document.getElementById("thread");
-  var kbFolder = null, typing = null;
+  var kbFolder = null;
 
-  function finishTyping() {
-    if (!typing) return;
-    clearInterval(typing.timer);
-    field.textContent = typing.full;
-    typing = null;
-  }
-
-  // Each snippet goes on its own, after a blank line, as the Ditto keyboard does.
+  // The whole snippet lands at once, after a blank line when something is already there, as the Ditto keyboard does.
   function typeIn(text) {
-    finishTyping();
     var start = field.textContent;
-    var full = start ? start.replace(/\s+$/, "") + "\n\n" + text : text;
+    field.textContent = start ? start.replace(/\s+$/, "") + "\n\n" + text : text;
+    field.scrollTop = field.scrollHeight;
     send.disabled = false;
-    if (reduceMotion) { field.textContent = full; return; }
-    var i = start.length;
-    typing = { full: full, timer: setInterval(function () {
-      i = Math.min(full.length, i + 2);
-      field.textContent = full.slice(0, i);
-      field.scrollTop = field.scrollHeight;
-      if (i >= full.length) { clearInterval(typing.timer); typing = null; }
-    }, 16) };
   }
 
   function renderKeyboard() {
@@ -612,7 +595,6 @@
   }
 
   send.addEventListener("click", function () {
-    finishTyping();
     var text = field.textContent.trim();
     if (!text) return;
     var b = document.createElement("div");
