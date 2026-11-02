@@ -190,19 +190,24 @@
   /* the guide: a conversation inside a smaller phone */
   .guide { display: flex; flex-direction: column; align-items: center; gap: 16px; }
   .seg.ghost { visibility: hidden; }
-  .avatar-img { width: 36px; height: 36px; border-radius: 9px; display: block; }
+  .avatar-img { width: 32px; height: 32px; border-radius: 8px; display: block; }
+  .guide .k-head { padding: 2px 0 6px; }
+  .guide .compose { padding: 4px 10px 6px; }
+  .guide .field { min-height: 28px; }
+  /* The first screen ends with the question "Can it see what I write?", so the reader knows there is more
+     below. The script checks that it fits and steps --bub down a little on a device whose font runs longer. */
   .chat {
-    flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none;
+    position: relative; flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none;
     padding: 10px 10px 12px;
-    display: flex; flex-direction: column; gap: 6px;
+    display: flex; flex-direction: column; gap: 5px;
   }
   .chat::-webkit-scrollbar { display: none; }
   .chat .bub {
     max-width: 86%;
-    padding: 7px 11px;
+    padding: 6px 10px;
     border-radius: 16px;
-    font-size: 13.5px;
-    line-height: 1.35;
+    font-size: var(--bub, 13px);
+    line-height: 1.32;
     white-space: pre-wrap;
     transition: opacity 0.36s ease, transform 0.36s ease;
   }
@@ -213,7 +218,7 @@
   html.anim .chat .bub.on { opacity: 1; transform: none; }
   .chat .bub.in  { align-self: flex-start; background: var(--bubble-in); color: var(--ink); border-end-start-radius: 5px; }
   .chat .bub.out { align-self: flex-end; background: var(--bubble-out); color: #fff; border-end-end-radius: 5px; }
-  .chat .bub + .bub.in { margin-top: 8px; }
+  .chat .bub + .bub.in { margin-top: 7px; }
   .chat .bub + .bub.out { margin-top: 1px; }
   .bub.out .stores-mini { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
   .bub.out .stores-mini a {
@@ -367,7 +372,8 @@
      the keyboard keeps its real layout, globe bottom-left, and its twelve-key top row fits with narrower keys */
   [dir="rtl"] h1 { letter-spacing: 0; line-height: 1.25; }
   [dir="rtl"] .eyebrow, [dir="rtl"] .label { letter-spacing: 0; }
-  [dir="rtl"] .chat .bub, [dir="rtl"] .msg, [dir="rtl"] .field { line-height: 1.5; }
+  [dir="rtl"] .chat .bub { line-height: 1.45; }
+  [dir="rtl"] .msg, [dir="rtl"] .field { line-height: 1.5; }
   [dir="rtl"] .kb-bottom, [dir="rtl"] #kbQwerty { direction: ltr; }
   [dir="rtl"] .qrow { gap: 3px; }
   [dir="rtl"] .qk.letter { width: 19px; font-size: 13px; }
@@ -421,7 +427,7 @@
         <div class="phone">
           <div class="screen">
             <div class="status"><span>{{S_CLOCK}}</span><span class="bat" aria-hidden="true"></span></div>
-            <div class="k-head"><img class="avatar-img" src="../icon-180.png" width="36" height="36" alt=""><div class="k-name">Ditto</div></div>
+            <div class="k-head"><img class="avatar-img" src="../icon-180.png" width="32" height="32" alt=""><div class="k-name">Ditto</div></div>
             <div class="chat" id="chat" role="list">
           <div class="bub in" role="listitem">{{S_G1}}</div>
           <div class="bub out" role="listitem">{{S_G2}}</div>
@@ -506,6 +512,21 @@
 
 <script>
 (function () {
+  // ---- the guide's first screen ends with the question "Can it see what I write?" ----
+  // If a device's font pushes that bubble under the fold, the chat's text steps down a little until it fits.
+  var chatEl = document.getElementById("chat");
+  var fold = chatEl && chatEl.querySelectorAll(".bub")[7];
+  function fitGuide() {
+    if (!fold) return;
+    var sizes = [13, 12.5, 12, 11.5];
+    for (var i = 0; i < sizes.length; i++) {
+      chatEl.style.setProperty("--bub", sizes[i] + "px");
+      if (fold.offsetTop + fold.offsetHeight <= chatEl.clientHeight - 4) break;
+    }
+  }
+  fitGuide();
+  window.addEventListener("resize", fitGuide);
+
   // ---- the guide's bubbles arrive one after another, once the guide is on screen and the tab is in front ----
   var root = document.documentElement;
   if (root.classList.contains("anim")) {
