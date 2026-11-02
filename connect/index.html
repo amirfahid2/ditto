@@ -539,22 +539,21 @@
   }
 
   // ---- the demo phone ----
-  var CLINIC = { name: "Clinic", folder: true, items: [
-    { name: "Hours", color: "teal", text: "We're open Monday to Friday, 8 am – 5 pm." },
-    { name: "Refill", color: "navy", text: "Your refill request is in. Please allow 2 business days." },
-    { name: "Bring", color: "green", text: "Please bring a photo ID and your insurance card to your visit." },
-    { name: "Fax", color: "slate", text: "Fax: (555) 010-0199" }
-  ] };
   var BOARD = [
-    { name: "Address", color: "teal", text: "742 Evergreen Terrace\nSpringfield, IL 62704" },
-    CLINIC,
-    { name: "Running late", color: "mustard", text: "Running about 10 minutes late, sorry! Be there soon." },
-    { name: "Signature", color: "slate", text: "Best,\nSam" },
-    { name: "Wi-Fi", color: "purple", text: "Network: Guest\nPassword: sunflower-42" },
-    { name: "Directions", color: "green", text: "Park in the back lot and use the side door. Suite 210 is on the second floor." },
-    { name: "Thank you", color: "rose", text: "Thank you so much, I really appreciate it!" },
-    { name: "Review", color: "navy", text: "If you have a minute, a quick review would mean a lot. Thank you!" },
-    { name: "Out of office", color: "plain", text: "I'm out of the office until [TOMORROW] and will reply when I'm back." }
+    { name: "Address", text: "742 Evergreen Terrace\nSpringfield, IL 62704" },
+    { name: "Clinic", folder: true, items: [
+      { name: "Hours", text: "We're open Monday to Friday, 8 am – 5 pm." },
+      { name: "Refill", text: "Your refill request is in. Please allow 2 business days." },
+      { name: "Bring", text: "Please bring a photo ID and your insurance card to your visit." },
+      { name: "Fax", text: "Fax: (555) 010-0199" },
+    ] },
+    { name: "Running late", text: "Running about 10 minutes late, sorry! Be there soon." },
+    { name: "Signature", text: "Best,\nSam" },
+    { name: "Wi-Fi", text: "Network: Guest\nPassword: sunflower-42" },
+    { name: "Directions", text: "Park in the back lot and use the side door. Suite 210 is on the second floor." },
+    { name: "Thank you", text: "Thank you so much, I really appreciate it!" },
+    { name: "Review", text: "If you have a minute, a quick review would mean a lot. Thank you!" },
+    { name: "Out of office", text: "I'm out of the office until [TOMORROW] and will reply when I'm back." },
   ];
 
   function expand(text) {

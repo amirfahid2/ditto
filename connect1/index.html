@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ditto for teachers — Tap a square, paste anywhere</title>
+<meta name="description" content="Ditto for teachers, principals and professors: a board of big, tappable squares for the notes you send again and again — parent reminders, grading comments, office hours — and a keyboard that types them into any app. No account, no tracking.">
+<meta name="apple-itunes-app" content="app-id=6810430522">
+<meta property="og:title" content="Ditto for teachers — Tap a square, paste anywhere">
+<meta property="og:description" content="Parent reminders, grading comments and office hours, one tap away. On the App Store and Google Play.">
+<meta property="og:image" content="https://dittotap.com/icon-512.png">
+<meta property="og:url" content="https://dittotap.com/connect1/">
+<meta name="theme-color" content="#F2F5F6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F1518" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="../icon-180.png">
+<link rel="apple-touch-icon" href="../icon-180.png">
+<script>
+  try {
+    if (!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches)) {
+      document.documentElement.classList.add("anim");
+    }
+  } catch (e) {}
+</script>
+<style>
+  :root {
+    --bg: #F2F5F6;
+    --surface: #FFFFFF;
+    --ink: #16262E;
+    --muted: #4F6A75;
+    --line: #D5DFE3;
+    --accent: #0E7C86;
+    --accent-ink: #FFFFFF;
+    --flash: #B9DFF5;
+    --folder: #D6EAF6;
+    --plain: #EEF2F4;
+    --store: #16262E;
+    --store-ink: #FFFFFF;
+    --kb: #D3D8DE;
+    --key: #FFFFFF;
+    --key-ink: #16262E;
+    --key-fn: #ADB5BD;
+    --frame: #0B1114;
+    --bubble-in: #E9E9EB;
+    --bubble-out: #1F8BFF;
+    --shadow: 0 1px 2px rgba(22, 38, 46, 0.06), 0 8px 28px rgba(22, 38, 46, 0.08);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0F1518;
+      --surface: #1A2429;
+      --ink: #E6EDEF;
+      --muted: #93A8B0;
+      --line: #2C3A41;
+      --accent: #53B7C0;
+      --accent-ink: #08262A;
+      --flash: #3D6E8C;
+      --folder: #223D50;
+      --plain: #24323A;
+      --store: #E6EDEF;
+      --store-ink: #0F1518;
+      --kb: #2A2D31;
+      --key: #5B6069;
+      --key-ink: #FFFFFF;
+      --key-fn: #3A3D42;
+      --frame: #2A363C;
+      --bubble-in: #26252A;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px rgba(0, 0, 0, 0.4);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0F1518;
+    --surface: #1A2429;
+    --ink: #E6EDEF;
+    --muted: #93A8B0;
+    --line: #2C3A41;
+    --accent: #53B7C0;
+    --accent-ink: #08262A;
+    --flash: #3D6E8C;
+    --folder: #223D50;
+    --plain: #24323A;
+    --store: #E6EDEF;
+    --store-ink: #0F1518;
+    --kb: #2A2D31;
+    --key: #5B6069;
+    --key-ink: #FFFFFF;
+    --key-fn: #3A3D42;
+    --frame: #2A363C;
+    --bubble-in: #26252A;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px rgba(0, 0, 0, 0.4);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    font-size: 17px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+  @media (min-width: 720px) { .wrap { padding: 0 32px; } }
+
+  /* top bar */
+  .top { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; }
+  .wordmark { font-weight: 700; font-size: 24px; letter-spacing: -0.03em; color: var(--ink); text-decoration: none; }
+  .top nav { display: flex; gap: 20px; font-size: 15px; }
+  .top nav a { color: var(--muted); text-decoration: none; }
+  .top nav a:hover { color: var(--ink); }
+
+  /* get the app */
+  .get { text-align: center; padding: 20px 0 48px; }
+  @media (min-width: 880px) { .get { padding: 36px 0 64px; } }
+  .appicon {
+    width: 96px; height: 96px; border-radius: 22px; display: block;
+    margin: 0 auto 22px; box-shadow: var(--shadow);
+  }
+  .eyebrow { font-size: 14px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin: 0 0 14px; }
+  h1 {
+    font-size: clamp(40px, 7vw, 64px);
+    line-height: 1.04;
+    letter-spacing: -0.035em;
+    margin: 0 0 18px;
+    font-weight: 700;
+    text-wrap: balance;
+  }
+  .lede { font-size: 19px; color: var(--muted); margin: 0 auto 28px; max-width: 36em; }
+  .ctas { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-bottom: 18px; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 56px; padding: 0 26px; border-radius: 999px;
+    font-size: 17px; font-weight: 600; text-decoration: none;
+    border: 1.5px solid transparent;
+    transition: transform 0.12s ease;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-store { background: var(--store); color: var(--store-ink); gap: 12px; }
+  .btn-store svg { width: 24px; height: 24px; flex: none; fill: currentColor; }
+  .btn-store small { display: block; font-size: 11px; font-weight: 500; opacity: 0.8; line-height: 1.1; }
+  .btn-store span { display: block; line-height: 1.15; }
+  .btn-store .stack { text-align: left; }
+  .btn-ghost { border-color: var(--line); color: var(--ink); background: var(--surface); }
+  .fine { font-size: 15px; color: var(--muted); margin: 0; }
+  .fine b { color: var(--ink); font-weight: 600; }
+
+  /* two phones: the guide on the left, the demo on the right */
+  .pair {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 48px;
+    justify-items: center;
+    align-items: start;   /* both columns are built the same way (label, toggle, phone, note), so they line up */
+    padding: 0 0 72px;
+  }
+  @media (min-width: 880px) {
+    .pair { grid-template-columns: 1fr 1fr; gap: 40px; }
+    .guide { justify-self: end; }
+    .demo { justify-self: start; }
+  }
+  .label { font-size: 14px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); text-align: center; margin: 0 0 14px; }
+  /* wide screens: the text on the left, both phones beside it, nothing below the fold */
+  @media (min-width: 1200px) {
+    .wrap { max-width: 1340px; }
+    main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 56px; align-items: center; padding: 8px 0 12px; }
+    footer { padding: 16px 0 20px; }
+    .get { text-align: left; padding: 0; }
+    .appicon { width: 72px; height: 72px; border-radius: 17px; margin: 0 0 18px; }
+    h1 { font-size: 48px; margin: 0 0 14px; }
+    .lede { font-size: 17px; margin: 0 0 22px; }
+    .ctas { justify-content: flex-start; }
+    .btn { min-height: 50px; font-size: 16px; padding: 0 22px; }
+    .pair { grid-template-columns: auto auto; gap: 32px; padding: 0; }
+    .guide, .demo { justify-self: center; }
+  }
+  /* a shorter window still shows the whole phones: they scale down in steps */
+  @media (min-width: 1200px) and (max-height: 1000px) { .pair { zoom: 0.85; } }
+  @media (min-width: 1200px) and (max-height: 858px)  { .pair { zoom: 0.72; } }
+  @media (min-width: 1200px) and (max-height: 756px)  { .pair { zoom: 0.66; } }
+
+  /* the guide: a conversation inside a smaller phone */
+  .guide { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .seg.ghost { visibility: hidden; }
+  .avatar-img { width: 36px; height: 36px; border-radius: 9px; display: block; }
+  .chat {
+    flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none;
+    padding: 10px 10px 12px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .chat::-webkit-scrollbar { display: none; }
+  .chat .bub {
+    max-width: 86%;
+    padding: 7px 11px;
+    border-radius: 16px;
+    font-size: 13.5px;
+    line-height: 1.35;
+    white-space: pre-wrap;
+    transition: opacity 0.36s ease, transform 0.36s ease;
+  }
+  .chat .bub.wide { max-width: 96%; }
+  /* Bubbles arrive one after another once the guide is on screen (see the script at the end).
+     Without scripts, or with reduced motion, they are simply all there. */
+  html.anim .chat .bub { opacity: 0; transform: translateY(8px); }
+  html.anim .chat .bub.on { opacity: 1; transform: none; }
+  .chat .bub.in  { align-self: flex-start; background: var(--bubble-in); color: var(--ink); border-bottom-left-radius: 5px; }
+  .chat .bub.out { align-self: flex-end; background: var(--bubble-out); color: #fff; border-bottom-right-radius: 5px; }
+  .chat .bub + .bub.in { margin-top: 8px; }
+  .chat .bub + .bub.out { margin-top: 1px; }
+  .bub.out .stores-mini { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+  .bub.out .stores-mini a {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: #fff; color: #16262E; text-decoration: none;
+    border-radius: 999px; padding: 6px 10px 6px 8px; font-size: 12px; font-weight: 600; line-height: 1.2;
+  }
+  .bub.out .stores-mini svg { width: 14px; height: 14px; fill: currentColor; }
+  .guide .fine { text-align: center; margin: 0; font-size: 14px; }   /* same size as the demo's note */
+
+  /* the demo phone, as on the About page */
+  .demo { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .seg { display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
+  .seg button {
+    font: inherit; font-size: 14px; font-weight: 600; color: var(--muted);
+    background: none; border: 0; border-radius: 999px; padding: 7px 18px; cursor: pointer;
+  }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+  .phone {
+    width: 300px; height: 620px; max-width: 100%;
+    border-radius: 48px; padding: 10px;
+    background: var(--frame);
+    box-shadow: var(--shadow), 0 30px 60px rgba(22, 38, 46, 0.18);
+  }
+  .screen {
+    position: relative; height: 100%; border-radius: 38px; overflow: hidden;
+    background: var(--bg); display: flex; flex-direction: column;
+    font-size: 13px; line-height: 1.3;
+  }
+  .status { display: flex; justify-content: space-between; align-items: center; padding: 14px 28px 4px; font-size: 13px; font-weight: 600; flex: none; }
+  .bat { width: 22px; height: 11px; border: 1.5px solid currentColor; border-radius: 3px; position: relative; opacity: 0.9; }
+  .bat::after { content: ""; position: absolute; inset: 1.5px; right: 4px; background: currentColor; border-radius: 1px; }
+  .view { flex: 1; min-height: 0; display: none; flex-direction: column; }
+  .view.on { display: flex; }
+  .demo-hint { font-size: 14px; color: var(--muted); margin: 0; text-align: center; min-height: 3.1em; }   /* room for two lines, so the page never shifts when the note changes */
+
+  /* board view */
+  .b-title { text-align: center; font-weight: 600; font-size: 16px; padding: 8px 0 4px; }
+  .b-hint { color: var(--muted); font-size: 10.5px; padding: 0 14px 8px; }
+  .b-grid { flex: 1; overflow-y: auto; padding: 0 12px 16px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; align-content: start; scrollbar-width: none; }
+  .b-grid::-webkit-scrollbar { display: none; }
+  /* squares look like the keyboard's keys: white (gray in the dark), blue for a folder */
+  .sq {
+    aspect-ratio: 1; border-radius: 16px; border: 0; padding: 6px;
+    font: inherit; font-size: 12px; font-weight: 600; color: var(--key-ink); background: var(--key);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    cursor: pointer; transition: transform 0.1s ease, background 0.15s ease, filter 0.15s ease;
+    text-align: center; line-height: 1.15;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.28);
+  }
+  .sq:active { transform: scale(0.95); }
+  .sq.flash { background: var(--flash); }
+  .sq.folder { background: var(--bubble-out); color: #fff; }
+  .sq.folder.flash { background: var(--bubble-out); filter: brightness(1.25); }
+  .sq .sub { font-size: 9.5px; font-weight: 500; opacity: 0.8; }
+  .sq.add { background: none; color: var(--muted); box-shadow: inset 0 0 0 1.5px var(--line); border-radius: 16px; cursor: default; font-weight: 500; }
+  .sq.add::before { content: "+"; font-size: 22px; font-weight: 400; color: var(--accent); line-height: 1; }
+  .panel { grid-column: 1 / -1; background: var(--folder); border-radius: 18px; padding: 8px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+  .toast {
+    position: absolute; left: 50%; bottom: 22px; transform: translate(-50%, 8px);
+    background: var(--ink); color: var(--bg); font-size: 12px; font-weight: 600;
+    padding: 8px 14px; border-radius: 999px; white-space: nowrap; max-width: 86%;
+    overflow: hidden; text-overflow: ellipsis;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* keyboard view */
+  .k-head { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px 0 8px; border-bottom: 1px solid var(--line); flex: none; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(#9AA6D6, #6E7DBE); color: #fff; font-weight: 600; font-size: 14px; display: grid; place-items: center; }
+  .k-name { font-size: 11px; font-weight: 500; }
+  .thread { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; scrollbar-width: none; }
+  .thread::-webkit-scrollbar { display: none; }
+  .msg { max-width: 78%; padding: 7px 11px; border-radius: 17px; white-space: pre-wrap; font-size: 12.5px; }
+  .msg.in { align-self: flex-start; background: var(--bubble-in); color: var(--ink); }
+  .msg.out { align-self: flex-end; background: var(--bubble-out); color: #fff; }
+  .compose { display: flex; align-items: flex-end; gap: 6px; padding: 6px 10px 8px; flex: none; }
+  .field {
+    flex: 1; min-height: 32px; max-height: 84px; overflow-y: auto;
+    border: 1px solid var(--line); border-radius: 17px; background: var(--surface);
+    padding: 7px 11px; font-size: 12.5px; white-space: pre-wrap; color: var(--ink);
+  }
+  .field:empty::before { content: "iMessage"; color: var(--muted); opacity: 0.7; }
+  .send {
+    width: 30px; height: 30px; border-radius: 50%; border: 0; flex: none;
+    background: var(--bubble-out); color: #fff; font-size: 16px; font-weight: 700; cursor: pointer;
+    display: grid; place-items: center;
+  }
+  .send:disabled { opacity: 0.35; cursor: default; }
+  .kb { background: var(--kb); padding: 8px 8px 20px; flex: none; }
+  .kb-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; }
+  .pill { background: var(--bubble-out); color: #fff; border-radius: 999px; padding: 4px 11px; font-size: 11px; font-weight: 600; border: 0; font-family: inherit; }
+  button.pill { cursor: pointer; }
+  .kb-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  /* keys look like keyboard keys: white, and blue for a folder */
+  .key {
+    height: 40px; border-radius: 8px; border: 0; padding: 4px 6px;
+    font: inherit; font-size: 11px; font-weight: 600; line-height: 1.15;
+    background: var(--key); color: var(--key-ink);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.28);
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    cursor: pointer; transition: transform 0.1s ease, background 0.15s ease, filter 0.15s ease;
+  }
+  .key:active { transform: scale(0.95); }
+  .key.flash { background: var(--flash); }
+  .key.folder { background: var(--bubble-out); color: #fff; }
+  .key.folder.flash { background: var(--bubble-out); filter: brightness(1.25); }
+  /* the regular keyboard, behind the globe */
+  [hidden] { display: none !important; }
+  #kbQwerty { display: flex; flex-direction: column; gap: 7px; padding-top: 2px; }
+  .qrow { display: flex; justify-content: center; gap: 4px; }
+  .qk {
+    width: 22px; height: 34px; flex: none; border-radius: 5px; border: 0; padding: 0;
+    font: inherit; font-size: 13.5px; color: var(--key-ink); background: var(--key);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.28); cursor: pointer;
+    display: grid; place-items: center; text-transform: none;
+  }
+  .qk:active { filter: brightness(0.92); }
+  .qk.fn { background: var(--key-fn); font-size: 11.5px; }
+  .qk.wide { width: 30px; }
+  .qk.w123 { width: 38px; }
+  .qk.wreturn { width: 56px; }
+  .qk.space { width: 118px; font-size: 12px; }
+  .qk.globe svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+  .kb-top .qk.globe { width: 30px; height: 24px; border-radius: 6px; }
+
+  /* a nudge to scroll, on narrow screens only: it bobs until the bottom of the page is in view */
+  .cue {
+    position: fixed; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%);
+    display: none; align-items: center; justify-content: center;
+    width: 54px; height: 54px; border-radius: 50%;
+    color: var(--ink); text-decoration: none; z-index: 5;
+    transition: opacity 0.3s ease, visibility 0.3s;
+  }
+  .cue-fade {
+    position: fixed; left: 0; right: 0; bottom: 0; height: 110px; z-index: 4; pointer-events: none;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0), var(--bg) 72%);
+    display: none; transition: opacity 0.3s ease, visibility 0.3s;
+  }
+  @media (max-width: 879px) { .cue, .cue-fade { display: flex; } }
+  .cue.off, .cue-fade.off { opacity: 0; visibility: hidden; }
+  .cue svg { display: block; width: 54px; height: 54px; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.2)); animation: nudge 1.6s ease-in-out infinite; }
+  @keyframes nudge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(5px); } }
+  @media (prefers-reduced-motion: reduce) { .cue svg { animation: none; } }
+
+  footer { padding: 36px 0 48px; color: var(--muted); font-size: 14px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 10px 24px; justify-content: space-between; }
+  footer nav { display: flex; gap: 20px; flex-wrap: wrap; }
+  footer a { color: var(--muted); }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="top">
+    <a class="wordmark" href="../about/" aria-label="Ditto home">Ditto</a>
+    <nav aria-label="Site">
+      <a href="../about/">About</a>
+      <a href="../privacy.html">Privacy</a>
+      <a href="../">Web app</a>
+    </nav>
+  </div>
+
+  <main>
+    <section class="get" aria-labelledby="getTitle">
+      <img class="appicon" src="../icon-180.png" width="96" height="96" alt="">
+      <p class="eyebrow">Ditto for teachers, principals and professors</p>
+      <h1 id="getTitle">Get Ditto.</h1>
+      <p class="lede">Ditto is a board of big, tappable squares. Each square holds a piece of text you use again and again — a parent reminder, a grading comment, your office hours, the late-work policy you explain every week. Tap it and the text is ready to paste, or type it straight into any app with the Ditto keyboard.</p>
+      <div class="ctas">
+        <a class="btn btn-store" href="https://apps.apple.com/app/id6810430522">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 12.6c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9-.7 0-1.8-.8-3-.8-1.5 0-3 .9-3.8 2.3-1.6 2.8-.4 7 1.2 9.3.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.8 3-.8s1.8.8 3 .7c1.3 0 2.1-1.1 2.8-2.3.9-1.3 1.3-2.6 1.3-2.6s-2.5-1-2.5-3.7zM14.2 5.8c.6-.8 1.1-1.9.9-3-.9 0-2.1.6-2.7 1.4-.6.7-1.1 1.8-1 2.9 1.1.1 2.1-.5 2.8-1.3z"/></svg>
+          <span class="stack"><small>Download on the</small><span>App Store</span></span>
+        </a>
+        <a class="btn btn-store" href="https://play.google.com/store/apps/details?id=com.pentapillars.ditto&amp;referrer=utm_source%3Ddittotap%26utm_campaign%3Dconnect">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3.3v17.4c0 .5.5.8.9.6l9.3-9.3L4.9 2.7c-.4-.2-.9.1-.9.6zm11.4 7.5L6.6 2 17 8.1zm0 2.4L6.6 22 17 15.9zm1.8-1.8 2.9-1.7c.5-.3.5-1 0-1.3l-2.9-1.7L14.5 12z"/></svg>
+          <span class="stack"><small>Get it on</small><span>Google Play</span></span>
+        </a>
+        <a class="btn btn-ghost" href="../">Try it in your browser</a>
+      </div>
+      <p class="fine"><b>No account. No tracking.</b> Your squares stay on your phone.</p>
+    </section>
+
+    <div class="pair" id="phones">
+      <section class="guide" aria-labelledby="guideTitle">
+        <h2 class="label" id="guideTitle">Ditto in a minute</h2>
+        <div class="seg ghost" aria-hidden="true"><button type="button" tabindex="-1">The board</button></div>
+        <div class="phone">
+          <div class="screen">
+            <div class="status"><span>9:41</span><span class="bat" aria-hidden="true"></span></div>
+            <div class="k-head"><img class="avatar-img" src="../icon-180.png" width="36" height="36" alt=""><div class="k-name">Ditto</div></div>
+            <div class="chat" id="chat" role="list">
+          <div class="bub in" role="listitem">So what is Ditto?</div>
+          <div class="bub out" role="listitem">A board of big squares. Each one holds a piece of text you type again and again.</div>
+          <div class="bub in" role="listitem">Like what?</div>
+          <div class="bub out" role="listitem">Your office hours. A permission-slip reminder. A grading comment. The late-work policy you explain every week.</div>
+          <div class="bub in" role="listitem">And then?</div>
+          <div class="bub out" role="listitem">Tap a square and it's copied, ready to paste.</div>
+          <div class="bub out" role="listitem">Or open the Ditto keyboard inside any app and tap: the text is typed straight in.</div>
+          <div class="bub in" role="listitem">Can it see what I write?</div>
+          <div class="bub out" role="listitem">No. There's no account and no tracking. Your squares live on your phone.</div>
+          <div class="bub in" role="listitem">Where do I get it?</div>
+          <div class="bub out wide" role="listitem">Right here.
+<span class="stores-mini"><a href="https://apps.apple.com/app/id6810430522"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 12.6c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9-.7 0-1.8-.8-3-.8-1.5 0-3 .9-3.8 2.3-1.6 2.8-.4 7 1.2 9.3.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.8 3-.8s1.8.8 3 .7c1.3 0 2.1-1.1 2.8-2.3.9-1.3 1.3-2.6 1.3-2.6s-2.5-1-2.5-3.7zM14.2 5.8c.6-.8 1.1-1.9.9-3-.9 0-2.1.6-2.7 1.4-.6.7-1.1 1.8-1 2.9 1.1.1 2.1-.5 2.8-1.3z"/></svg>App Store</a><a href="https://play.google.com/store/apps/details?id=com.pentapillars.ditto&amp;referrer=utm_source%3Ddittotap%26utm_campaign%3Dconnect"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3.3v17.4c0 .5.5.8.9.6l9.3-9.3L4.9 2.7c-.4-.2-.9.1-.9.6zm11.4 7.5L6.6 2 17 8.1zm0 2.4L6.6 22 17 15.9zm1.8-1.8 2.9-1.7c.5-.3.5-1 0-1.3l-2.9-1.7L14.5 12z"/></svg>Google Play</a></span></div>
+            </div>
+            <div class="compose" aria-hidden="true"><div class="field"></div><button class="send" type="button" tabindex="-1" disabled>↑</button></div>
+          </div>
+        </div>
+        <p class="fine">Want the long version? <a href="../about/">See everything Ditto does</a>.</p>
+      </section>
+
+      <section class="demo" aria-labelledby="demoTitle">
+        <h2 class="label" id="demoTitle">Try Ditto</h2>
+        <div class="seg" role="group" aria-label="Demo view">
+          <button type="button" data-view="board" aria-pressed="false">The board</button>
+          <button type="button" data-view="keyboard" aria-pressed="true">The keyboard</button>
+        </div>
+        <div class="phone">
+          <div class="screen">
+            <div class="status"><span>9:41</span><span class="bat" aria-hidden="true"></span></div>
+
+            <div class="view" id="boardView">
+              <div class="b-title">Ditto</div>
+              <div class="b-hint">Tap a square to copy its text.</div>
+              <div class="b-grid" id="boardGrid"></div>
+            </div>
+
+            <div class="view on" id="keyboardView">
+              <div class="k-head"><div class="avatar" aria-hidden="true">JP</div><div class="k-name">Jordan (parent)</div></div>
+              <div class="thread" id="thread">
+                <div class="msg in">Hi! Is the permission slip due Friday?</div>
+              </div>
+              <div class="compose">
+                <div class="field" id="field" aria-live="polite"></div>
+                <button class="send" id="send" type="button" aria-label="Send" disabled>↑</button>
+              </div>
+              <div class="kb">
+                <div id="kbDitto">
+                  <div class="kb-top">
+                    <span class="pill" id="kbLabel">Ditto</span>
+                    <button class="qk fn globe" type="button" id="globeDitto" aria-label="Switch to the regular keyboard"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 7.5h14M5 16.5h14"/></svg></button>
+                  </div>
+                  <div class="kb-grid" id="kbGrid"></div>
+                </div>
+                <div id="kbQwerty" hidden></div>
+              </div>
+            </div>
+
+            <div class="toast" id="toast" role="status" aria-live="polite"></div>
+          </div>
+        </div>
+        <p class="demo-hint" id="demoHint">Try it: tap a square to put its text in, then send. The globe switches keyboards.</p>
+      </section>
+    </div>
+  </main>
+</div>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Pentapillars, LLC</span>
+    <nav aria-label="Footer">
+      <a href="../privacy.html">Privacy Policy</a>
+      <a href="../about/">About</a>
+      <a href="mailto:pentapillarapps@gmail.com?subject=Ditto">Support</a>
+    </nav>
+  </div>
+</footer>
+
+<div class="cue-fade" id="cueFade" aria-hidden="true"></div>
+<a class="cue" id="cue" href="#phones" aria-label="Scroll down to the phones">
+  <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="21" fill="#F4B63A" stroke="#111" stroke-width="3"/><path d="M24 13v21M15 26l9 9 9-9" fill="none" stroke="#111" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+</a>
+
+<script>
+(function () {
+  // ---- the guide's bubbles arrive one after another, once the guide is on screen and the tab is in front ----
+  var root = document.documentElement;
+  if (root.classList.contains("anim")) {
+    try {
+      var chat = document.querySelector(".chat");
+      var bubs = Array.prototype.slice.call(document.querySelectorAll(".chat .bub"));
+      var inView = false, started = false;
+      var begin = function () {
+        if (started || !inView || document.hidden) return;
+        started = true;
+        bubs.forEach(function (b, i) {
+          setTimeout(function () {
+            b.classList.add("on");
+            chat.scrollTo({ top: chat.scrollHeight, behavior: "smooth" });
+          }, 120 + i * 420);
+        });
+      };
+      document.addEventListener("visibilitychange", begin);
+      if ("IntersectionObserver" in window) {
+        var io = new IntersectionObserver(function (entries) {
+          if (entries.some(function (e) { return e.isIntersecting; })) { inView = true; io.disconnect(); begin(); }
+        }, { threshold: 0.15 });
+        io.observe(chat);
+      } else { inView = true; begin(); }
+    } catch (e) { root.classList.remove("anim"); }
+  }
+
+  // ---- the scroll nudge (narrow screens) ----
+  var cue = document.getElementById("cue");
+  if (cue) {
+    var cueFade = document.getElementById("cueFade");
+    // The nudge stays until the bottom of the page is in view.
+    var cueCheck = function () {
+      var off = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 24;
+      cue.classList.toggle("off", off);
+      if (cueFade) cueFade.classList.toggle("off", off);
+    };
+    window.addEventListener("scroll", cueCheck, { passive: true });
+    window.addEventListener("resize", cueCheck);
+    cueCheck();
+    // Each tap moves down one screen.
+    cue.addEventListener("click", function (e) {
+      e.preventDefault();
+      window.scrollBy({ top: Math.round(window.innerHeight * 0.85), left: 0, behavior: "smooth" });
+    });
+  }
+
+  // ---- the demo phone ----
+  var BOARD = [
+    { name: "Office hours", text: "Office hours are Tuesday and Thursday, 2–4 pm, in room 214. Drop in, or email me for another time." },
+    { name: "Parents", folder: true, items: [
+      { name: "Permission slip", text: "Reminder: the field trip permission slip is due Friday. Please sign it and send it back with your child." },
+      { name: "Great day", text: "Quick note: your child had a great day today — thought you'd like to know!" },
+      { name: "Missing work", text: "Your child has a few missing assignments. They can turn them in by Friday for full credit. Let me know if you have questions." },
+      { name: "Conference", text: "I'd love to meet about your child's progress. Would a 15-minute call this week work? Reply with a time that suits you." },
+    ] },
+    { name: "Grading", folder: true, items: [
+      { name: "Show your work", text: "Good thinking here. Show each step so I can give full credit." },
+      { name: "Cite sources", text: "Strong argument. Add a citation for each claim so readers can check it." },
+      { name: "Revise", text: "You're close. Revise the parts I marked and resubmit by Friday." },
+      { name: "Great work", text: "Excellent work: clear, thorough and well organized." },
+    ] },
+    { name: "Late work", text: "Late work is accepted up to 3 days after the due date, with 10% off per day. After that, please come see me." },
+    { name: "Hall pass", text: "Please excuse this student from class at [TIME] to visit the office." },
+    { name: "Rec letter", text: "Happy to write you a recommendation. Please send your résumé, the program name and the deadline at least 3 weeks ahead." },
+    { name: "Out today", text: "I'm out of the building today and will reply [TOMORROW]." },
+    { name: "Thank you", text: "Thank you so much for your support — it makes a real difference for our students." },
+    { name: "Signature", text: "Ms. Rivera\nGrade 7 Science, Room 214" },
+  ];
+
+  function expand(text) {
+    var now = new Date();
+    var tomorrow = new Date(now.getTime() + 864e5);
+    var day = { weekday: "long", month: "long", day: "numeric" };
+    return text
+      .replace(/\[TODAY\]/g, now.toLocaleDateString("en-US", day))
+      .replace(/\[TOMORROW\]/g, tomorrow.toLocaleDateString("en-US", day))
+      .replace(/\[TIME\]/g, now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }));
+  }
+
+  // A square and a key look alike: plain, and blue when it's a folder.
+  function square(item, cls) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = cls + (item.folder ? " folder" : "");
+    var label = document.createElement("span");
+    label.textContent = item.name;
+    b.appendChild(label);
+    if (item.folder && cls === "sq") {
+      var sub = document.createElement("span");
+      sub.className = "sub";
+      sub.textContent = item.items.length + " texts " + (openFolder === item ? "▴" : "▾");
+      b.appendChild(sub);
+    }
+    return b;
+  }
+
+  // toast inside the phone
+  var toastEl = document.getElementById("toast"), toastTimer;
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove("show"); }, 1800);
+  }
+
+  // ---- board view ----
+  var grid = document.getElementById("boardGrid");
+  var openFolder = null;
+  var combo = [], comboAt = 0;
+
+  function copySquare(item, el) {
+    var now = Date.now();
+    if (now - comboAt > 5000) combo = [];
+    combo.push(expand(item.text));
+    comboAt = now;
+    el.classList.add("flash");
+    setTimeout(function () { el.classList.remove("flash"); }, 260);
+    toast(combo.length > 1 ? "Copied " + combo.length + " squares together" : "Copied “" + item.name + "”");
+  }
+
+  function renderBoard() {
+    grid.textContent = "";
+    var items = BOARD.slice();
+    var folderIndex = items.indexOf(openFolder);
+    var panelAfter = folderIndex < 0 ? -1 : Math.min(items.length, Math.floor(folderIndex / 3) * 3 + 3) - 1;
+    items.forEach(function (item, i) {
+      var el = square(item, "sq");
+      el.addEventListener("click", function () {
+        if (item.folder) { openFolder = openFolder === item ? null : item; renderBoard(); return; }
+        copySquare(item, el);
+      });
+      grid.appendChild(el);
+      if (i === panelAfter) {
+        var panel = document.createElement("div");
+        panel.className = "panel";
+        openFolder.items.forEach(function (child) {
+          var c = square(child, "sq");
+          c.addEventListener("click", function () { copySquare(child, c); });
+          panel.appendChild(c);
+        });
+        grid.appendChild(panel);
+      }
+    });
+    var add = document.createElement("div");
+    add.className = "sq add";
+    add.textContent = "Add square";
+    add.setAttribute("aria-hidden", "true");
+    grid.appendChild(add);
+  }
+
+  // ---- keyboard view ----
+  var kbGrid = document.getElementById("kbGrid");
+  var kbLabel = document.getElementById("kbLabel");
+  var field = document.getElementById("field");
+  var send = document.getElementById("send");
+  var thread = document.getElementById("thread");
+  var kbFolder = null;
+  var hint = document.getElementById("demoHint");
+  var HINT_BOARD = "Try it: tap a square, or a few in a row.";
+  var HINT_KB = "Try it: tap a square to put its text in, then send. The globe switches keyboards.";
+  var HINT_QWERTY = "Your usual keyboard. Tap the globe to get Ditto back.";
+
+  function setField(text) {
+    field.textContent = text;
+    field.scrollTop = field.scrollHeight;
+    send.disabled = !text.trim();
+  }
+
+  // The whole snippet lands at once, after a blank line when something is already there, as the Ditto keyboard does.
+  function typeIn(text) {
+    var start = field.textContent;
+    setField(start ? start.replace(/\s+$/, "") + "\n\n" + text : text);
+  }
+
+  // ---- the regular keyboard, behind the globe ----
+  var kbDitto = document.getElementById("kbDitto"), kbQwerty = document.getElementById("kbQwerty");
+  var onDitto = true;
+  function switchKeyboard() {
+    onDitto = !onDitto;
+    kbDitto.hidden = !onDitto;
+    kbQwerty.hidden = onDitto;
+    hint.textContent = onDitto ? HINT_KB : HINT_QWERTY;
+  }
+  document.getElementById("globeDitto").addEventListener("click", switchKeyboard);
+
+  function qkey(label, cls, onTap) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "qk" + (cls ? " " + cls : "");
+    b.textContent = label;
+    if (onTap) b.addEventListener("click", onTap);
+    return b;
+  }
+  function qrow(letters, before, after) {
+    var d = document.createElement("div");
+    d.className = "qrow";
+    if (before) d.appendChild(before);
+    letters.split("").forEach(function (c) { d.appendChild(qkey(c, "", function () { setField(field.textContent + c); })); });
+    if (after) d.appendChild(after);
+    return d;
+  }
+  (function buildQwerty() {
+    kbQwerty.appendChild(qrow("qwertyuiop"));
+    kbQwerty.appendChild(qrow("asdfghjkl"));
+    kbQwerty.appendChild(qrow("zxcvbnm", qkey("⇧", "fn wide"), qkey("⌫", "fn wide", function () { setField(field.textContent.slice(0, -1)); })));
+    var globe = qkey("", "fn globe", switchKeyboard);
+    globe.innerHTML = document.getElementById("globeDitto").innerHTML;
+    globe.setAttribute("aria-label", "Switch to the Ditto keyboard");
+    var last = document.createElement("div");
+    last.className = "qrow";
+    last.appendChild(qkey("123", "fn w123"));
+    last.appendChild(globe);
+    last.appendChild(qkey("space", "space", function () { setField(field.textContent + " "); }));
+    last.appendChild(qkey("return", "fn wreturn", function () { setField(field.textContent + "\n"); }));
+    kbQwerty.appendChild(last);
+  })();
+
+  function renderKeyboard() {
+    kbGrid.textContent = "";
+    var list = kbFolder ? kbFolder.items : BOARD;
+    if (kbFolder) {
+      kbLabel.outerHTML = '<button type="button" class="pill" id="kbLabel">‹ ' + kbFolder.name + "</button>";
+    } else {
+      kbLabel.outerHTML = '<span class="pill" id="kbLabel">Ditto</span>';
+    }
+    kbLabel = document.getElementById("kbLabel");
+    if (kbFolder) kbLabel.addEventListener("click", function () { kbFolder = null; renderKeyboard(); });
+    list.forEach(function (item) {
+      var el = square(item, "key");
+      el.addEventListener("click", function () {
+        if (item.folder) { kbFolder = item; renderKeyboard(); return; }
+        el.classList.add("flash");
+        setTimeout(function () { el.classList.remove("flash"); }, 200);
+        typeIn(expand(item.text));
+      });
+      kbGrid.appendChild(el);
+    });
+  }
+
+  send.addEventListener("click", function () {
+    var text = field.textContent.trim();
+    if (!text) return;
+    var b = document.createElement("div");
+    b.className = "msg out";
+    b.textContent = text;
+    thread.appendChild(b);
+    field.textContent = "";
+    send.disabled = true;
+    thread.scrollTop = thread.scrollHeight;
+  });
+
+  // ---- view switch ----
+  document.querySelectorAll(".seg:not(.ghost) button").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var v = btn.getAttribute("data-view");
+      document.querySelectorAll(".seg button").forEach(function (b) { b.setAttribute("aria-pressed", String(b === btn)); });
+      document.getElementById("boardView").classList.toggle("on", v === "board");
+      document.getElementById("keyboardView").classList.toggle("on", v === "keyboard");
+      hint.textContent = v === "board" ? HINT_BOARD : (onDitto ? HINT_KB : HINT_QWERTY);
+    });
+  });
+
+  renderBoard();
+  renderKeyboard();
+})();
+</script>
+</body>
+</html>
