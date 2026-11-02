@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Get Ditto — Tap a square, paste anywhere</title>
+<meta name="description" content="Download Ditto for iPhone or Android: a board of big, tappable squares for the text you use again and again, and a keyboard that types them into any app. No account, no tracking.">
+<meta name="apple-itunes-app" content="app-id=6810430522">
+<meta property="og:title" content="Get Ditto — Tap a square, paste anywhere">
+<meta property="og:description" content="Big, tappable squares for the text you use again and again. On the App Store and Google Play.">
+<meta property="og:image" content="https://dittotap.com/icon-512.png">
+<meta property="og:url" content="https://dittotap.com/connect/">
+<meta name="theme-color" content="#F2F5F6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F1518" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="../icon-180.png">
+<link rel="apple-touch-icon" href="../icon-180.png">
+<script>
+  try {
+    if (!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches)) {
+      document.documentElement.classList.add("anim");
+    }
+  } catch (e) {}
+</script>
+<style>
+  :root {
+    --bg: #F2F5F6;
+    --surface: #FFFFFF;
+    --ink: #16262E;
+    --muted: #4F6A75;
+    --line: #D5DFE3;
+    --accent: #0E7C86;
+    --accent-ink: #FFFFFF;
+    --store: #16262E;
+    --store-ink: #FFFFFF;
+    --bubble-in: #E9E9EB;
+    --bubble-out: #1F8BFF;
+    --shadow: 0 1px 2px rgba(22, 38, 46, 0.06), 0 8px 28px rgba(22, 38, 46, 0.08);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0F1518;
+      --surface: #1A2429;
+      --ink: #E6EDEF;
+      --muted: #93A8B0;
+      --line: #2C3A41;
+      --accent: #53B7C0;
+      --accent-ink: #08262A;
+      --store: #E6EDEF;
+      --store-ink: #0F1518;
+      --bubble-in: #26252A;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px rgba(0, 0, 0, 0.4);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0F1518;
+    --surface: #1A2429;
+    --ink: #E6EDEF;
+    --muted: #93A8B0;
+    --line: #2C3A41;
+    --accent: #53B7C0;
+    --accent-ink: #08262A;
+    --store: #E6EDEF;
+    --store-ink: #0F1518;
+    --bubble-in: #26252A;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px rgba(0, 0, 0, 0.4);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    font-size: 17px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+  @media (min-width: 720px) { .wrap { padding: 0 32px; } }
+
+  /* top bar */
+  .top { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; }
+  .wordmark { font-weight: 700; font-size: 24px; letter-spacing: -0.03em; color: var(--ink); text-decoration: none; }
+  .top nav { display: flex; gap: 20px; font-size: 15px; }
+  .top nav a { color: var(--muted); text-decoration: none; }
+  .top nav a:hover { color: var(--ink); }
+
+  /* the two halves: get the app, and the guide */
+  .hero {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 44px;
+    align-items: start;
+    padding: 20px 0 64px;
+  }
+  @media (min-width: 880px) { .hero { grid-template-columns: 1fr 1fr; gap: 64px; padding: 44px 0 88px; align-items: center; } }
+
+  .get { text-align: center; }
+  @media (min-width: 880px) { .get { text-align: left; } }
+  .appicon {
+    width: 96px; height: 96px; border-radius: 22px; display: block;
+    margin: 0 auto 22px; box-shadow: var(--shadow);
+  }
+  @media (min-width: 880px) { .appicon { margin-left: 0; } }
+  .eyebrow { font-size: 14px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin: 0 0 14px; }
+  h1 {
+    font-size: clamp(40px, 7vw, 64px);
+    line-height: 1.04;
+    letter-spacing: -0.035em;
+    margin: 0 0 16px;
+    font-weight: 700;
+    text-wrap: balance;
+  }
+  .lede { font-size: 19px; color: var(--muted); margin: 0 auto 28px; max-width: 30em; }
+  @media (min-width: 880px) { .lede { margin-left: 0; } }
+  .ctas { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-bottom: 18px; }
+  @media (min-width: 880px) { .ctas { justify-content: flex-start; } }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 56px; padding: 0 26px; border-radius: 999px;
+    font-size: 17px; font-weight: 600; text-decoration: none;
+    border: 1.5px solid transparent;
+    transition: transform 0.12s ease;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-store { background: var(--store); color: var(--store-ink); gap: 12px; }
+  .btn-store svg { width: 24px; height: 24px; flex: none; fill: currentColor; }
+  .btn-store small { display: block; font-size: 11px; font-weight: 500; opacity: 0.8; line-height: 1.1; }
+  .btn-store span { display: block; line-height: 1.15; }
+  .btn-store .stack { text-align: left; }
+  .btn-ghost { border-color: var(--line); color: var(--ink); background: var(--surface); min-height: 48px; font-size: 16px; }
+  .fine { font-size: 15px; color: var(--muted); margin: 0; }
+  .fine b { color: var(--ink); font-weight: 600; }
+
+  /* the guide: a conversation */
+  .guide { max-width: 520px; margin: 0 auto; width: 100%; }
+  .guide h2 { font-size: 15px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); text-align: center; margin: 0 0 14px; }
+  .chat {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 28px;
+    padding: 18px 16px 20px;
+    box-shadow: var(--shadow);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .bub {
+    max-width: 84%;
+    padding: 11px 15px;
+    border-radius: 20px;
+    font-size: 16.5px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    transition: opacity 0.36s ease, transform 0.36s ease;
+  }
+  /* Bubbles arrive one after another once the guide is on screen (see the script at the end).
+     Without scripts, or with reduced motion, they are simply all there. */
+  html.anim .bub { opacity: 0; transform: translateY(8px); }
+  html.anim .bub.on { opacity: 1; transform: none; }
+  .bub.in  { align-self: flex-start; background: var(--bubble-in); color: var(--ink); border-bottom-left-radius: 6px; }
+  .bub.out { align-self: flex-end; background: var(--bubble-out); color: #fff; border-bottom-right-radius: 6px; }
+  .bub.out a { color: #fff; }
+  .bub + .bub.in { margin-top: 10px; }
+  .bub + .bub.out { margin-top: 2px; }
+  .stores-mini { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .bub.out .stores-mini a {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: #fff; color: #16262E; text-decoration: none;
+    border-radius: 999px; padding: 8px 14px 8px 12px; font-size: 14.5px; font-weight: 600;
+  }
+  .stores-mini svg { width: 18px; height: 18px; fill: currentColor; }
+  .guide .fine { text-align: center; margin-top: 14px; }
+
+  footer { padding: 36px 0 48px; color: var(--muted); font-size: 14px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 10px 24px; justify-content: space-between; }
+  footer nav { display: flex; gap: 20px; flex-wrap: wrap; }
+  footer a { color: var(--muted); }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="top">
+    <a class="wordmark" href="../about/" aria-label="Ditto home">Ditto</a>
+    <nav aria-label="Site">
+      <a href="../about/">About</a>
+      <a href="../privacy.html">Privacy</a>
+      <a href="../">Web app</a>
+    </nav>
+  </div>
+
+  <main class="hero">
+    <section class="get" aria-labelledby="getTitle">
+      <img class="appicon" src="../icon-180.png" width="96" height="96" alt="">
+      <p class="eyebrow">Ditto for iPhone and Android</p>
+      <h1 id="getTitle">Get Ditto.</h1>
+      <p class="lede">Big, tappable squares for the text you use again and again, and a keyboard that types them into any app.</p>
+      <div class="ctas">
+        <a class="btn btn-store" href="https://apps.apple.com/app/id6810430522">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 12.6c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9-.7 0-1.8-.8-3-.8-1.5 0-3 .9-3.8 2.3-1.6 2.8-.4 7 1.2 9.3.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.8 3-.8s1.8.8 3 .7c1.3 0 2.1-1.1 2.8-2.3.9-1.3 1.3-2.6 1.3-2.6s-2.5-1-2.5-3.7zM14.2 5.8c.6-.8 1.1-1.9.9-3-.9 0-2.1.6-2.7 1.4-.6.7-1.1 1.8-1 2.9 1.1.1 2.1-.5 2.8-1.3z"/></svg>
+          <span class="stack"><small>Download on the</small><span>App Store</span></span>
+        </a>
+        <a class="btn btn-store" href="https://play.google.com/store/apps/details?id=com.pentapillars.ditto&amp;referrer=utm_source%3Ddittotap%26utm_campaign%3Dconnect">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3.3v17.4c0 .5.5.8.9.6l9.3-9.3L4.9 2.7c-.4-.2-.9.1-.9.6zm11.4 7.5L6.6 2 17 8.1zm0 2.4L6.6 22 17 15.9zm1.8-1.8 2.9-1.7c.5-.3.5-1 0-1.3l-2.9-1.7L14.5 12z"/></svg>
+          <span class="stack"><small>Get it on</small><span>Google Play</span></span>
+        </a>
+      </div>
+      <p class="fine"><b>No account. No tracking.</b> Your squares stay on your phone.</p>
+    </section>
+
+    <section class="guide" aria-labelledby="guideTitle">
+      <h2 id="guideTitle">Ditto in a minute</h2>
+      <div class="chat" role="list">
+        <div class="bub in" role="listitem">So what is Ditto?</div>
+        <div class="bub out" role="listitem">A board of big squares. Each one holds a piece of text you type again and again.</div>
+        <div class="bub in" role="listitem">Like what?</div>
+        <div class="bub out" role="listitem">Your address. Directions. A signature. The reply you send ten times a day.</div>
+        <div class="bub in" role="listitem">And then?</div>
+        <div class="bub out" role="listitem">Tap a square and it's copied, ready to paste.</div>
+        <div class="bub out" role="listitem">Or open the Ditto keyboard inside any app and tap: the text is typed straight in.</div>
+        <div class="bub in" role="listitem">Can it see what I write?</div>
+        <div class="bub out" role="listitem">No. There's no account and no tracking. Your squares live on your phone.</div>
+        <div class="bub in" role="listitem">Where do I get it?</div>
+        <div class="bub out" role="listitem">Right here.
+<span class="stores-mini"><a href="https://apps.apple.com/app/id6810430522"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 12.6c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9-.7 0-1.8-.8-3-.8-1.5 0-3 .9-3.8 2.3-1.6 2.8-.4 7 1.2 9.3.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.8 3-.8s1.8.8 3 .7c1.3 0 2.1-1.1 2.8-2.3.9-1.3 1.3-2.6 1.3-2.6s-2.5-1-2.5-3.7zM14.2 5.8c.6-.8 1.1-1.9.9-3-.9 0-2.1.6-2.7 1.4-.6.7-1.1 1.8-1 2.9 1.1.1 2.1-.5 2.8-1.3z"/></svg>App Store</a><a href="https://play.google.com/store/apps/details?id=com.pentapillars.ditto&amp;referrer=utm_source%3Ddittotap%26utm_campaign%3Dconnect"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3.3v17.4c0 .5.5.8.9.6l9.3-9.3L4.9 2.7c-.4-.2-.9.1-.9.6zm11.4 7.5L6.6 2 17 8.1zm0 2.4L6.6 22 17 15.9zm1.8-1.8 2.9-1.7c.5-.3.5-1 0-1.3l-2.9-1.7L14.5 12z"/></svg>Google Play</a></span></div>
+      </div>
+      <p class="fine">Want the long version? <a href="../about/">See everything Ditto does</a>.</p>
+    </section>
+  </main>
+</div>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Pentapillars, LLC</span>
+    <nav aria-label="Footer">
+      <a href="../privacy.html">Privacy Policy</a>
+      <a href="../about/">About</a>
+      <a href="mailto:pentapillarapps@gmail.com?subject=Ditto">Support</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  if (!root.classList.contains("anim")) return;
+  try {
+    var chat = document.querySelector(".chat");
+    var bubs = Array.prototype.slice.call(document.querySelectorAll(".bub"));
+    var inView = false, started = false;
+    function start() {
+      if (started || !inView || document.hidden) return;
+      started = true;
+      bubs.forEach(function (b, i) {
+        setTimeout(function () { b.classList.add("on"); }, 120 + i * 420);
+      });
+    }
+    document.addEventListener("visibilitychange", start);
+    if ("IntersectionObserver" in window) {
+      var io = new IntersectionObserver(function (entries) {
+        if (entries.some(function (e) { return e.isIntersecting; })) { inView = true; io.disconnect(); start(); }
+      }, { threshold: 0.15 });
+      io.observe(chat);
+    } else { inView = true; start(); }
+  } catch (e) { root.classList.remove("anim"); }
+})();
+</script>
+</body>
+</html>
