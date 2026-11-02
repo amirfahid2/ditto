@@ -336,7 +336,8 @@
   .qk.wreturn { width: 56px; }
   .qk.space { width: 118px; font-size: 12px; }
   .qk.globe svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; }
-  .kb-top .qk.globe { width: 30px; height: 24px; border-radius: 6px; }
+  .kb-bottom { display: flex; justify-content: flex-start; margin-top: 7px; }   /* the globe sits bottom-left, as on the real keyboard */
+  .kb-bottom .qk.globe { width: 36px; height: 30px; border-radius: 6px; }
 
   /* a nudge to scroll, on narrow screens only: it bobs until the bottom of the page is in view */
   .cue {
@@ -455,11 +456,11 @@
               </div>
               <div class="kb">
                 <div id="kbDitto">
-                  <div class="kb-top">
-                    <span class="pill" id="kbLabel">Ditto</span>
+                  <div class="kb-top"><span class="pill" id="kbLabel">Ditto</span></div>
+                  <div class="kb-grid" id="kbGrid"></div>
+                  <div class="kb-bottom">
                     <button class="qk fn globe" type="button" id="globeDitto" aria-label="Switch to the regular keyboard"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 7.5h14M5 16.5h14"/></svg></button>
                   </div>
-                  <div class="kb-grid" id="kbGrid"></div>
                 </div>
                 <div id="kbQwerty" hidden></div>
               </div>
