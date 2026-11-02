@@ -337,7 +337,7 @@
   .qk.globe svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; }
   .kb-top .qk.globe { width: 30px; height: 24px; border-radius: 6px; }
 
-  /* a nudge to scroll, on narrow screens only: it bobs until the page has been scrolled */
+  /* a nudge to scroll, on narrow screens only: it bobs until the bottom of the page is in view */
   .cue {
     position: fixed; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom, 0px));
     transform: translateX(-50%);
@@ -521,17 +521,20 @@
   // ---- the scroll nudge (narrow screens) ----
   var cue = document.getElementById("cue");
   if (cue) {
-    var cueTarget = document.getElementById("phones"), cueFade = document.getElementById("cueFade");
+    var cueFade = document.getElementById("cueFade");
+    // The nudge stays until the bottom of the page is in view.
     var cueCheck = function () {
-      var off = window.scrollY > 60;
+      var off = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 24;
       cue.classList.toggle("off", off);
       if (cueFade) cueFade.classList.toggle("off", off);
     };
     window.addEventListener("scroll", cueCheck, { passive: true });
+    window.addEventListener("resize", cueCheck);
     cueCheck();
+    // Each tap moves down one screen.
     cue.addEventListener("click", function (e) {
       e.preventDefault();
-      cueTarget.scrollIntoView({ behavior: "smooth", block: "start" });
+      window.scrollBy({ top: Math.round(window.innerHeight * 0.85), left: 0, behavior: "smooth" });
     });
   }
 
