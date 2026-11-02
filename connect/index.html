@@ -323,6 +323,26 @@
   .qk.globe svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; }
   .kb-top .qk.globe { width: 30px; height: 24px; border-radius: 6px; }
 
+  /* a nudge to scroll, on narrow screens only: it bobs until the page has been scrolled */
+  .cue {
+    position: fixed; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%);
+    display: none; align-items: center; justify-content: center;
+    width: 54px; height: 54px; border-radius: 50%;
+    color: var(--ink); text-decoration: none; z-index: 5;
+    transition: opacity 0.3s ease, visibility 0.3s;
+  }
+  .cue-fade {
+    position: fixed; left: 0; right: 0; bottom: 0; height: 110px; z-index: 4; pointer-events: none;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0), var(--bg) 72%);
+    display: none; transition: opacity 0.3s ease, visibility 0.3s;
+  }
+  @media (max-width: 879px) { .cue, .cue-fade { display: flex; } }
+  .cue.off, .cue-fade.off { opacity: 0; visibility: hidden; }
+  .cue svg { display: block; width: 54px; height: 54px; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.2)); animation: nudge 1.6s ease-in-out infinite; }
+  @keyframes nudge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(5px); } }
+  @media (prefers-reduced-motion: reduce) { .cue svg { animation: none; } }
+
   footer { padding: 36px 0 48px; color: var(--muted); font-size: 14px; }
   footer .wrap { display: flex; flex-wrap: wrap; gap: 10px 24px; justify-content: space-between; }
   footer nav { display: flex; gap: 20px; flex-wrap: wrap; }
@@ -365,7 +385,7 @@
       <p class="fine"><b>No account. No tracking.</b> Your squares stay on your phone.</p>
     </section>
 
-    <div class="pair">
+    <div class="pair" id="phones">
       <section class="guide" aria-labelledby="guideTitle">
         <h2 class="label" id="guideTitle">Ditto in a minute</h2>
         <div class="seg ghost" aria-hidden="true"><button type="button" tabindex="-1">The board</button></div>
@@ -450,6 +470,11 @@
   </div>
 </footer>
 
+<div class="cue-fade" id="cueFade" aria-hidden="true"></div>
+<a class="cue" id="cue" href="#phones" aria-label="Scroll down to the phones">
+  <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="21" fill="#F4B63A" stroke="#111" stroke-width="3"/><path d="M24 13v21M15 26l9 9 9-9" fill="none" stroke="#111" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+</a>
+
 <script>
 (function () {
   // ---- the guide's bubbles arrive one after another, once the guide is on screen and the tab is in front ----
@@ -477,6 +502,23 @@
         io.observe(chat);
       } else { inView = true; begin(); }
     } catch (e) { root.classList.remove("anim"); }
+  }
+
+  // ---- the scroll nudge (narrow screens) ----
+  var cue = document.getElementById("cue");
+  if (cue) {
+    var cueTarget = document.getElementById("phones"), cueFade = document.getElementById("cueFade");
+    var cueCheck = function () {
+      var off = window.scrollY > 60;
+      cue.classList.toggle("off", off);
+      if (cueFade) cueFade.classList.toggle("off", off);
+    };
+    window.addEventListener("scroll", cueCheck, { passive: true });
+    cueCheck();
+    cue.addEventListener("click", function (e) {
+      e.preventDefault();
+      cueTarget.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }
 
   // ---- the demo phone ----
