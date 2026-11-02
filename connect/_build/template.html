@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{LANG}}" dir="{{DIR}}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -10,7 +10,7 @@
 <meta property="og:description" content="{{OG_DESCRIPTION}}">
 <meta property="og:image" content="https://dittotap.com/icon-512.png">
 <meta property="og:url" content="https://dittotap.com/{{PATH}}/">
-<meta name="theme-color" content="#F2F5F6" media="(prefers-color-scheme: light)">
+{{HEAD_EXTRA}}<meta name="theme-color" content="#F2F5F6" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0F1518" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="../icon-180.png">
 <link rel="apple-touch-icon" href="../icon-180.png">
@@ -145,7 +145,7 @@
   .btn-store svg { width: 24px; height: 24px; flex: none; fill: currentColor; }
   .btn-store small { display: block; font-size: 11px; font-weight: 500; opacity: 0.8; line-height: 1.1; }
   .btn-store span { display: block; line-height: 1.15; }
-  .btn-store .stack { text-align: left; }
+  .btn-store .stack { text-align: start; }
   .btn-ghost { border-color: var(--line); color: var(--ink); background: var(--surface); }
   .fine { font-size: 15px; color: var(--muted); margin: 0; }
   .fine b { color: var(--ink); font-weight: 600; }
@@ -170,7 +170,7 @@
     .wrap { max-width: 1340px; }
     main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 56px; align-items: center; padding: 8px 0 12px; }
     footer { padding: 16px 0 20px; }
-    .get { text-align: left; padding: 0; }
+    .get { text-align: start; padding: 0; }
     .appicon { width: 72px; height: 72px; border-radius: 17px; margin: 0 0 18px; }
     h1 { font-size: 48px; margin: 0 0 14px; }
     .lede { font-size: 17px; margin: 0 0 22px; }
@@ -208,8 +208,8 @@
      Without scripts, or with reduced motion, they are simply all there. */
   html.anim .chat .bub { opacity: 0; transform: translateY(8px); }
   html.anim .chat .bub.on { opacity: 1; transform: none; }
-  .chat .bub.in  { align-self: flex-start; background: var(--bubble-in); color: var(--ink); border-bottom-left-radius: 5px; }
-  .chat .bub.out { align-self: flex-end; background: var(--bubble-out); color: #fff; border-bottom-right-radius: 5px; }
+  .chat .bub.in  { align-self: flex-start; background: var(--bubble-in); color: var(--ink); border-end-start-radius: 5px; }
+  .chat .bub.out { align-self: flex-end; background: var(--bubble-out); color: #fff; border-end-end-radius: 5px; }
   .chat .bub + .bub.in { margin-top: 8px; }
   .chat .bub + .bub.out { margin-top: 1px; }
   .bub.out .stores-mini { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
@@ -331,6 +331,7 @@
   }
   .qk:active { filter: brightness(0.92); }
   .qk.fn { background: var(--key-fn); font-size: 11.5px; }
+  .qk.letter { width: 22px; }
   .qk.wide { width: 30px; }
   .qk.w123 { width: 38px; }
   .qk.wreturn { width: 56px; }
@@ -359,6 +360,15 @@
   @keyframes nudge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(5px); } }
   @media (prefers-reduced-motion: reduce) { .cue svg { animation: none; } }
 
+  /* a right-to-left page (Persian): joined letters take no letter-spacing and a little more line height;
+     the keyboard keeps its real layout, globe bottom-left, and its twelve-key top row fits with narrower keys */
+  [dir="rtl"] h1 { letter-spacing: 0; line-height: 1.25; }
+  [dir="rtl"] .eyebrow, [dir="rtl"] .label { letter-spacing: 0; }
+  [dir="rtl"] .chat .bub, [dir="rtl"] .msg, [dir="rtl"] .field { line-height: 1.5; }
+  [dir="rtl"] .kb-bottom, [dir="rtl"] #kbQwerty { direction: ltr; }
+  [dir="rtl"] .qrow { gap: 3px; }
+  [dir="rtl"] .qk.letter { width: 19px; font-size: 13px; }
+
   footer { padding: 36px 0 48px; color: var(--muted); font-size: 14px; }
   footer .wrap { display: flex; flex-wrap: wrap; gap: 10px 24px; justify-content: space-between; }
   footer nav { display: flex; gap: 20px; flex-wrap: wrap; }
@@ -373,11 +383,11 @@
 
 <div class="wrap">
   <div class="top">
-    <a class="wordmark" href="../about/" aria-label="Ditto home">Ditto</a>
-    <nav aria-label="Site">
-      <a href="../about/">About</a>
-      <a href="../privacy.html">Privacy</a>
-      <a href="../">Web app</a>
+    <a class="wordmark" href="../about/" aria-label="{{S_HOME}}">Ditto</a>
+    <nav aria-label="{{S_NAV_SITE}}">
+      <a href="../about/">{{S_ABOUT}}</a>
+      <a href="../privacy.html">{{S_PRIVACY}}</a>
+      <a href="../">{{S_WEB_APP}}</a>
     </nav>
   </div>
 
@@ -385,63 +395,63 @@
     <section class="get" aria-labelledby="getTitle">
       <img class="appicon" src="../icon-180.png" width="96" height="96" alt="">
       <p class="eyebrow">{{EYEBROW}}</p>
-      <h1 id="getTitle">Get Ditto.</h1>
+      <h1 id="getTitle">{{S_H1}}</h1>
       <p class="lede">{{LEDE}}</p>
       <div class="ctas">
         <a class="btn btn-store" href="https://apps.apple.com/app/id6810430522">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 12.6c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9-.7 0-1.8-.8-3-.8-1.5 0-3 .9-3.8 2.3-1.6 2.8-.4 7 1.2 9.3.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.8 3-.8s1.8.8 3 .7c1.3 0 2.1-1.1 2.8-2.3.9-1.3 1.3-2.6 1.3-2.6s-2.5-1-2.5-3.7zM14.2 5.8c.6-.8 1.1-1.9.9-3-.9 0-2.1.6-2.7 1.4-.6.7-1.1 1.8-1 2.9 1.1.1 2.1-.5 2.8-1.3z"/></svg>
-          <span class="stack"><small>Download on the</small><span>App Store</span></span>
+          <span class="stack"><small>{{S_APPSTORE_SMALL}}</small><span>App Store</span></span>
         </a>
         <a class="btn btn-store" href="https://play.google.com/store/apps/details?id=com.pentapillars.ditto&amp;referrer=utm_source%3Ddittotap%26utm_campaign%3Dconnect">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3.3v17.4c0 .5.5.8.9.6l9.3-9.3L4.9 2.7c-.4-.2-.9.1-.9.6zm11.4 7.5L6.6 2 17 8.1zm0 2.4L6.6 22 17 15.9zm1.8-1.8 2.9-1.7c.5-.3.5-1 0-1.3l-2.9-1.7L14.5 12z"/></svg>
-          <span class="stack"><small>Get it on</small><span>Google Play</span></span>
+          <span class="stack"><small>{{S_PLAY_SMALL}}</small><span>Google Play</span></span>
         </a>
-        <a class="btn btn-ghost" href="../">Try it in your browser</a>
+        <a class="btn btn-ghost" href="../">{{S_TRY_WEB}}</a>
       </div>
-      <p class="fine"><b>No account. No tracking.</b> Your squares stay on your phone.</p>
+      <p class="fine">{{S_FINE}}</p>
     </section>
 
     <div class="pair" id="phones">
       <section class="guide" aria-labelledby="guideTitle">
-        <h2 class="label" id="guideTitle">Ditto in a minute</h2>
-        <div class="seg ghost" aria-hidden="true"><button type="button" tabindex="-1">The board</button></div>
+        <h2 class="label" id="guideTitle">{{S_GUIDE_LABEL}}</h2>
+        <div class="seg ghost" aria-hidden="true"><button type="button" tabindex="-1">{{S_BOARD_TAB}}</button></div>
         <div class="phone">
           <div class="screen">
-            <div class="status"><span>9:41</span><span class="bat" aria-hidden="true"></span></div>
+            <div class="status"><span>{{S_CLOCK}}</span><span class="bat" aria-hidden="true"></span></div>
             <div class="k-head"><img class="avatar-img" src="../icon-180.png" width="36" height="36" alt=""><div class="k-name">Ditto</div></div>
             <div class="chat" id="chat" role="list">
-          <div class="bub in" role="listitem">So what is Ditto?</div>
-          <div class="bub out" role="listitem">A board of big squares. Each one holds a piece of text you type again and again.</div>
-          <div class="bub in" role="listitem">Like what?</div>
+          <div class="bub in" role="listitem">{{S_G1}}</div>
+          <div class="bub out" role="listitem">{{S_G2}}</div>
+          <div class="bub in" role="listitem">{{S_G3}}</div>
           <div class="bub out" role="listitem">{{LIKE_WHAT}}</div>
-          <div class="bub in" role="listitem">And then?</div>
-          <div class="bub out" role="listitem">Tap a square and it's copied, ready to paste.</div>
-          <div class="bub out" role="listitem">Or open the Ditto keyboard inside any app and tap: the text is typed straight in.</div>
-          <div class="bub in" role="listitem">Can it see what I write?</div>
-          <div class="bub out" role="listitem">No. There's no account and no tracking. Your squares live on your phone.</div>
-          <div class="bub in" role="listitem">Where do I get it?</div>
-          <div class="bub out wide" role="listitem">Right here.
+          <div class="bub in" role="listitem">{{S_G5}}</div>
+          <div class="bub out" role="listitem">{{S_G6}}</div>
+          <div class="bub out" role="listitem">{{S_G7}}</div>
+          <div class="bub in" role="listitem">{{S_G8}}</div>
+          <div class="bub out" role="listitem">{{S_G9}}</div>
+          <div class="bub in" role="listitem">{{S_G10}}</div>
+          <div class="bub out wide" role="listitem">{{S_G11}}
 <span class="stores-mini"><a href="https://apps.apple.com/app/id6810430522"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 12.6c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9-.7 0-1.8-.8-3-.8-1.5 0-3 .9-3.8 2.3-1.6 2.8-.4 7 1.2 9.3.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.8 3-.8s1.8.8 3 .7c1.3 0 2.1-1.1 2.8-2.3.9-1.3 1.3-2.6 1.3-2.6s-2.5-1-2.5-3.7zM14.2 5.8c.6-.8 1.1-1.9.9-3-.9 0-2.1.6-2.7 1.4-.6.7-1.1 1.8-1 2.9 1.1.1 2.1-.5 2.8-1.3z"/></svg>App Store</a><a href="https://play.google.com/store/apps/details?id=com.pentapillars.ditto&amp;referrer=utm_source%3Ddittotap%26utm_campaign%3Dconnect"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3.3v17.4c0 .5.5.8.9.6l9.3-9.3L4.9 2.7c-.4-.2-.9.1-.9.6zm11.4 7.5L6.6 2 17 8.1zm0 2.4L6.6 22 17 15.9zm1.8-1.8 2.9-1.7c.5-.3.5-1 0-1.3l-2.9-1.7L14.5 12z"/></svg>Google Play</a></span></div>
             </div>
             <div class="compose" aria-hidden="true"><div class="field"></div><button class="send" type="button" tabindex="-1" disabled>↑</button></div>
           </div>
         </div>
-        <p class="fine">Want the long version? <a href="../about/">See everything Ditto does</a>.</p>
+        <p class="fine">{{S_GUIDE_FINE}}</p>
       </section>
 
       <section class="demo" aria-labelledby="demoTitle">
-        <h2 class="label" id="demoTitle">Try Ditto</h2>
-        <div class="seg" role="group" aria-label="Demo view">
-          <button type="button" data-view="board" aria-pressed="false">The board</button>
-          <button type="button" data-view="keyboard" aria-pressed="true">The keyboard</button>
+        <h2 class="label" id="demoTitle">{{S_DEMO_LABEL}}</h2>
+        <div class="seg" role="group" aria-label="{{S_DEMO_VIEW}}">
+          <button type="button" data-view="board" aria-pressed="false">{{S_BOARD_TAB}}</button>
+          <button type="button" data-view="keyboard" aria-pressed="true">{{S_KB_TAB}}</button>
         </div>
         <div class="phone">
           <div class="screen">
-            <div class="status"><span>9:41</span><span class="bat" aria-hidden="true"></span></div>
+            <div class="status"><span>{{S_CLOCK}}</span><span class="bat" aria-hidden="true"></span></div>
 
             <div class="view" id="boardView">
               <div class="b-title">Ditto</div>
-              <div class="b-hint">Tap a square to copy its text.</div>
+              <div class="b-hint">{{S_B_HINT}}</div>
               <div class="b-grid" id="boardGrid"></div>
             </div>
 
@@ -452,14 +462,14 @@
               </div>
               <div class="compose">
                 <div class="field" id="field" aria-live="polite"></div>
-                <button class="send" id="send" type="button" aria-label="Send" disabled>↑</button>
+                <button class="send" id="send" type="button" aria-label="{{S_SEND}}" disabled>↑</button>
               </div>
               <div class="kb">
                 <div id="kbDitto">
                   <div class="kb-top"><span class="pill" id="kbLabel">Ditto</span></div>
                   <div class="kb-grid" id="kbGrid"></div>
                   <div class="kb-bottom">
-                    <button class="qk fn globe" type="button" id="globeDitto" aria-label="Switch to the regular keyboard"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 7.5h14M5 16.5h14"/></svg></button>
+                    <button class="qk fn globe" type="button" id="globeDitto" aria-label="{{S_GLOBE_TO_REGULAR}}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 7.5h14M5 16.5h14"/></svg></button>
                   </div>
                 </div>
                 <div id="kbQwerty" hidden></div>
@@ -469,7 +479,7 @@
             <div class="toast" id="toast" role="status" aria-live="polite"></div>
           </div>
         </div>
-        <p class="demo-hint" id="demoHint">Try it: tap a square to put its text in, then send. The globe switches keyboards.</p>
+        <p class="demo-hint" id="demoHint">{{S_HINT_KB}}</p>
       </section>
     </div>
   </main>
@@ -478,16 +488,16 @@
 <footer>
   <div class="wrap">
     <span>© 2026 Pentapillars, LLC</span>
-    <nav aria-label="Footer">
-      <a href="../privacy.html">Privacy Policy</a>
-      <a href="../about/">About</a>
-      <a href="mailto:pentapillarapps@gmail.com?subject=Ditto">Support</a>
+    <nav aria-label="{{S_NAV_FOOTER}}">
+      <a href="../privacy.html">{{S_PRIVACY_POLICY}}</a>
+      <a href="../about/">{{S_ABOUT}}</a>
+      <a href="mailto:pentapillarapps@gmail.com?subject=Ditto">{{S_SUPPORT}}</a>
     </nav>
   </div>
 </footer>
 
 <div class="cue-fade" id="cueFade" aria-hidden="true"></div>
-<a class="cue" id="cue" href="#phones" aria-label="Scroll down to the phones">
+<a class="cue" id="cue" href="#phones" aria-label="{{S_CUE}}">
   <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="21" fill="#F4B63A" stroke="#111" stroke-width="3"/><path d="M24 13v21M15 26l9 9 9-9" fill="none" stroke="#111" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
 </a>
 
@@ -504,10 +514,8 @@
         if (started || !inView || document.hidden) return;
         started = true;
         bubs.forEach(function (b, i) {
-          setTimeout(function () {
-            b.classList.add("on");
-            chat.scrollTo({ top: chat.scrollHeight, behavior: "smooth" });
-          }, 120 + i * 420);
+          // The chat does not follow the new bubbles down: it stays at the top, and the reader scrolls it.
+          setTimeout(function () { b.classList.add("on"); }, 120 + i * 420);
         });
       };
       document.addEventListener("visibilitychange", begin);
@@ -543,14 +551,17 @@
   // ---- the demo phone ----
 {{BOARD}}
 
+  var LOCALE = {{J_LOCALE}};
+  function num(n) { return n.toLocaleString(LOCALE); }
+
   function expand(text) {
     var now = new Date();
     var tomorrow = new Date(now.getTime() + 864e5);
     var day = { weekday: "long", month: "long", day: "numeric" };
     return text
-      .replace(/\[TODAY\]/g, now.toLocaleDateString("en-US", day))
-      .replace(/\[TOMORROW\]/g, tomorrow.toLocaleDateString("en-US", day))
-      .replace(/\[TIME\]/g, now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }));
+      .replace(/\[TODAY\]/g, now.toLocaleDateString(LOCALE, day))
+      .replace(/\[TOMORROW\]/g, tomorrow.toLocaleDateString(LOCALE, day))
+      .replace(/\[TIME\]/g, now.toLocaleTimeString(LOCALE, { hour: "numeric", minute: "2-digit" }));
   }
 
   // A square and a key look alike: plain, and blue when it's a folder.
@@ -564,7 +575,7 @@
     if (item.folder && cls === "sq") {
       var sub = document.createElement("span");
       sub.className = "sub";
-      sub.textContent = item.items.length + " texts " + (openFolder === item ? "▴" : "▾");
+      sub.textContent = {{J_TEXTS}}.replace("{n}", num(item.items.length)) + " " + (openFolder === item ? "▴" : "▾");
       b.appendChild(sub);
     }
     return b;
@@ -591,7 +602,7 @@
     comboAt = now;
     el.classList.add("flash");
     setTimeout(function () { el.classList.remove("flash"); }, 260);
-    toast(combo.length > 1 ? "Copied " + combo.length + " squares together" : "Copied “" + item.name + "”");
+    toast(combo.length > 1 ? {{J_COPIED_MANY}}.replace("{n}", num(combo.length)) : {{J_COPIED_ONE}}.replace("{name}", item.name));
   }
 
   function renderBoard() {
@@ -619,7 +630,7 @@
     });
     var add = document.createElement("div");
     add.className = "sq add";
-    add.textContent = "Add square";
+    add.textContent = {{J_ADD_SQUARE}};
     add.setAttribute("aria-hidden", "true");
     grid.appendChild(add);
   }
@@ -632,9 +643,9 @@
   var thread = document.getElementById("thread");
   var kbFolder = null;
   var hint = document.getElementById("demoHint");
-  var HINT_BOARD = "Try it: tap a square, or a few in a row.";
-  var HINT_KB = "Try it: tap a square to put its text in, then send. The globe switches keyboards.";
-  var HINT_QWERTY = "Your usual keyboard. Tap the globe to get Ditto back.";
+  var HINT_BOARD = {{J_HINT_BOARD}};
+  var HINT_KB = {{J_HINT_KB}};
+  var HINT_QWERTY = {{J_HINT_QWERTY}};
 
   function setField(text) {
     field.textContent = text;
@@ -671,23 +682,24 @@
     var d = document.createElement("div");
     d.className = "qrow";
     if (before) d.appendChild(before);
-    letters.split("").forEach(function (c) { d.appendChild(qkey(c, "", function () { setField(field.textContent + c); })); });
+    letters.split("").forEach(function (c) { d.appendChild(qkey(c, "letter", function () { setField(field.textContent + c); })); });
     if (after) d.appendChild(after);
     return d;
   }
   (function buildQwerty() {
-    kbQwerty.appendChild(qrow("qwertyuiop"));
-    kbQwerty.appendChild(qrow("asdfghjkl"));
-    kbQwerty.appendChild(qrow("zxcvbnm", qkey("⇧", "fn wide"), qkey("⌫", "fn wide", function () { setField(field.textContent.slice(0, -1)); })));
+    var rows = {{J_KB_ROWS}};   // the letters of the reader's own keyboard, row by row
+    kbQwerty.appendChild(qrow(rows[0]));
+    kbQwerty.appendChild(qrow(rows[1]));
+    kbQwerty.appendChild(qrow(rows[2], qkey("⇧", "fn wide"), qkey("⌫", "fn wide", function () { setField(field.textContent.slice(0, -1)); })));
     var globe = qkey("", "fn globe", switchKeyboard);
     globe.innerHTML = document.getElementById("globeDitto").innerHTML;
-    globe.setAttribute("aria-label", "Switch to the Ditto keyboard");
+    globe.setAttribute("aria-label", {{J_GLOBE_TO_DITTO}});
     var last = document.createElement("div");
     last.className = "qrow";
-    last.appendChild(qkey("123", "fn w123"));
+    last.appendChild(qkey({{J_NUMBERS}}, "fn w123"));
     last.appendChild(globe);
-    last.appendChild(qkey("space", "space", function () { setField(field.textContent + " "); }));
-    last.appendChild(qkey("return", "fn wreturn", function () { setField(field.textContent + "\n"); }));
+    last.appendChild(qkey({{J_SPACE}}, "space", function () { setField(field.textContent + " "); }));
+    last.appendChild(qkey({{J_RETURN}}, "fn wreturn", function () { setField(field.textContent + "\n"); }));
     kbQwerty.appendChild(last);
   })();
 

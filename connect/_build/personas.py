@@ -4,6 +4,100 @@
 # A board is a list of squares. A square is {"name", "text"}; a folder is
 # {"name", "folder": True, "items": [squares]}. Nine cells fill the demo's 3×3 grid.
 # [TODAY], [TOMORROW] and [TIME] in a text become the real date or time, as in the app.
+#
+# A persona in another language sets "lang" (a key of STRINGS below) and writes its own words
+# in that language; "alternates" names the same page in other languages ({lang: path}).
+
+# The words every page shares, by language. English is the base; another language lists what
+# it changes. "rtl" turns the page right-to-left; "kb_rows" are the letters of that language's
+# own keyboard, the one behind the globe; "locale" shapes dates, times and counts.
+STRINGS = {
+    "en": {
+        "locale": "en-US",
+        "home": "Ditto home", "nav_site": "Site", "nav_footer": "Footer",
+        "about": "About", "privacy": "Privacy", "web_app": "Web app",
+        "h1": "Get Ditto.",
+        "appstore_small": "Download on the", "play_small": "Get it on",
+        "try_web": "Try it in your browser",
+        "fine": "<b>No account. No tracking.</b> Your squares stay on your phone.",
+        "guide_label": "Ditto in a minute",
+        "clock": "9:41",
+        # the guide's conversation; the fourth bubble is the persona's own like_what
+        "g1": "So what is Ditto?",
+        "g2": "A board of big squares. Each one holds a piece of text you type again and again.",
+        "g3": "Like what?",
+        "g5": "And then?",
+        "g6": "Tap a square and it's copied, ready to paste.",
+        "g7": "Or open the Ditto keyboard inside any app and tap: the text is typed straight in.",
+        "g8": "Can it see what I write?",
+        "g9": "No. There's no account and no tracking. Your squares live on your phone.",
+        "g10": "Where do I get it?",
+        "g11": "Right here.",
+        "guide_fine": 'Want the long version? <a href="../about/">See everything Ditto does</a>.',
+        "demo_label": "Try Ditto", "demo_view": "Demo view",
+        "board_tab": "The board", "kb_tab": "The keyboard",
+        "b_hint": "Tap a square to copy its text.",
+        "send": "Send",
+        "globe_to_regular": "Switch to the regular keyboard", "globe_to_ditto": "Switch to the Ditto keyboard",
+        "hint_board": "Try it: tap a square, or a few in a row.",
+        "hint_kb": "Try it: tap a square to put its text in, then send. The globe switches keyboards.",
+        "hint_qwerty": "Your usual keyboard. Tap the globe to get Ditto back.",
+        "texts": "{n} texts", "copied_many": "Copied {n} squares together", "copied_one": "Copied “{name}”",
+        "add_square": "Add square",
+        "kb_rows": ["qwertyuiop", "asdfghjkl", "zxcvbnm"], "numbers": "123", "space": "space", "return": "return",
+        "privacy_policy": "Privacy Policy", "support": "Support",
+        "cue": "Scroll down to the phones",
+    },
+    # Persian. A "~" in these strings is a zero-width non-joiner (the half-space of می~شود), put in below.
+    "fa": {
+        "rtl": True,
+        "locale": "fa-IR",
+        "home": "خانه~ی Ditto", "nav_site": "سایت", "nav_footer": "پاورقی",
+        "about": "درباره", "privacy": "حریم خصوصی", "web_app": "نسخه~ی وب",
+        "h1": "Ditto را دریافت کنید.",
+        "appstore_small": "دانلود از", "play_small": "دریافت از",
+        "try_web": "در مرورگر امتحان کنید",
+        "fine": "<b>بدون حساب کاربری. بدون ردیابی.</b> مربع~های شما روی گوشی خودتان می~مانند.",
+        "guide_label": "Ditto در یک دقیقه",
+        "clock": "۹:۴۱",
+        "g1": "خب، Ditto چیست؟",
+        "g2": "تابلویی از مربع~های بزرگ. هر کدام متنی را نگه می~دارد که بارها و بارها تایپ می~کنید.",
+        "g3": "مثلاً چه متنی؟",
+        "g5": "و بعد؟",
+        "g6": "یک مربع را لمس کنید؛ متن کپی می~شود و آماده~ی جای~گذاری است.",
+        "g7": "یا صفحه~کلید Ditto را داخل هر برنامه~ای باز کنید و لمس کنید: متن مستقیم تایپ می~شود.",
+        "g8": "می~تواند ببیند چه می~نویسم؟",
+        "g9": "نه. نه حساب کاربری دارد و نه ردیابی. مربع~های شما روی گوشی خودتان می~مانند.",
+        "g10": "از کجا بگیرمش؟",
+        "g11": "همین~جا.",
+        "guide_fine": 'نسخه~ی کامل را می~خواهید؟ <a href="../about/">همه~ی کارهای Ditto را ببینید</a>.',
+        "demo_label": "Ditto را امتحان کنید", "demo_view": "نمای نمایشی",
+        "board_tab": "تابلو", "kb_tab": "صفحه~کلید",
+        "b_hint": "یک مربع را لمس کنید تا متنش کپی شود.",
+        "send": "ارسال",
+        "globe_to_regular": "رفتن به صفحه~کلید معمولی", "globe_to_ditto": "رفتن به صفحه~کلید Ditto",
+        "hint_board": "امتحان کنید: یک مربع را لمس کنید، یا چند تا را پشت سر هم.",
+        "hint_kb": "امتحان کنید: یک مربع را لمس کنید تا متنش وارد شود، بعد بفرستید. کره~ی زمین صفحه~کلید را عوض می~کند.",
+        "hint_qwerty": "صفحه~کلید همیشگی شما. برای برگشتن به Ditto کره~ی زمین را لمس کنید.",
+        "texts": "{n} متن", "copied_many": "{n} مربع با هم کپی شد", "copied_one": "«{name}» کپی شد",
+        "add_square": "افزودن مربع",
+        "kb_rows": ["ضصثقفغعهخحجچ", "شسیبلاتنمکگ", "ظطزرذدپو"], "numbers": "۱۲۳", "space": "فاصله", "return": "بازگشت",
+        "privacy_policy": "سیاست حریم خصوصی", "support": "پشتیبانی",
+        "cue": "برای دیدن گوشی~ها پایین بروید",
+    },
+}
+
+def _half_spaces(value):
+    """'~' -> zero-width non-joiner, through strings, lists and dicts."""
+    if isinstance(value, str):
+        return value.replace("~", "\u200c")
+    if isinstance(value, list):
+        return [_half_spaces(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _half_spaces(v) for k, v in value.items()}
+    return value
+
+STRINGS["fa"] = _half_spaces(STRINGS["fa"])
 
 GENERIC = {
     "path": "connect",
@@ -73,6 +167,7 @@ PHYSICIANS = {
     "lede": "Ditto is a board of big, tappable squares. Each square holds a piece of text you use again and again — a fluid bolus, a lab order, an antibiotic start, the potassium replacement you write every day. Tap it and the text is ready to paste, or type it straight into any app with the Ditto keyboard.",
     "like_what": "A saline bolus. Stat labs. A pneumonia order set. The potassium you replace every day.",
     "avatar": "TR", "contact": "Taylor (RN)", "opener": "Hi Dr. Chen, bed 12 is nauseated. Orders?",
+    "alternates": {"fa": "connect4"},
     # The board below is a real hospitalist's, shared by its owner on 2026-11-01 (Downloads/Ditto board.json).
     "board": [
         {"name": "IVF", "folder": True, "items": [
@@ -153,4 +248,64 @@ EXECUTIVES = {
     ],
 }
 
-PERSONAS = [GENERIC, EDUCATORS, PHYSICIANS, EXECUTIVES]
+# The physicians' page in Persian: the same board, its orders written in Persian (lab and drug
+# shorthand such as CBC, NPO, stat stays as physicians write it). "~" is a half-space, as in STRINGS.
+PHYSICIANS_FA = _half_spaces({
+    "path": "connect4",
+    "lang": "fa",
+    "alternates": {"en": "connect2"},
+    "title": "دریافت Ditto — یک مربع را لمس کنید، هر جا جای~گذاری کنید",
+    "description": "Ditto را برای آیفون یا اندروید دانلود کنید: تابلویی از مربع~های بزرگ و لمسی برای دستورهایی که بارها و بارها می~نویسید — سرم، آزمایش، شروع آنتی~بیوتیک، پتاسیم — و صفحه~کلیدی که آن~ها را در هر برنامه~ای تایپ می~کند. بدون حساب کاربری، بدون ردیابی.",
+    "og_description": "سرم، آزمایش، آنتی~بیوتیک و پتاسیم، با یک لمس. در App Store و Google Play.",
+    "eyebrow": "Ditto برای آیفون و اندروید",
+    "lede": "Ditto تابلویی از مربع~های بزرگ و لمسی است. هر مربع متنی را نگه می~دارد که بارها و بارها به کار می~برید — یک بولوس سرم، یک دستور آزمایش، شروع یک آنتی~بیوتیک، جایگزینی پتاسیمی که هر روز می~نویسید. آن را لمس کنید تا متن آماده~ی جای~گذاری شود، یا با صفحه~کلید Ditto آن را مستقیم در هر برنامه~ای تایپ کنید.",
+    "like_what": "یک بولوس نرمال~سالین. آزمایش~های اورژانسی. یک ست دستور پنومونی. پتاسیمی که هر روز جایگزین می~کنید.",
+    "avatar": "م", "contact": "مریم (پرستار)", "opener": "سلام دکتر احمدی، بیمار تخت ۱۲ حالت تهوع دارد. دستور؟",
+    "board": [
+        {"name": "سرم", "folder": True, "items": [
+            {"name": "سرم ۲۰ ساعته", "text": "نرمال~سالین ۵۰ سی~سی در ساعت به مدت ۲۰ ساعت شروع شود. فردا CBC و CMP چک شود."},
+            {"name": "بولوس ۵۰۰", "text": "۵۰۰ میلی~لیتر نرمال~سالین همین حالا بولوس شود (stat)."},
+            {"name": "بولوس ۱ لیتر", "text": "۱۰۰۰ میلی~لیتر (۱ لیتر) نرمال~سالین همین حالا بولوس شود (stat)."},
+            {"name": "در زمان NPO", "text": "تا زمانی که بیمار NPO است، نرمال~سالین ۵۰ سی~سی در ساعت."},
+        ]},
+        {"name": "آزمایش~ها", "folder": True, "items": [
+            {"name": "آزمایش~های پایه", "text": "CBC و CMP روتین چک شود."},
+            {"name": "اورژانسی", "text": "CBC و CMP به صورت stat."},
+        ]},
+        {"name": "پنومونی", "folder": True, "items": [
+            {"name": "شک به پنومونی", "text": "همین حالا CXR، و CBC و CMP روتین چک شود. اگر قبلاً سفارش داده نشده، اسپیرومتر تشویقی اضافه شود و نحوه~ی استفاده آموزش داده شود."},
+            {"name": "CAP وریدی", "text": "سفتریاکسون ۲ گرم وریدی روزانه به مدت ۷ روز شروع شود. همچنین داکسی~سایکلین خوراکی ۱۰۰ میلی~گرم دو بار در روز به مدت ۷ روز. آنتی~بیوتیک وریدی stat شروع شود.\n\nپروکلسی~تونین، آنتی~ژن استرپتوکوک ادرار و آنتی~ژن لژیونلای ادرار به صورت روتین (غیر stat) چک شود."},
+            {"name": "HCAP", "text": "سفپیم ۲ گرم وریدی هر ۸ ساعت به مدت ۷ روز شروع شود. همچنین داکسی~سایکلین خوراکی ۱۰۰ میلی~گرم دو بار در روز به مدت ۷ روز. آنتی~بیوتیک وریدی stat شروع شود.\n\nپروکلسی~تونین، آنتی~ژن استرپتوکوک ادرار و آنتی~ژن لژیونلای ادرار به صورت روتین (غیر stat) چک شود."},
+        ]},
+        {"name": "تهوع", "folder": True, "items": [
+            {"name": "اندانسترون PRN", "text": "اندانسترون ۴ میلی~گرم خوراکی هر ۶ ساعت در صورت نیاز."},
+            {"name": "اندانسترون منظم", "text": "اندانسترون ۴ میلی~گرم خوراکی هر ۶ ساعت به صورت منظم برای ۲ روز، سپس در صورت نیاز."},
+        ]},
+        {"name": "ورم", "folder": True, "items": [
+            {"name": "پای چپ", "text": "داپلکس وریدی اندام تحتانی چپ چک شود."},
+            {"name": "پای راست", "text": "داپلکس وریدی اندام تحتانی راست چک شود."},
+            {"name": "بانداژ پاها", "text": "دستور بانداژ و بالا نگه داشتن پاها:\n\n۱. هر دو پا با باند کشی (ACE) بسته شود:\n\n- از انگشتان شروع کنید و محکم بپیچید تا همه~ی انگشتان کاملاً پوشیده شوند.\n- هر چه بالاتر می~روید فشار را کم کنید، تا درست زیر زانو شل~ترین جای بانداژ باشد.\n- فشار درست روی انگشتان و کف پا برای جلوگیری از بدتر شدن ورم ضروری است.\n\n۲. پاها با بالش بالا نگه داشته شود:\n\n- از دو بالش استفاده کنید.\n- پاها طوری روی بالش~ها قرار بگیرند که کف پا بالاترین نقطه~ی اندام تحتانی باشد.\n\n*** دوباره بررسی کنید که انگشتان کاملاً بانداژ شده~اند و فشار به سمت بالا کم می~شود.\n\n*** مطمئن شوید که پاها بالاتر از بقیه~ی ساق قرار دارند تا تخلیه درست انجام شود و ورم کم شود."},
+            {"name": "بانداژ کف پا", "text": "شب~ها هنگام خواب:\n\nلطفاً فقط هر دو کف پای بیمار بانداژ شود. فشار به تدریج کم شود؛ باند کشی روی انگشتان محکم~ترین و در مفصل مچ پا کمترین فشار را داشته باشد. مچ پا یا ساق بانداژ نشود. در طول روز همه~ی بانداژها باز شود.\n\nاین کار ۳ شب انجام شود.\n\nشب~ها پاهای بیمار روی ۲ بالش بالا نگه داشته شود."},
+        ]},
+        {"name": "پتاسیم", "folder": True, "items": [
+            {"name": "یک~بار", "text": "پتاسیم ۴۰ میلی~اکی~والان خوراکی یک~بار (از بیمار بپرسید قرص بزرگ را ترجیح می~دهد یا شربت را؛ اگر اختلال بلع دارد، پتاسیم مایع داده شود.)"},
+            {"name": "۲ بار", "text": "پتاسیم ۴۰ میلی~اکی~والان همین حالا، ۴ ساعت بعد دوباره، سپس قطع؛ فردا BMP تکرار شود.\n\n(از بیمار بپرسید قرص بزرگ را ترجیح می~دهد یا شربت را؛ اگر اختلال بلع دارد، پتاسیم مایع داده شود.)"},
+            {"name": "۳ بار", "text": "پتاسیم ۴۰ میلی~اکی~والان همین حالا، ۴ ساعت بعد دوباره، و ۴ ساعت بعد بار دیگر، سپس قطع؛ فردا BMP تکرار شود.\n\n(از بیمار بپرسید قرص بزرگ را ترجیح می~دهد یا شربت را؛ اگر اختلال بلع دارد، پتاسیم مایع داده شود.)"},
+            {"name": "روزانه", "text": "پتاسیم ۴۰ میلی~اکی~والان روزانه.\n\n(از بیمار بپرسید قرص بزرگ را ترجیح می~دهد یا شربت را؛ اگر اختلال بلع دارد، پتاسیم مایع داده شود.)"},
+        ]},
+        {"name": "افت فشار", "folder": True, "items": [
+            {"name": "میدودرین ۲٫۵", "text": "میدودرین ۲٫۵ میلی~گرم سه بار در روز، ساعت ۷ صبح، ۱۱ صبح و ۴ بعدازظهر. اگر پیش از دادن دارو فشار سیستولیک بالای ۱۴۰ بود، داده نشود."},
+            {"name": "میدودرین ۵", "text": "میدودرین ۵ میلی~گرم سه بار در روز، ساعت ۷ صبح، ۱۱ صبح و ۴ بعدازظهر. اگر پیش از دادن دارو فشار سیستولیک بالای ۱۴۰ بود، داده نشود."},
+            {"name": "دروکسی~دوپا", "text": "دروکسی~دوپا ۱۰۰ میلی~گرم دو بار در روز، ساعت ۷ صبح و ۱۲ ظهر. اگر پیش از دادن دارو فشار سیستولیک بالای ۱۴۰ بود، داده نشود. با سر تخت بالا بخوابد."},
+            {"name": "فلودروکورتیزون", "text": "فلودروکورتیزون ۰٫۱ میلی~گرم خوراکی روزانه، ساعت ۸ صبح. اگر فشار سیستولیک بالای ۱۴۰ بود، داده نشود.\n\nفردا BMP چک شود، سپس هفتگی برای پایش پتاسیم."},
+        ]},
+        {"name": "یبوست", "folder": True, "items": [
+            {"name": "پلی~اتیلن گلیکول", "text": "لطفاً پلی~اتیلن گلیکول (میرالاکس) ۱۷ گرم خوراکی روزانه اضافه شود."},
+            {"name": "پروتکل روده", "text": "لطفاً پروتکل روده شروع شود."},
+            {"name": "انما ۱ بار", "text": "لطفاً همین حالا انمای آب و صابون داده شود؛ اگر در دسترس نبود، یک~بار انمای فلیت داده شود."},
+        ]},
+        {"name": "اسپیرومتر تشویقی", "text": "لطفاً یک اسپیرومتر تشویقی سفارش داده شود و نحوه~ی استفاده به بیمار آموزش داده شود."},
+    ],
+})
+
+PERSONAS = [GENERIC, EDUCATORS, PHYSICIANS, EXECUTIVES, PHYSICIANS_FA]

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -145,7 +145,7 @@
   .btn-store svg { width: 24px; height: 24px; flex: none; fill: currentColor; }
   .btn-store small { display: block; font-size: 11px; font-weight: 500; opacity: 0.8; line-height: 1.1; }
   .btn-store span { display: block; line-height: 1.15; }
-  .btn-store .stack { text-align: left; }
+  .btn-store .stack { text-align: start; }
   .btn-ghost { border-color: var(--line); color: var(--ink); background: var(--surface); }
   .fine { font-size: 15px; color: var(--muted); margin: 0; }
   .fine b { color: var(--ink); font-weight: 600; }
@@ -170,7 +170,7 @@
     .wrap { max-width: 1340px; }
     main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 56px; align-items: center; padding: 8px 0 12px; }
     footer { padding: 16px 0 20px; }
-    .get { text-align: left; padding: 0; }
+    .get { text-align: start; padding: 0; }
     .appicon { width: 72px; height: 72px; border-radius: 17px; margin: 0 0 18px; }
     h1 { font-size: 48px; margin: 0 0 14px; }
     .lede { font-size: 17px; margin: 0 0 22px; }
@@ -208,8 +208,8 @@
      Without scripts, or with reduced motion, they are simply all there. */
   html.anim .chat .bub { opacity: 0; transform: translateY(8px); }
   html.anim .chat .bub.on { opacity: 1; transform: none; }
-  .chat .bub.in  { align-self: flex-start; background: var(--bubble-in); color: var(--ink); border-bottom-left-radius: 5px; }
-  .chat .bub.out { align-self: flex-end; background: var(--bubble-out); color: #fff; border-bottom-right-radius: 5px; }
+  .chat .bub.in  { align-self: flex-start; background: var(--bubble-in); color: var(--ink); border-end-start-radius: 5px; }
+  .chat .bub.out { align-self: flex-end; background: var(--bubble-out); color: #fff; border-end-end-radius: 5px; }
   .chat .bub + .bub.in { margin-top: 8px; }
   .chat .bub + .bub.out { margin-top: 1px; }
   .bub.out .stores-mini { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
@@ -331,6 +331,7 @@
   }
   .qk:active { filter: brightness(0.92); }
   .qk.fn { background: var(--key-fn); font-size: 11.5px; }
+  .qk.letter { width: 22px; }
   .qk.wide { width: 30px; }
   .qk.w123 { width: 38px; }
   .qk.wreturn { width: 56px; }
@@ -358,6 +359,15 @@
   .cue svg { display: block; width: 54px; height: 54px; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.2)); animation: nudge 1.6s ease-in-out infinite; }
   @keyframes nudge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(5px); } }
   @media (prefers-reduced-motion: reduce) { .cue svg { animation: none; } }
+
+  /* a right-to-left page (Persian): joined letters take no letter-spacing and a little more line height;
+     the keyboard keeps its real layout, globe bottom-left, and its twelve-key top row fits with narrower keys */
+  [dir="rtl"] h1 { letter-spacing: 0; line-height: 1.25; }
+  [dir="rtl"] .eyebrow, [dir="rtl"] .label { letter-spacing: 0; }
+  [dir="rtl"] .chat .bub, [dir="rtl"] .msg, [dir="rtl"] .field { line-height: 1.5; }
+  [dir="rtl"] .kb-bottom, [dir="rtl"] #kbQwerty { direction: ltr; }
+  [dir="rtl"] .qrow { gap: 3px; }
+  [dir="rtl"] .qk.letter { width: 19px; font-size: 13px; }
 
   footer { padding: 36px 0 48px; color: var(--muted); font-size: 14px; }
   footer .wrap { display: flex; flex-wrap: wrap; gap: 10px 24px; justify-content: space-between; }
@@ -504,10 +514,8 @@
         if (started || !inView || document.hidden) return;
         started = true;
         bubs.forEach(function (b, i) {
-          setTimeout(function () {
-            b.classList.add("on");
-            chat.scrollTo({ top: chat.scrollHeight, behavior: "smooth" });
-          }, 120 + i * 420);
+          // The chat does not follow the new bubbles down: it stays at the top, and the reader scrolls it.
+          setTimeout(function () { b.classList.add("on"); }, 120 + i * 420);
         });
       };
       document.addEventListener("visibilitychange", begin);
@@ -563,14 +571,17 @@
     { name: "Signature", text: "Best,\nMorgan Lee\nChief Executive Officer" },
   ];
 
+  var LOCALE = "en-US";
+  function num(n) { return n.toLocaleString(LOCALE); }
+
   function expand(text) {
     var now = new Date();
     var tomorrow = new Date(now.getTime() + 864e5);
     var day = { weekday: "long", month: "long", day: "numeric" };
     return text
-      .replace(/\[TODAY\]/g, now.toLocaleDateString("en-US", day))
-      .replace(/\[TOMORROW\]/g, tomorrow.toLocaleDateString("en-US", day))
-      .replace(/\[TIME\]/g, now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }));
+      .replace(/\[TODAY\]/g, now.toLocaleDateString(LOCALE, day))
+      .replace(/\[TOMORROW\]/g, tomorrow.toLocaleDateString(LOCALE, day))
+      .replace(/\[TIME\]/g, now.toLocaleTimeString(LOCALE, { hour: "numeric", minute: "2-digit" }));
   }
 
   // A square and a key look alike: plain, and blue when it's a folder.
@@ -584,7 +595,7 @@
     if (item.folder && cls === "sq") {
       var sub = document.createElement("span");
       sub.className = "sub";
-      sub.textContent = item.items.length + " texts " + (openFolder === item ? "▴" : "▾");
+      sub.textContent = "{n} texts".replace("{n}", num(item.items.length)) + " " + (openFolder === item ? "▴" : "▾");
       b.appendChild(sub);
     }
     return b;
@@ -611,7 +622,7 @@
     comboAt = now;
     el.classList.add("flash");
     setTimeout(function () { el.classList.remove("flash"); }, 260);
-    toast(combo.length > 1 ? "Copied " + combo.length + " squares together" : "Copied “" + item.name + "”");
+    toast(combo.length > 1 ? "Copied {n} squares together".replace("{n}", num(combo.length)) : "Copied “{name}”".replace("{name}", item.name));
   }
 
   function renderBoard() {
@@ -691,14 +702,15 @@
     var d = document.createElement("div");
     d.className = "qrow";
     if (before) d.appendChild(before);
-    letters.split("").forEach(function (c) { d.appendChild(qkey(c, "", function () { setField(field.textContent + c); })); });
+    letters.split("").forEach(function (c) { d.appendChild(qkey(c, "letter", function () { setField(field.textContent + c); })); });
     if (after) d.appendChild(after);
     return d;
   }
   (function buildQwerty() {
-    kbQwerty.appendChild(qrow("qwertyuiop"));
-    kbQwerty.appendChild(qrow("asdfghjkl"));
-    kbQwerty.appendChild(qrow("zxcvbnm", qkey("⇧", "fn wide"), qkey("⌫", "fn wide", function () { setField(field.textContent.slice(0, -1)); })));
+    var rows = ["qwertyuiop", "asdfghjkl", "zxcvbnm"];   // the letters of the reader's own keyboard, row by row
+    kbQwerty.appendChild(qrow(rows[0]));
+    kbQwerty.appendChild(qrow(rows[1]));
+    kbQwerty.appendChild(qrow(rows[2], qkey("⇧", "fn wide"), qkey("⌫", "fn wide", function () { setField(field.textContent.slice(0, -1)); })));
     var globe = qkey("", "fn globe", switchKeyboard);
     globe.innerHTML = document.getElementById("globeDitto").innerHTML;
     globe.setAttribute("aria-label", "Switch to the Ditto keyboard");
