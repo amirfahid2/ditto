@@ -67,32 +67,57 @@ EDUCATORS = {
 PHYSICIANS = {
     "path": "connect2",
     "title": "Get Ditto — Tap a square, paste anywhere",
-    "description": "Download Ditto for iPhone or Android: a board of big, tappable squares for the messages you send again and again — portal replies, visit instructions, office hours — and a keyboard that types them into any app. No account, no tracking.",
-    "og_description": "Portal replies, visit instructions and office hours, one tap away. On the App Store and Google Play.",
+    "description": "Download Ditto for iPhone or Android: a board of big, tappable squares for the orders you write again and again — fluids, labs, an antibiotic start, potassium — and a keyboard that types them into any app. No account, no tracking.",
+    "og_description": "Fluids, labs, antibiotics and potassium, one tap away. On the App Store and Google Play.",
     "eyebrow": "Ditto for iPhone and Android",
-    "lede": "Ditto is a board of big, tappable squares. Each square holds a piece of text you use again and again — a refill note, fasting instructions, return precautions, the follow-up line you type after every visit. Tap it and the text is ready to paste, or type it straight into any app with the Ditto keyboard.",
-    "like_what": "Your office hours. Refill sent. Fasting instructions. The follow-up line you type after every visit.",
-    "avatar": "SP", "contact": "Sam P. (patient)", "opener": "Hi Dr. Chen, did my labs come back?",
+    "lede": "Ditto is a board of big, tappable squares. Each square holds a piece of text you use again and again — a fluid bolus, a lab order, an antibiotic start, the potassium replacement you write every day. Tap it and the text is ready to paste, or type it straight into any app with the Ditto keyboard.",
+    "like_what": "A saline bolus. Stat labs. A pneumonia order set. The potassium you replace every day.",
+    "avatar": "TR", "contact": "Taylor (RN)", "opener": "Hi Dr. Chen, bed 12 is nauseated. Orders?",
+    # The board below is a real hospitalist's, shared by its owner on 2026-11-01 (Downloads/Ditto board.json).
     "board": [
-        {"name": "Hours", "text": "The office is open Monday to Friday, 8 am – 5 pm. For urgent concerns after hours, call the main line and the on-call physician will be paged."},
-        {"name": "Portal replies", "folder": True, "items": [
-            {"name": "Labs normal", "text": "Your lab results are back and everything is within the normal range. No changes are needed; we'll recheck at your next visit."},
-            {"name": "Refill sent", "text": "Your refill has been sent to your pharmacy. Please allow 1–2 business days before picking it up."},
-            {"name": "Referral placed", "text": "The referral has been placed. The specialist's office will call you to schedule; if you haven't heard in 2 weeks, let us know."},
-            {"name": "Follow-up", "text": "Please schedule a follow-up visit in 3 months. Call the office or book through the portal."},
+        {"name": "IVF", "folder": True, "items": [
+            {"name": "IVFx20h", "text": "Start normal saline at 50 cc an hour x 20 hours.   Check cbc cmp tomorrow."},
+            {"name": "Bolus500", "text": "Bolus 500 ml of normal saline now stat"},
+            {"name": "Bolus1L", "text": "Bolus 1,000 mL (1 liter) normal saline stat now"},
+            {"name": "While NPO", "text": "Normal saline at 50 cc an hour while NPO"},
         ]},
-        {"name": "Instructions", "folder": True, "items": [
-            {"name": "Fasting labs", "text": "Nothing to eat or drink except water for 8 hours before your blood draw. Take your usual morning medications with water unless told otherwise."},
-            {"name": "Imaging prep", "text": "For your scan: wear clothing without metal, arrive 15 minutes early, and bring your ID and insurance card."},
-            {"name": "Return precautions", "text": "If you have chest pain, trouble breathing, fainting, or your symptoms get worse, call 911 or go to the nearest emergency room."},
-            {"name": "Bring to visit", "text": "Please bring your medication list, any outside records and your insurance card to the visit."},
+        {"name": "LABS", "folder": True, "items": [
+            {"name": "BASIC LABS ROUTINE", "text": "Check cbc cmp routine"},
+            {"name": "STAT", "text": "Stat CBC and CMP"},
         ]},
-        {"name": "Work note", "text": "Please excuse this patient from work on [TODAY]. They may return the following day without restrictions."},
-        {"name": "Prior auth", "text": "Prior authorization has been submitted to your insurance. Approvals usually take 3–5 business days; we'll message you when we hear back."},
-        {"name": "Call the office", "text": "This is best discussed by phone. Please call the office at (555) 010-0100 and the staff will get you to me."},
-        {"name": "Fax", "text": "Fax: (555) 010-0199\nPhone: (555) 010-0100"},
-        {"name": "Thank you", "text": "Thank you for your patience. Please reach out any time with questions."},
-        {"name": "Signature", "text": "Dr. Chen\nInternal Medicine"},
+        {"name": "PNA", "folder": True, "items": [
+            {"name": "Suspect PNA", "text": "Check CXR now, CBC, CMP routine and if not already ordered, add incentive spirometer and train how to use"},
+            {"name": "CAP IV", "text": "Start on 2 grams IV Rocephin daily x 7 days.   Also start on PO doxycycline 100 mg bid x 7 days.  Start IV antibiotics STAT.  \n\nCheck procalcitonin, urine strep antigen, and urine Legionella antigen routine ( non stat order )"},
+            {"name": "HCAP", "text": "Start on 2 grams IV cefepime q8 hours x 7 days.   Also start on PO doxycycline 100 mg bid x 7 days.  Start IV antibiotics STAT.  \n\nCheck procalcitonin, urine strep antigen, and urine Legionella antigen routine ( non stat order )"},
+        ]},
+        {"name": "Nausea", "folder": True, "items": [
+            {"name": "Zofran PRN", "text": "Zofran 4 mg PO prn q6 hours"},
+            {"name": "Zofran ATC", "text": "Zofran 4 mg PO q6 hours routine for 2 days, then make it PRN"},
+        ]},
+        {"name": "SWELLING", "folder": True, "items": [
+            {"name": "LLE", "text": "Check venous duplex lle"},
+            {"name": "RLE", "text": "Check venous duplex rle"},
+            {"name": "Wrap Legs", "text": "Leg Wrapping and Elevation Instructions: \n\n1. Wrap both legs with an ACE Bandage:\n\n-Start at the toes and wrap snugly to ensure all toes are completely covered.\n-Gradually decrease the tightness as you move upward, making the wrap loosest just below the knees. \n-Proper tightness at the toes/feet is critical to prevent swelling from worsening. \n\n2. Elevate the Legs with Pillows: \n\n-Use two pillows to elevate the legs. \n-Make sure the feet are resting on the pillows so that the feet are positioned as the highest point of the lower extremities.  \n\n***Double-check that the toes are fully wrapped and the tightness decreases as it goes up the leg. \n\n***Confirm that the feet are elevated higher than the rest of the legs to promote proper drainage and reduce swelling."},
+            {"name": "Wrap feet", "text": "At night while sleeping:  \n\nPlease wrap both of the patient's feet ONLY.  Gradual decrease in compression, ACE wrapping should be tightest at the toes and the compression should be the LEAST at the ankle joint.  Do NOT wrap the ankle or patients feet.  REMOVE ALL WRAPPING DURING THE DAY.  \n\nThis is to be done for 3 evenings.  \n\nElevate the patient's feet on 2 pillows at night."},
+        ]},
+        {"name": "K", "folder": True, "items": [
+            {"name": "One time", "text": "Potassium 40 meq once PO (ask patient if they prefer the large pill or the liquid form ; if they have dysphagia, give them the liquid potassium.)"},
+            {"name": "2x", "text": "Potassium 40 meq once now, then again in 4 hours, then STOP, repeat BMP tomorrow.\n\n(ask patient if they prefer the large pill or the liquid form ; if they have dysphagia, give them the liquid potassium.)"},
+            {"name": "3x", "text": "Potassium 40 meq once now, then again in 4 hours, then again in 4 hours then STOP, repeat BMP tomorrow.\n\n(ask patient if they prefer the large pill or the liquid form ; if they have dysphagia, give them the liquid potassium.)"},
+            {"name": "Daily", "text": "Potassium 40 meq daily.  \n\n(ask patient if they prefer the large pill or the liquid form ; if they have dysphagia, give them the liquid potassium.)"},
+        ]},
+        {"name": "OH", "folder": True, "items": [
+            {"name": "Mid 2.5", "text": "Midodrine 2.5 mg TID, time for 7 am, 11 am and 4 pm.  Hold if prior to giving systolic blood pressure is above 140."},
+            {"name": "Mid 5", "text": "Midodrine 5 mg TID, time for 7 am, 11 am and 4 pm.  Hold if prior to giving systolic blood pressure is above 140."},
+            {"name": "Droxidopa", "text": "Droxidopa 100 mg twice a day.  Time for 7 am and 12 pm. Hold if prior to giving systolic blood pressure is above 140.   Sleep with head of bed elevated."},
+            {"name": "Florinef", "text": "Florinef 0.1 mg daily PO.  Give at 8 am daily.   Hold if systolic blood pressure above 140. \n\nCheck BMP tomorrow, then weekly to monitor potassium level."},
+        ]},
+        {"name": "Constipation", "folder": True, "items": [
+            {"name": "MiraLax", "text": "Please add MiraLax 17 grams PO daily"},
+            {"name": "Bowel Protocol", "text": "Please place on bowel protocol"},
+            {"name": "Enema x1", "text": "Please give a soap suds enema now; if we do not have soap suds, give a fleet enema now once."},
+        ]},
+        {"name": "INCENTIVE SPIROMETER", "text": "Please order an incentive spirometer.  Instruct patient how to use it."},
     ],
 }
 

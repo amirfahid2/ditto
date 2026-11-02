@@ -254,8 +254,9 @@
   .b-grid::-webkit-scrollbar { display: none; }
   /* squares look like the keyboard's keys: white (gray in the dark), blue for a folder */
   .sq {
-    aspect-ratio: 1; border-radius: 16px; border: 0; padding: 6px;
-    font: inherit; font-size: 12px; font-weight: 600; color: var(--key-ink); background: var(--key);
+    aspect-ratio: 1; border-radius: 16px; border: 0; padding: 5px;
+    font: inherit; font-size: 11px; font-weight: 600; color: var(--key-ink); background: var(--key);
+    overflow-wrap: anywhere;   /* a long name wraps inside the square instead of running out of it */
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
     cursor: pointer; transition: transform 0.1s ease, background 0.15s ease, filter 0.15s ease;
     text-align: center; line-height: 1.15;
