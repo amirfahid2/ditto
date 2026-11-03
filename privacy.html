@@ -23,11 +23,14 @@
 <p>The text snippets you save in Ditto are stored only on your own device —
 in the app's private storage on iPhone and Android, or in your browser's local
 storage on the web version. They are never uploaded, synced, or transmitted to
-us or to anyone else, except in encrypted form that we cannot read if you turn on
-<a href="#link">Link to the web</a>.</p>
+us. They leave your device only when you send them yourself, in encrypted form that
+we cannot read if you turn on <a href="#link">Link to the web</a>, or, on Android, in
+Android's own device backup if you have it turned on (see
+<a href="#android">Ditto on Android</a>).</p>
 <p>Ditto 1.5 and later on iPhone, and Ditto 1.1 and later on Android, also keep a
 count of the squares you tap, how many words they put in and the day counting
-started, for My stats. The count stays on your device. It isn't part of Link to
+started, for My stats. The count stays on your device (on Android, Android's own
+device backup also includes it if you have that turned on). It isn't part of Link to
 the web, Share board or an exported backup file, and we never see it.</p>
 
 <h2>What we collect</h2>
@@ -61,9 +64,9 @@ dittotap.com/link page), the web app at dittotap.com shows that same board in th
 browser, through the same encrypted link, and edits you make there go back to your
 phone the same way. Turned off, the web app uses only the squares stored in your
 browser.</p>
-<p>Chat buttons, settings and anything you type with the keyboard never leave the
-phone. The Ditto keyboard never goes online, with or without Link to the web; on
-iPhone it has no internet access at all.</p>
+<p>Link to the web never sends your chat buttons, your settings or anything you type
+with the keyboard. The Ditto keyboard never sends what you type anywhere, with or
+without Link to the web; on iPhone it has no internet access at all.</p>
 
 <h2>The Ditto keyboard</h2>
 <p>The Ditto keyboard shows your squares inside other apps and types a square's
@@ -87,10 +90,11 @@ that, the only networking component inside the app is Google Play's billing
 library, which handles the Ditto Pro subscription.</p>
 <p>With Link to the web on, Ditto syncs when it opens, about two seconds after an
 edit, and once more right away if you leave Ditto with an unsent change. It never
-syncs in the background otherwise. The link key stays on that device and is left
-out of Android backups, so a new or restored phone starts unlinked. Ditto asks for
-camera access only when you tap Scan, uses the camera only to read the code on
-the screen, and saves or sends no picture. The relay erases everything 30 days
+syncs in the background otherwise. The link key is locked by a key in the Android
+Keystore, stays on that device and is left out of Android's backups and
+phone-to-phone transfers, so a new or restored phone starts unlinked. Ditto asks for
+camera access only when you tap Scan the code, uses the camera only to read the code
+on the screen, and saves or sends no picture. The relay erases everything 30 days
 after the last change, or straight away when you tap Unlink, exactly as on iPhone.</p>
 <p>That billing library also sends Google basic diagnostic reports about the
 billing service (for example device model, Android version and whether a purchase
@@ -100,17 +104,23 @@ Service</a> and <a href="https://policies.google.com/privacy">Google's Privacy
 Policy</a>. Nothing you type, and none of your squares, is included.</p>
 <p>The Ditto keyboard on
 Android reads only your own squares and types a square's text when you tap it. It
-never goes online, with or without Link to the web.
-Android shows a standard notice ("this input method may be able to collect all
+never sends what you type anywhere, with or without Link to the web; the only thing
+it may ask, through the Google Play app on your phone, is whether your subscription
+is active. Android shows a standard notice ("this input method may be able to collect all
 the text you type") for every keyboard that is not Google's own; in Ditto's case
 nothing you type is stored, analyzed, or transmitted — the keyboard looks at the
-text field only to decide whether to add a blank line before the next snippet.
+text field only to choose a blank line or a space before the next square and to keep
+Select on the squares it just typed; it keeps none of it.
 It also counts the squares you tap, for My stats; that count stays on the device.
-If you have Android's own backup turned on, your board and your My stats count
-are included in the device backup kept in your Google account, like any other
-app's data; pictures on squares and the Link to the web key stay on the device and
-are not backed up. The "Back up to a file" option writes a file you
-choose where to keep; Ditto never uploads it.</p>
+If you have Android's own backup turned on, your board, your settings and chat
+buttons, your My stats count and the dates of your free months and subscription are
+included in the device backup kept in your Google account, like any other app's
+data; pictures on squares are not. Moving to a new phone with Android's cable or
+Wi-Fi transfer (Android 12 and later) also brings the pictures. The Link to the web
+key never leaves the device, so a new or restored phone starts unlinked.
+Settings &rsaquo; Backup &rsaquo; Export board sends a backup file through the app you
+choose, and Save to this device… saves it where you choose; Ditto never uploads it
+itself.</p>
 
 <h2>Ditto Pro subscription</h2>
 <p>New downloads get Ditto free for their first 4 months (anyone who started using
