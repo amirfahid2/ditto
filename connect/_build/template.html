@@ -271,8 +271,9 @@
   .demo-hint span.on { visibility: visible; }
   .demo .demo-hint { margin-top: 22px; }   /* room for "Press a button" under the phone */
   /* "Press a button": a neon hand-drawn arrow from under the phone, around its corner, to the edge of the
-     phone beside the last square. The script draws it once the keyboard is on screen; it stays, and only
-     steps aside while its square is off screen (the board view, the regular keyboard, an open folder). */
+     phone beside the square nearest it. The script draws it once the demo is on screen and keeps it up,
+     re-aiming at whatever is showing (the board, a folder's items); it only steps aside on the regular
+     keyboard, where there are no squares. */
   .phone-wrap { position: relative; width: 300px; max-width: 100%; }
   .nudge-arrow { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
   .nudge-arrow path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
@@ -287,7 +288,7 @@
   [dir="rtl"] .nudge-text { transform: rotate(5deg); }
   .nudge-arrow, .nudge-text { transition: opacity 0.4s ease; z-index: 6; }   /* above the scroll fade on a phone */
   .nudge-off .nudge-arrow, .nudge-off .nudge-text { opacity: 0; }
-  html.anim .nudge-arrow .line, html.anim .nudge-arrow .halo { transition: stroke-dashoffset 1s cubic-bezier(0.2, 0.7, 0.2, 1); }
+  html.anim .nudge-arrow .line, html.anim .nudge-arrow .halo { transition: stroke-dashoffset 1s cubic-bezier(0.2, 0.7, 0.2, 1), d 0.35s ease; }
   html.anim .nudge-live .nudge-arrow { animation: nudge-bob 1.6s ease-in-out infinite; }
   @keyframes nudge-bob { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-3px, -1px); } }
   [dir="rtl"] .nudge-live .nudge-arrow { animation-name: nudge-bob-rtl; }
@@ -350,9 +351,9 @@
   .send:disabled { opacity: 0.35; cursor: default; }
   .kb { background: var(--kb); padding: 8px 8px 20px; flex: none; }
   .kb-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; }
-  .pill { background: var(--bubble-out); color: #fff; border-radius: 999px; padding: 4px 11px; font-size: 11px; font-weight: 600; border: 0; font-family: inherit; }
+  .pill { display: inline-block; background: var(--bubble-out); color: #fff; border-radius: 999px; padding: 4px 11px; font-size: 11px; font-weight: 600; line-height: 1.3; border: 0; font-family: inherit; }   /* the same box as a span or a button, so the back pill moves nothing */
   button.pill { cursor: pointer; }
-  .kb-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .kb-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; grid-auto-rows: 40px; min-height: 132px; align-content: start; }   /* always three rows tall, so opening a folder moves nothing */
   /* keys look like keyboard keys: white, and blue for a folder */
   .key {
     height: 40px; border-radius: 8px; border: 0; padding: 4px 6px;
@@ -711,6 +712,7 @@
     add.textContent = {{J_ADD_SQUARE}};
     add.setAttribute("aria-hidden", "true");
     grid.appendChild(add);
+    updateNudge();
   }
 
   // ---- keyboard view ----
@@ -829,35 +831,53 @@
     });
   });
 
-  // ---- "Press a button": the arrow from under the phone into the last square ----
+  // ---- "Press a button": the arrow from under the phone to the square nearest it ----
   var nudgeWrap = document.getElementById("phoneWrap"), nudgeSvg = document.getElementById("nudgeArrow");
   var nudgeLine = document.getElementById("nudgeLine"), nudgeHalo = document.getElementById("nudgeHalo");
-  var nudgeText = document.getElementById("nudgeText");
-  var nudgeTarget = -1;
-  BOARD.forEach(function (it, i) { if (!it.folder) nudgeTarget = i; });
+  var nudgeText = document.getElementById("nudgeText"), nudgeScreen = nudgeWrap.querySelector(".screen");
   var nudgeDrawn = false, nudgeInView = !("IntersectionObserver" in window);
   function offsetWithin(el, stop) {
     var x = 0, y = 0;
     while (el && el !== stop) { x += el.offsetLeft; y += el.offsetTop; el = el.offsetParent; }
     return { x: x, y: y };
   }
-  function nudgeVisible() {
-    return nudgeTarget >= 0 && onDitto && !kbFolder &&
-      document.getElementById("keyboardView").classList.contains("on");
+  // The square the arrow points at: in whatever is showing (the board, the keyboard, a folder's items),
+  // a plain square in the column nearest the arrow, the lowest one there. Nothing on the regular keyboard.
+  function nudgeTarget() {
+    var boardOn = document.getElementById("boardView").classList.contains("on");
+    var keys;
+    if (boardOn) keys = grid.querySelectorAll(":scope > .sq:not(.folder):not(.add)");
+    else if (onDitto) keys = kbGrid.querySelectorAll(".key:not(.folder)");
+    else return null;
+    if (!keys.length) keys = boardOn ? grid.querySelectorAll(":scope > .sq:not(.add)") : kbGrid.querySelectorAll(".key");
+    var rtl = document.documentElement.dir === "rtl", best = null, bestX = 0, bestY = 0;
+    keys.forEach(function (k) {
+      var r = k.getBoundingClientRect();
+      var x = rtl ? -r.left : r.right;   // the edge nearest the arrow
+      if (!best || x > bestX + 0.5 || (Math.abs(x - bestX) <= 0.5 && r.top > bestY)) { best = k; bestX = x; bestY = r.top; }
+    });
+    if (!best) return null;
+    var sr = nudgeScreen.getBoundingClientRect(), br = best.getBoundingClientRect();
+    if (br.top < sr.top || br.bottom > sr.bottom) return null;   // scrolled out of the phone's screen
+    return best;
   }
+  function nudgeVisible() { return nudgeTarget() !== null; }
   function placeNudge() {
-    var key = kbGrid.children[nudgeTarget];
+    var key = nudgeTarget();
     if (!key) return;
     var W = nudgeWrap.offsetWidth, H = nudgeWrap.offsetHeight;
     nudgeSvg.setAttribute("viewBox", "0 0 " + W + " " + H);
     var rtl = document.documentElement.dir === "rtl";
-    var k = offsetWithin(key, nudgeWrap), t = offsetWithin(nudgeText, nudgeWrap);
-    var ky = k.y + key.offsetHeight / 2;
+    // the square's place inside the phone, from the screen rather than the layout, so a scrolled board
+    // and the desktop zoom are both accounted for
+    var rect = nudgeWrap.getBoundingClientRect(), kr = key.getBoundingClientRect();
+    var zf = rect.width / nudgeWrap.offsetWidth || 1;
+    var ky = (kr.top + kr.height / 2 - rect.top) / zf;
+    var t = offsetWithin(nudgeText, nudgeWrap);
     // The label is turned 5 degrees, so its outer end (the last letter) sits a little above its middle.
     var lift = (nudgeText.offsetWidth / 2) * Math.sin(5 * Math.PI / 180);
     var sy = t.y + nudgeText.offsetHeight / 2 - lift;
     // how far the curve may swing out past the phone's edge: never past the window's edge
-    var rect = nudgeWrap.getBoundingClientRect();
     var room = (rtl ? rect.left : window.innerWidth - rect.right) - 10;
     var bulge = Math.max(14, Math.min(64, room));
     // The line comes out of the arrowhead just outside the phone, level with the square, runs back
@@ -877,10 +897,12 @@
     }
     var len = nudgeLine.getTotalLength();
     [nudgeLine, nudgeHalo].forEach(function (p) { p.style.strokeDasharray = len; p.style.strokeDashoffset = len; });
-    if (!nudgeInView) return;   // drawn once the keyboard is on screen
+    if (!nudgeInView) return;   // drawn once the demo is on screen
     nudgeDrawn = true;
     setTimeout(function () { [nudgeLine, nudgeHalo].forEach(function (p) { p.style.strokeDashoffset = "0"; }); }, 350);
     setTimeout(function () {
+      // drawn: drop the dash, so the line stays whole however it is re-aimed later
+      [nudgeLine, nudgeHalo].forEach(function (p) { p.style.strokeDasharray = ""; p.style.strokeDashoffset = ""; });
       nudgeHeads();
       nudgeWrap.classList.add("nudge-live");
     }, 1400);
@@ -900,7 +922,8 @@
     }, { threshold: 0.3 });
     nio.observe(nudgeWrap);
   }
-  window.addEventListener("resize", function () { if (nudgeVisible()) placeNudge(); });
+  window.addEventListener("resize", updateNudge);
+  grid.addEventListener("scroll", updateNudge, { passive: true });
 
   renderBoard();
   renderKeyboard();
