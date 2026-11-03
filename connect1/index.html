@@ -271,8 +271,8 @@
   .demo-hint span.on { visibility: visible; }
   .demo .demo-hint { margin-top: 22px; }   /* room for "Press a button" under the phone */
   /* "Press a button": a neon hand-drawn arrow from under the phone, around its corner, to the edge of the
-     phone beside the last square. The script draws it once the keyboard is on screen and takes it away
-     after the first tap. */
+     phone beside the last square. The script draws it once the keyboard is on screen; it stays, and only
+     steps aside while its square is off screen (the board view, the regular keyboard, an open folder). */
   .phone-wrap { position: relative; width: 300px; max-width: 100%; }
   .nudge-arrow { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
   .nudge-arrow path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
@@ -815,7 +815,6 @@
     list.forEach(function (item) {
       var el = square(item, "key");
       el.addEventListener("click", function () {
-        nudgeDone();
         if (item.folder) { kbFolder = item; renderKeyboard(); return; }
         el.classList.add("flash");
         setTimeout(function () { el.classList.remove("flash"); }, 200);
@@ -856,14 +855,14 @@
   var nudgeText = document.getElementById("nudgeText");
   var nudgeTarget = -1;
   BOARD.forEach(function (it, i) { if (!it.folder) nudgeTarget = i; });
-  var nudgeUsed = false, nudgeDrawn = false, nudgeInView = !("IntersectionObserver" in window);
+  var nudgeDrawn = false, nudgeInView = !("IntersectionObserver" in window);
   function offsetWithin(el, stop) {
     var x = 0, y = 0;
     while (el && el !== stop) { x += el.offsetLeft; y += el.offsetTop; el = el.offsetParent; }
     return { x: x, y: y };
   }
   function nudgeVisible() {
-    return !nudgeUsed && nudgeTarget >= 0 && onDitto && !kbFolder &&
+    return nudgeTarget >= 0 && onDitto && !kbFolder &&
       document.getElementById("keyboardView").classList.contains("on");
   }
   function placeNudge() {
@@ -915,7 +914,6 @@
     nudgeWrap.classList.toggle("nudge-off", !show);
     if (show) placeNudge();
   }
-  function nudgeDone() { if (nudgeUsed) return; nudgeUsed = true; updateNudge(); }
   if (!nudgeInView) {
     var nio = new IntersectionObserver(function (entries) {
       if (entries.some(function (e) { return e.isIntersecting; })) { nudgeInView = true; nio.disconnect(); updateNudge(); }
