@@ -180,8 +180,10 @@
     .lede { font-size: 17px; margin: 0 0 22px; }
     .ctas { justify-content: flex-start; }
     .btn { min-height: 50px; font-size: 16px; padding: 0 22px; }
-    .pair { grid-template-columns: auto auto; gap: 32px; padding: 0; }
-    .guide, .demo { justify-self: center; }
+    /* each column is exactly its phone's width, so the note under a phone wraps instead of widening
+       the column: switching the demo's view moves nothing else on the page */
+    .pair { grid-template-columns: 300px 300px; gap: 32px; padding: 0; }
+    .guide, .demo { justify-self: center; width: 300px; }
   }
   /* a shorter window still shows the whole phones: they scale down in steps */
   @media (min-width: 1200px) and (max-height: 1000px) { .pair { zoom: 0.85; } }
