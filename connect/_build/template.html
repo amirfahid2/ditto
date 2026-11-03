@@ -915,12 +915,12 @@
     // how far the curve may swing out past the phone's edge: never past the window's edge
     var room = (rtl ? rect.left : window.innerWidth - rect.right) - 10;
     var bulge = Math.max(14, Math.min(64, room));
-    // The line comes out of the arrowhead just outside the phone, level with the square, runs back
-    // away from the phone, then curves down and lands on the last letter of the label.
-    var sx, ex, cx;
-    if (rtl) { sx = t.x - 3; ex = -4; cx = -bulge - 8; }
-    else { sx = t.x + nudgeText.offsetWidth + 3; ex = W + 4; cx = W + bulge + 8; }
-    var d = "M" + sx + " " + sy + " C" + cx + " " + (sy - 6) + ", " + cx + " " + (ky + 6) + ", " + ex + " " + ky;
+    // The line comes out of the arrowhead just outside the phone, level with the square: straight through
+    // the head for a short stem, then back away from the phone, curving down onto the label's last letter.
+    var stem = 16, sx, ex, ex2, cx;
+    if (rtl) { sx = t.x - 3; ex = -4; ex2 = ex - stem; cx = -bulge - 8; }
+    else { sx = t.x + nudgeText.offsetWidth + 3; ex = W + 4; ex2 = ex + stem; cx = W + bulge + 8; }
+    var d = "M" + sx + " " + sy + " C" + cx + " " + (sy - 6) + ", " + cx + " " + ky + ", " + ex2 + " " + ky + " L" + ex + " " + ky;
     nudgeHalo.setAttribute("d", d);
     nudgeLine.setAttribute("d", d);
     if (nudgeDrawn) return;
