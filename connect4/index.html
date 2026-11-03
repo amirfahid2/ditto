@@ -177,6 +177,9 @@
     .guide { order: 3; align-self: center; margin: 0 0 72px; }
   }
   .label { font-size: 14px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); text-align: center; margin: 0 0 14px; }
+  /* Each phone column is exactly its phone's width at every window size, so the note under a phone
+     wraps instead of sizing the column: switching the demo's view moves nothing else on the page. */
+  .guide, .demo { width: 300px; max-width: 100%; }
   /* wide screens: the text on the left, both phones beside it, nothing below the fold */
   @media (min-width: 1200px) {
     .wrap { max-width: 1340px; }
@@ -264,7 +267,9 @@
   .bat::after { content: ""; position: absolute; inset: 1.5px; right: 4px; background: currentColor; border-radius: 1px; }
   .view { flex: 1; min-height: 0; display: none; flex-direction: column; }
   .view.on { display: flex; }
-  .demo-hint { font-size: 14px; color: var(--muted); margin: 0; text-align: center; min-height: 3.1em; }   /* room for two lines, so the page never shifts when the note changes */
+  .demo-hint { font-size: 14px; color: var(--muted); margin: 0; text-align: center; display: grid; }
+  .demo-hint span { grid-area: 1 / 1; visibility: hidden; }   /* all three notes share one box, so its height never changes */
+  .demo-hint span.on { visibility: visible; }
   .demo .demo-hint { margin-top: 22px; }   /* room for "Press a button" under the phone */
   /* "Press a button": a neon hand-drawn arrow from under the phone, around its corner, to the edge of the
      phone beside the last square. The script draws it once the keyboard is on screen and takes it away
@@ -538,7 +543,7 @@
         </svg>
         <span class="nudge-text" id="nudgeText" aria-hidden="true">یک دکمه را بزنید</span>
         </div>
-        <p class="demo-hint" id="demoHint">امتحان کنید: یک مربع را لمس کنید تا متنش وارد شود، بعد بفرستید. کره‌ی زمین صفحه‌کلید را عوض می‌کند.</p>
+        <p class="demo-hint" id="demoHint"><span data-hint="board">امتحان کنید: یک مربع را لمس کنید، یا چند تا را پشت سر هم.</span><span data-hint="kb" class="on">امتحان کنید: یک مربع را لمس کنید تا متنش وارد شود، بعد بفرستید. کره‌ی زمین صفحه‌کلید را عوض می‌کند.</span><span data-hint="qwerty">صفحه‌کلید همیشگی شما. برای برگشتن به Ditto کره‌ی زمین را لمس کنید.</span></p>
       </section>
     </div>
   </main>
@@ -760,10 +765,10 @@
   var send = document.getElementById("send");
   var thread = document.getElementById("thread");
   var kbFolder = null;
-  var hint = document.getElementById("demoHint");
-  var HINT_BOARD = "امتحان کنید: یک مربع را لمس کنید، یا چند تا را پشت سر هم.";
-  var HINT_KB = "امتحان کنید: یک مربع را لمس کنید تا متنش وارد شود، بعد بفرستید. کره‌ی زمین صفحه‌کلید را عوض می‌کند.";
-  var HINT_QWERTY = "صفحه‌کلید همیشگی شما. برای برگشتن به Ditto کره‌ی زمین را لمس کنید.";
+  var hintSpans = document.querySelectorAll("#demoHint span");
+  function setHint(name) {
+    hintSpans.forEach(function (el) { el.classList.toggle("on", el.getAttribute("data-hint") === name); });
+  }
 
   function setField(text) {
     field.textContent = text;
@@ -784,7 +789,7 @@
     onDitto = !onDitto;
     kbDitto.hidden = !onDitto;
     kbQwerty.hidden = onDitto;
-    hint.textContent = onDitto ? HINT_KB : HINT_QWERTY;
+    setHint(onDitto ? "kb" : "qwerty");
     updateNudge();
   }
   document.getElementById("globeDitto").addEventListener("click", switchKeyboard);
@@ -865,7 +870,7 @@
       document.querySelectorAll(".seg button").forEach(function (b) { b.setAttribute("aria-pressed", String(b === btn)); });
       document.getElementById("boardView").classList.toggle("on", v === "board");
       document.getElementById("keyboardView").classList.toggle("on", v === "keyboard");
-      hint.textContent = v === "board" ? HINT_BOARD : (onDitto ? HINT_KB : HINT_QWERTY);
+      setHint(v === "board" ? "board" : (onDitto ? "kb" : "qwerty"));
       updateNudge();
     });
   });
