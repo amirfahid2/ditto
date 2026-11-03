@@ -17,7 +17,7 @@
 <p><em>Effective November 1, 2026</em></p>
 
 <h2>The short version</h2>
-<p>Ditto collects no data: we never receive anything about you or your squares. On Android, Google Play's billing library, which handles the subscription, sends Google basic diagnostic reports about the billing service (<a href="#android">details below</a>). If you choose to link a web browser to your iPhone, your board travels between them end-to-end encrypted, so we can't read it either.</p>
+<p>Ditto collects no data: we never receive anything about you or your squares. On Android, Google Play's billing library, which handles the subscription, sends Google basic diagnostic reports about the billing service (<a href="#android">details below</a>). If you choose to link a web browser to your phone, your board travels between them end-to-end encrypted, so we can't read it either.</p>
 
 <h2>What Ditto stores, and where</h2>
 <p>The text snippets you save in Ditto are stored only on your own device —
@@ -39,12 +39,12 @@ exception on Android is Google's own: Google Play's billing library sends Google
 basic diagnostic reports about the billing service, described under
 <a href="#android">Ditto on Android</a>. The iPhone app has nothing like it.</p>
 
-<h2 id="link">Link to the web (iPhone, Ditto 1.4 and later, only if you turn it on)</h2>
+<h2 id="link">Link to the web (Ditto 1.4 and later on iPhone, Ditto 1.1 and later on Android, only if you turn it on)</h2>
 <p>Link to the web lets you edit your board in a browser at dittotap.com/link. It
 stays off until you open Settings &rsaquo; Link to the web in Ditto and scan the code
 shown on that page (or paste its link). The code holds a secret key. It goes from
-your computer screen to your iPhone and is never sent to us.</p>
-<p>Your iPhone encrypts your board and its pictures with that key before they
+your computer screen to your phone and is never sent to us.</p>
+<p>Your phone encrypts your board and its pictures with that key before they
 leave the phone, and your browser decrypts them on your computer. In between they
 wait on our relay as scrambled data that we cannot read. The relay runs on
 Cloudflare, which sees ordinary connection details such as IP addresses to deliver
@@ -52,13 +52,18 @@ the traffic; we don't use them to identify you. The relay erases everything 30 d
 after the last change, or straight away when you tap Unlink on the phone or on the
 web page. The web page keeps the key in your browser so it stays linked, and Unlink
 removes it.</p>
-<p>If you also turn on Use my iPhone's squares (in Settings on dittotap.com, or on the
+<p>Your phone talks to the relay only while Ditto is open. On iPhone, Ditto checks for
+changes when you open it and sends yours about two seconds after an edit. On Android,
+Ditto syncs when it opens, about two seconds after an edit, and once more right away
+if you leave Ditto with an unsent change. Neither syncs in the background otherwise.</p>
+<p>If you also turn on Use my phone's squares (in Settings on dittotap.com, or on the
 dittotap.com/link page), the web app at dittotap.com shows that same board in that
 browser, through the same encrypted link, and edits you make there go back to your
-iPhone the same way. Turned off, the web app uses only the squares stored in your
+phone the same way. Turned off, the web app uses only the squares stored in your
 browser.</p>
 <p>Chat buttons, settings and anything you type with the keyboard never leave the
-iPhone. The Ditto keyboard has no internet access, with or without Link to the web.</p>
+phone. The Ditto keyboard never goes online, with or without Link to the web; on
+iPhone it has no internet access at all.</p>
 
 <h2>The Ditto keyboard</h2>
 <p>The Ditto keyboard shows your squares inside other apps and types a square's
@@ -75,9 +80,18 @@ your iPhone.</p>
 
 <h2 id="android">Ditto on Android</h2>
 <p>The Android app works the same way: your squares live in the app's private
-storage on your device, and Ditto's own code makes no network requests at all —
-the only networking component inside the app is Google Play's billing library,
-which handles the Ditto Pro subscription.</p>
+storage on your device. <a href="#link">Link to the web</a> is the only part of
+Ditto's own code that goes online, and only after you link a computer; the board
+and its pictures are encrypted on the phone first, as described above. Apart from
+that, the only networking component inside the app is Google Play's billing
+library, which handles the Ditto Pro subscription.</p>
+<p>With Link to the web on, Ditto syncs when it opens, about two seconds after an
+edit, and once more right away if you leave Ditto with an unsent change. It never
+syncs in the background otherwise. The link key stays on that device and is left
+out of Android backups, so a new or restored phone starts unlinked. Ditto asks for
+camera access only when you tap Scan, uses the camera only to read the code on
+the screen, and saves or sends no picture. The relay erases everything 30 days
+after the last change, or straight away when you tap Unlink, exactly as on iPhone.</p>
 <p>That billing library also sends Google basic diagnostic reports about the
 billing service (for example device model, Android version and whether a purchase
 step succeeded). Ditto never receives this information; it is handled by Google
@@ -85,7 +99,8 @@ under the <a href="https://play.google.com/about/play-terms/">Google Play Terms 
 Service</a> and <a href="https://policies.google.com/privacy">Google's Privacy
 Policy</a>. Nothing you type, and none of your squares, is included.</p>
 <p>The Ditto keyboard on
-Android reads only your own squares and types a square's text when you tap it.
+Android reads only your own squares and types a square's text when you tap it. It
+never goes online, with or without Link to the web.
 Android shows a standard notice ("this input method may be able to collect all
 the text you type") for every keyboard that is not Google's own; in Ditto's case
 nothing you type is stored, analyzed, or transmitted — the keyboard looks at the
@@ -93,8 +108,8 @@ text field only to decide whether to add a blank line before the next snippet.
 It also counts the squares you tap, for My stats; that count stays on the device.
 If you have Android's own backup turned on, your board and your My stats count
 are included in the device backup kept in your Google account, like any other
-app's data; pictures
-on squares stay on the device. The "Back up to a file" option writes a file you
+app's data; pictures on squares and the Link to the web key stay on the device and
+are not backed up. The "Back up to a file" option writes a file you
 choose where to keep; Ditto never uploads it.</p>
 
 <h2>Ditto Pro subscription</h2>

@@ -1,12 +1,12 @@
-// Ditto web editor — pairs with the iPhone app by QR code and edits its board
+// Ditto web editor — pairs with the Ditto app on a phone (iPhone or Android) by QR code and edits its board
 // through the zero-knowledge relay. Protocol: ditto-relay/PROTOCOL.md (v1).
 import { LinkClient, RelayError, deriveLink, newSecret, pairUrl, b64url, unb64url, pictureNames, PICTURE_NAME } from "./link-core.js";
 import { qrSvg } from "./qr.js";
 
 const RELAY = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? "http://localhost:8672" : "https://ditto-relay.ditto-relay.workers.dev";
 const STORE_KEY = "ditto.link.v1";
-const USE_KEY = "ditto.link.useOnSite";   // dittotap.com shows the iPhone's squares (link/phone-board.js)
-// came from "Use my iPhone's squares here" on dittotap.com: once linked, go back there with them on
+const USE_KEY = "ditto.link.useOnSite";   // dittotap.com shows the phone's squares (link/phone-board.js)
+// came from "Use my phone's squares here" on dittotap.com: once linked, go back there with them on
 const THEN_HOME = new URLSearchParams(location.search).get("then") === "home";
 const PAIR_POLL_MS = 2000, PAIR_POLL_LIMIT_MS = 10 * 60 * 1000;
 const EDIT_POLL_MS = 10000, SAVE_DELAY_MS = 1500;
@@ -165,7 +165,7 @@ async function startPairing(fresh) {
 function showWaiting(on) {
   $("qrWait").innerHTML = "";
   if (on) {
-    $("qrWait").append(h("span", { class: "spinner", "aria-hidden": "true" }), "Waiting for your iPhone…");
+    $("qrWait").append(h("span", { class: "spinner", "aria-hidden": "true" }), "Waiting for your phone…");
   } else {
     $("qrWait").append("Still there? ", h("button", { type: "button", class: "btn-quiet", onclick: () => { pairStarted = Date.now(); showWaiting(true); pollPairing(); } }, "Keep waiting"));
   }
@@ -190,7 +190,7 @@ function stopPolling() {
 function enterEditor(remote) {
   if (THEN_HOME) {
     stopPolling();
-    S.rev = remote.rev;                            // the iPhone has connected: now it counts as linked
+    S.rev = remote.rev;                            // the phone has connected: now it counts as linked
     persist();
     try { localStorage.setItem(USE_KEY, "1"); } catch (e) {}
     location.replace("../#linked");
@@ -250,7 +250,7 @@ async function pollEditor() {
       if (r.status === "board" && !S.dirty && !S.saving) {
         applyRemote(r);
         render();
-        toast(`Updated from ${r.envelope.device || "your iPhone"}`);
+        toast(`Updated from ${r.envelope.device || "your phone"}`);
       } else if (r.status === "none") {
         gone = true;   // the room is gone: unlinked on the phone, or expired
       }
@@ -260,7 +260,7 @@ async function pollEditor() {
     }
   }
   polling = false;
-  if (gone) return unlinked("This browser was unlinked from your iPhone.");
+  if (gone) return unlinked("This browser was unlinked from your phone.");
   schedulePoll();
 }
 
@@ -313,9 +313,9 @@ async function save() {
 async function showConflict() {
   try {
     const r = await S.client.getBoard();
-    if (r.status !== "board") return unlinked("This browser was unlinked from your iPhone.");
+    if (r.status !== "board") return unlinked("This browser was unlinked from your phone.");
     S.conflict = r;
-    $("conflictText").textContent = `${r.envelope.device || "Your iPhone"} changed the board while you were editing.`;
+    $("conflictText").textContent = `${r.envelope.device || "Your phone"} changed the board while you were editing.`;
     $("conflict").hidden = false;
     setStatus("unsaved", "Not saved — choose a version");
   } catch (e) {
@@ -355,9 +355,9 @@ function unlinked(message) {
 }
 
 async function unlink() {
-  if (!confirm("Unlink this browser? The copy on our relay is erased. The board on your iPhone stays as it is.")) return;
+  if (!confirm("Unlink this browser? The copy on our relay is erased. The board on your phone stays as it is.")) return;
   try { await S.client.unlink(); } catch (e) { /* the room may already be gone */ }
-  unlinked("Unlinked. Your board is still on your iPhone.");
+  unlinked("Unlinked. Your board is still on your phone.");
 }
 
 // ---------- rendering ----------
@@ -381,7 +381,7 @@ function renderLastChange() {
   const el = $("lastChange");
   if (!S.last) { el.textContent = ""; return; }
   const when = S.last.at ? new Date(S.last.at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
-  el.textContent = `Last change from ${S.last.device || (S.last.from === "web" ? "the web" : "your iPhone")}${when ? ", " + when : ""}. Your iPhone picks up changes the next time you open Ditto.`;
+  el.textContent = `Last change from ${S.last.device || (S.last.from === "web" ? "the web" : "your phone")}${when ? ", " + when : ""}. Your phone picks up changes the next time you open Ditto.`;
 }
 
 function renderCrumbs() {
@@ -567,7 +567,7 @@ async function pickPicture(sq, file) {
   }
 }
 
-// Same as the iPhone: at most 400 px on the long side, JPEG 0.85, PNG if it has transparency.
+// Same as the phone apps: at most 400 px on the long side, JPEG 0.85, PNG if it has transparency.
 // Decoded through an <img>, which turns a photo the way its EXIF orientation says in every
 // browser (createImageBitmap doesn't in all of them).
 async function shrinkPicture(file) {
@@ -745,7 +745,7 @@ $("useHereToggle").addEventListener("change", (e) => {
     if (e.target.checked) localStorage.setItem(USE_KEY, "1");
     else localStorage.removeItem(USE_KEY);
   } catch (err) {}
-  toast(e.target.checked ? "dittotap.com now shows your iPhone's squares in this browser." : "dittotap.com shows this browser's own squares again.");
+  toast(e.target.checked ? "dittotap.com now shows your phone's squares in this browser." : "dittotap.com shows this browser's own squares again.");
 });
 document.addEventListener("visibilitychange", () => { if (!document.hidden && !$("editorView").hidden) pollEditor(); });
 window.addEventListener("beforeunload", (e) => { if (S.dirty || S.saving) { e.preventDefault(); e.returnValue = ""; } });

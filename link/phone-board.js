@@ -1,5 +1,5 @@
-// "Use my iPhone's squares" for the web app at dittotap.com: when this browser is linked
-// (dittotap.com/link) and the option is on, the web app shows the iPhone's board instead of
+// "Use my phone's squares" for the web app at dittotap.com: when this browser is linked
+// (dittotap.com/link) and the option is on, the web app shows the phone's board instead of
 // its own. Taps copy, as on the phone; edits go back to the phone through the relay
 // (ditto-relay/PROTOCOL.md v1), sealed with the same key as the /link editor.
 import { LinkClient, deriveLink, unb64url, pictureNames, PICTURE_NAME } from "./link-core.js";
@@ -25,13 +25,13 @@ function savedLink() {
   } catch (e) { return null; }
 }
 
-// linked = the iPhone has connected at least once (opening /link saves a code before any scan)
+// linked = the phone has connected at least once (opening /link saves a code before any scan)
 export const isLinked = () => { const s = savedLink(); return !!(s && s.rev > 0); };
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const phoneBlank = (sq) => !sq.isFolder && !sq.name && !sq.text;
 
-// ---------- the iPhone board <-> the web app's squares ----------
+// ---------- the phone's board <-> the web app's squares ----------
 // The web app knows text squares, "…" blanks and folders of texts one level deep, each with the
 // same looks as on the phone (color, border, emoji or picture, name shown or not). What it
 // doesn't show (folders inside folders, blanks inside folders) is kept from the phone's copy,
@@ -116,7 +116,7 @@ function mergeItems(shown, before) {
   return out.concat(queue);
 }
 
-// [TODAY], [TOMORROW] and [TIME] become the real date or time when copied, as on the iPhone.
+// [TODAY], [TOMORROW] and [TIME] become the real date or time when copied, as on the phone.
 export function substituteTokens(text) {
   if (!text || text.indexOf("[") < 0) return text;
   const now = new Date(), tomorrow = new Date(now.getTime() + 864e5);
@@ -188,11 +188,11 @@ export async function openPhoneBoard(hooks) {
         if (r.status === "none") isGone = true;
         else if (r.status === "board" && !P.pending && !P.saving && !hooks.busy()) {
           adopt(r);
-          hooks.remote(P.squares, r.envelope.device || "your iPhone");
+          hooks.remote(P.squares, r.envelope.device || "your phone");
         }
         if (!isGone) hooks.status("ok", "");
       } catch (e) {
-        hooks.status("error", "Can't reach your iPhone's squares right now.");
+        hooks.status("error", "Can't reach your phone's squares right now.");
       }
     }
     polling = false;
@@ -213,7 +213,7 @@ export async function openPhoneBoard(hooks) {
     const board = toPhone(P.pending, P.originals);
     P.pending = null;
     P.saving = true;
-    hooks.status("saving", "Saving to your iPhone's squares…");
+    hooks.status("saving", "Saving to your phone's squares…");
     try {
       const r = await client.putBoard(P.rev, board, "web", deviceLabel());
       if (r.ok) {
@@ -221,13 +221,13 @@ export async function openPhoneBoard(hooks) {
         P.board = board;
         P.originals = toWeb(board).originals;
         persist();
-        hooks.status("ok", "Saved. Your iPhone picks it up the next time you open Ditto.");
+        hooks.status("ok", "Saved. Your phone picks it up the next time you open Ditto.");
       } else {
         P.pending = P.pending || P.squares;
         const latest = await client.getBoard();
         if (latest.status !== "board") return gone();
         P.conflict = latest;
-        hooks.conflict(latest.envelope.device || "Your iPhone");
+        hooks.conflict(latest.envelope.device || "Your phone");
       }
     } catch (e) {
       P.pending = P.pending || P.squares;
@@ -282,7 +282,7 @@ export async function openPhoneBoard(hooks) {
       } else {
         P.pending = null;
         adopt(latest);
-        hooks.remote(P.squares, latest.envelope.device || "your iPhone");
+        hooks.remote(P.squares, latest.envelope.device || "your phone");
         hooks.status("ok", "");
       }
     },

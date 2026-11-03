@@ -288,7 +288,7 @@
     opacity: 0.75;
   }
 
-  /* the iPhone's squares (Settings ▸ Use my iPhone's squares): its colors, borders, emoji, pictures */
+  /* the iPhone's squares (Settings ▸ Use my phone's squares): its colors, borders, emoji, pictures */
   .sq.colored { color: #FFFFFF; }
   .sq .ring { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; }
   .sq .emoji { font-size: 30px; line-height: 1; }
@@ -802,16 +802,16 @@
   <div class="link-card" id="linkCard" hidden>
     <svg class="link-card-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="2.6"/><path d="M10.5 18.5h3"/></svg>
     <div class="link-card-text">
-      <b>Have Ditto on your iPhone?</b>
-      <span>Link this browser once by scanning a code, and your iPhone's squares show up here. Tap to copy; changes go back to your phone.</span>
+      <b>Have Ditto on your phone?</b>
+      <span>Link this browser once by scanning a code, and your phone's squares show up here. Tap to copy; changes go back to your phone.</span>
     </div>
-    <button type="button" class="link-card-go" id="linkCardGo">Use my iPhone's squares here</button>
+    <button type="button" class="link-card-go" id="linkCardGo">Use my phone's squares here</button>
     <button type="button" class="link-card-close" id="linkCardClose" aria-label="Hide this">&times;</button>
   </div>
   <div class="phone-conflict" id="phoneConflict" hidden>
-    <span id="phoneConflictText">Your iPhone changed the squares while you were editing here.</span>
+    <span id="phoneConflictText">Your phone changed the squares while you were editing here.</span>
     <div class="row">
-      <button type="button" class="primary" id="phoneUseTheirs">Use the iPhone's</button>
+      <button type="button" class="primary" id="phoneUseTheirs">Use the phone's</button>
       <button type="button" id="phoneKeepMine">Keep mine</button>
     </div>
   </div>
@@ -924,10 +924,10 @@
     </span>
   </div>
   <div class="layout-ctl" data-layout-ctl></div>
-  <div class="set-head">Your iPhone</div>
+  <div class="set-head">Your phone</div>
   <label class="opt-row" for="phoneToggle">
     <span class="opt-text">
-      <span class="opt-name">Use my iPhone's squares</span>
+      <span class="opt-name">Use my phone's squares</span>
       <span class="opt-desc" id="phoneDesc"></span>
     </span>
     <input type="checkbox" class="switch" id="phoneToggle">
@@ -956,7 +956,7 @@
   var KEY = "tapcopy.v1";
   var state = null;
   var local = null;      // this browser's own squares
-  var phone = null;      // the iPhone's board, while "Use my iPhone's squares" is on
+  var phone = null;      // the iPhone's board, while "Use my phone's squares" is on
   var phoneLib = null;
 
   // the iPhone only reads UUIDs, so squares added to its board get one
@@ -2197,8 +2197,8 @@
       '<div data-show="size page" data-per-row><div class="ctl-cap">Squares per row</div><div class="seg" role="group" aria-label="Squares per row">' +
         [[0, "Auto"], [3, "3"], [4, "4"], [5, "5"], [6, "6"], [7, "7"], [8, "8"]].map(function (n) { return '<button type="button" class="seg-btn" data-per="' + n[0] + '">' + n[1] + '</button>'; }).join("") +
       '</div></div>' +
-      '<label class="check-row"><input type="checkbox" data-match> <span>Match my iPhone\'s grid' +
-        '<small>3 squares per row, like the iPhone, so each square sits where it does there.</small></span></label>';
+      '<label class="check-row"><input type="checkbox" data-match> <span>Match my phone\'s grid' +
+        '<small>3 squares per row, like the phone, so each square sits where it does there.</small></span></label>';
     box.addEventListener("click", function (e) {
       var b = e.target.closest("button");
       if (!b) return;
@@ -2238,7 +2238,7 @@
     showLayout();
     showPhoneOption();
     backupNote.innerHTML = phone
-      ? "<b>Copy backup</b> puts your iPhone's squares on your clipboard as text you can keep. To restore a backup here, turn off Use my iPhone's squares first."
+      ? "<b>Copy backup</b> puts your phone's squares on your clipboard as text you can keep. To restore a backup here, turn off Use my phone's squares first."
       : "Your squares are saved in this browser on this device only. <b>Copy backup</b> puts them on your clipboard as text you can keep in Notes or an email; <b>Restore backup</b> pastes that text back here or on another device.";
     openSheet(optionsSheet);
   });
@@ -2283,8 +2283,8 @@
     phoneToggle.checked = phoneWanted();
     phoneToggle.disabled = !linked;
     phoneDesc.innerHTML = linked
-      ? "Show the squares from Ditto on your iPhone here instead of this browser's own. Tap to copy them; changes you make here go to your iPhone. Off: this browser keeps its own squares, and <a href=\"link/\">dittotap.com/link</a> edits only your iPhone."
-      : "Link this browser to Ditto on your iPhone first, at <a href=\"link/\">dittotap.com/link</a>. Then this shows your iPhone's squares here: tap to copy, and changes go to your iPhone.";
+      ? "Show the squares from Ditto on your phone here instead of this browser's own. Tap to copy them; changes you make here go to your phone. Off: this browser keeps its own squares, and <a href=\"link/\">dittotap.com/link</a> edits only your iPhone."
+      : "Link this browser to Ditto on your phone first, at <a href=\"link/\">dittotap.com/link</a>. Then this shows your phone's squares here: tap to copy, and changes go to your phone.";
   }
 
   function setNote(main, kind, status) {
@@ -2300,14 +2300,14 @@
   }
   function phoneNote(kind, text) {
     if (!phone) { setNote(); return; }
-    setNote("These are your iPhone's squares. Changes you make here go to your iPhone the next time you open Ditto. To use this browser's own squares, turn off Use my iPhone's squares in Settings.", kind, text);
+    setNote("These are your phone's squares. Changes you make here go to your phone the next time you open Ditto. To use this browser's own squares, turn off Use my phone's squares in Settings.", kind, text);
   }
 
   function busy() {
     return arranging || !!document.querySelector(".sheet.open") || !!document.querySelector(".ghost");
   }
 
-  // "Use my iPhone's squares here", for whoever isn't using them yet (hidden for good with its ×)
+  // "Use my phone's squares here", for whoever isn't using them yet (hidden for good with its ×)
   function showLinkCard() {
     linkCard.hidden = !!phone || phoneStarting || ON_A_PHONE || stored(CARD_KEY) === "1";
   }
@@ -2328,7 +2328,7 @@
     phoneStarting = true;
     showLinkCard();
     grid.classList.add("waiting");
-    setNote("Loading your iPhone's squares…");
+    setNote("Loading your phone's squares…");
     import("./link/phone-board.js").then(function (lib) {
       phoneLib = lib;
       return lib.openPhoneBoard({
@@ -2351,7 +2351,7 @@
           phoneConflict.hidden = true;
           useSquares(null);
           phoneNote();
-          showToast("Your iPhone unlinked this browser. Use my iPhone's squares here links it again");
+          showToast("Your phone unlinked this browser. Use my phone's squares here links it again");
         },
         pictures: function () {
           if (!phone) return;
@@ -2368,9 +2368,9 @@
           forgetLink();
           if (relink) { location.href = "link/?then=home"; return; }
           showLinkCard();
-          showToast("Your iPhone isn't linked to this browser any more. Use my iPhone's squares here links it again");
+          showToast("Your phone isn't linked to this browser any more. Use my phone's squares here links it again");
         } else {
-          setNote("", "error", "Can't reach your iPhone's squares right now, so these are this browser's own.");
+          setNote("", "error", "Can't reach your phone's squares right now, so these are this browser's own.");
         }
       } else {
         phone = res;
@@ -2379,7 +2379,7 @@
         phoneNote();
         if (location.hash === "#linked") {   // just paired at dittotap.com/link
           try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
-          showToast("Linked. These are your iPhone's squares now");
+          showToast("Linked. These are your phone's squares now");
         }
       }
       if (then) then();
@@ -2401,7 +2401,7 @@
       if (!sent) {   // the last change hasn't reached the relay: stay on rather than drop it
         phoneToggle.checked = true;
         try { localStorage.setItem(USE_KEY, "1"); } catch (e) {}
-        showToast(p.conflicted() ? "Choose a version above first" : "Your last change hasn't reached your iPhone yet. Try again in a moment");
+        showToast(p.conflicted() ? "Choose a version above first" : "Your last change hasn't reached your phone yet. Try again in a moment");
         return;
       }
       phone = null;
