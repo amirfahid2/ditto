@@ -167,6 +167,14 @@
     .guide { justify-self: end; }
     .demo { justify-self: start; }
   }
+  /* on a phone the demo comes first, then the text, then the guide */
+  @media (max-width: 879px) {
+    main { display: flex; flex-direction: column; }
+    .pair { display: contents; }
+    .demo { order: 1; align-self: center; margin: 6px 0 44px; }
+    .get { order: 2; }
+    .guide { order: 3; align-self: center; margin: 0 0 72px; }
+  }
   .label { font-size: 14px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); text-align: center; margin: 0 0 14px; }
   /* wide screens: the text on the left, both phones beside it, nothing below the fold */
   @media (min-width: 1200px) {
@@ -256,6 +264,28 @@
   .view { flex: 1; min-height: 0; display: none; flex-direction: column; }
   .view.on { display: flex; }
   .demo-hint { font-size: 14px; color: var(--muted); margin: 0; text-align: center; min-height: 3.1em; }   /* room for two lines, so the page never shifts when the note changes */
+  .demo .demo-hint { margin-top: 22px; }   /* room for "Press a button" under the phone */
+  /* "Press a button": a hand-drawn arrow from under the phone, around its corner, into the last square.
+     The script draws it once the keyboard is on screen and takes it away after the first tap. */
+  .phone-wrap { position: relative; width: 300px; max-width: 100%; }
+  .nudge-arrow { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  .nudge-arrow path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .nudge-arrow .halo { stroke: var(--bg); stroke-width: 7; }
+  .nudge-arrow .line, .nudge-arrow .head { stroke: var(--accent); stroke-width: 2.6; }
+  .nudge-text {
+    position: absolute; top: 100%; inset-inline-end: -10px; margin-top: 10px;
+    font-family: "Bradley Hand", "Segoe Print", "Noteworthy", "Marker Felt", "Comic Sans MS", cursive;
+    font-size: 19px; font-weight: 700; line-height: 1.1; color: var(--accent); white-space: nowrap;
+    transform: rotate(-5deg); pointer-events: none;
+  }
+  [dir="rtl"] .nudge-text { transform: rotate(5deg); }
+  .nudge-arrow, .nudge-text { transition: opacity 0.4s ease; z-index: 6; }   /* above the scroll fade on a phone */
+  .nudge-off .nudge-arrow, .nudge-off .nudge-text { opacity: 0; }
+  html.anim .nudge-arrow .line, html.anim .nudge-arrow .halo { transition: stroke-dashoffset 1s cubic-bezier(0.2, 0.7, 0.2, 1); }
+  html.anim .nudge-live .nudge-arrow { animation: nudge-bob 1.6s ease-in-out infinite; }
+  @keyframes nudge-bob { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-3px, -1px); } }
+  [dir="rtl"] .nudge-live .nudge-arrow { animation-name: nudge-bob-rtl; }
+  @keyframes nudge-bob-rtl { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(3px, -1px); } }
 
   /* board view */
   .b-title { text-align: center; font-weight: 600; font-size: 16px; padding: 8px 0 4px; }
@@ -305,6 +335,7 @@
     padding: 7px 11px; font-size: 12.5px; white-space: pre-wrap; color: var(--ink);
   }
   .field:empty::before { content: "iMessage"; color: var(--muted); opacity: 0.7; }
+  .demo .field { height: 96px; min-height: 96px; max-height: 96px; }   /* twice the one-line field, and it never changes size */
   .send {
     width: 30px; height: 30px; border-radius: 50%; border: 0; flex: none;
     background: var(--bubble-out); color: #fff; font-size: 16px; font-weight: 700; cursor: pointer;
@@ -456,6 +487,7 @@
           <button type="button" data-view="board" aria-pressed="false">The board</button>
           <button type="button" data-view="keyboard" aria-pressed="true">The keyboard</button>
         </div>
+        <div class="phone-wrap nudge-off" id="phoneWrap">
         <div class="phone">
           <div class="screen">
             <div class="status"><span>9:41</span><span class="bat" aria-hidden="true"></span></div>
@@ -489,6 +521,17 @@
 
             <div class="toast" id="toast" role="status" aria-live="polite"></div>
           </div>
+        </div>
+        <svg class="nudge-arrow" id="nudgeArrow" aria-hidden="true" focusable="false">
+          <defs>
+            <marker id="nudgeHead" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" refX="11" refY="7" orient="auto">
+              <path class="head" d="M2 2 L11 7 L2 12"/>
+            </marker>
+          </defs>
+          <path class="halo" id="nudgeHalo" d=""/>
+          <path class="line" id="nudgeLine" d=""/>
+        </svg>
+        <span class="nudge-text" id="nudgeText" aria-hidden="true">Press a button</span>
         </div>
         <p class="demo-hint" id="demoHint">Try it: tap a square to put its text in, then send. The globe switches keyboards.</p>
       </section>
@@ -708,6 +751,7 @@
     kbDitto.hidden = !onDitto;
     kbQwerty.hidden = onDitto;
     hint.textContent = onDitto ? HINT_KB : HINT_QWERTY;
+    updateNudge();
   }
   document.getElementById("globeDitto").addEventListener("click", switchKeyboard);
 
@@ -757,6 +801,7 @@
     list.forEach(function (item) {
       var el = square(item, "key");
       el.addEventListener("click", function () {
+        nudgeDone();
         if (item.folder) { kbFolder = item; renderKeyboard(); return; }
         el.classList.add("flash");
         setTimeout(function () { el.classList.remove("flash"); }, 200);
@@ -764,6 +809,7 @@
       });
       kbGrid.appendChild(el);
     });
+    updateNudge();
   }
 
   send.addEventListener("click", function () {
@@ -786,8 +832,74 @@
       document.getElementById("boardView").classList.toggle("on", v === "board");
       document.getElementById("keyboardView").classList.toggle("on", v === "keyboard");
       hint.textContent = v === "board" ? HINT_BOARD : (onDitto ? HINT_KB : HINT_QWERTY);
+      updateNudge();
     });
   });
+
+  // ---- "Press a button": the arrow from under the phone into the last square ----
+  var nudgeWrap = document.getElementById("phoneWrap"), nudgeSvg = document.getElementById("nudgeArrow");
+  var nudgeLine = document.getElementById("nudgeLine"), nudgeHalo = document.getElementById("nudgeHalo");
+  var nudgeText = document.getElementById("nudgeText");
+  var nudgeTarget = -1;
+  BOARD.forEach(function (it, i) { if (!it.folder) nudgeTarget = i; });
+  var nudgeUsed = false, nudgeDrawn = false, nudgeInView = !("IntersectionObserver" in window);
+  function offsetWithin(el, stop) {
+    var x = 0, y = 0;
+    while (el && el !== stop) { x += el.offsetLeft; y += el.offsetTop; el = el.offsetParent; }
+    return { x: x, y: y };
+  }
+  function nudgeVisible() {
+    return !nudgeUsed && nudgeTarget >= 0 && onDitto && !kbFolder &&
+      document.getElementById("keyboardView").classList.contains("on");
+  }
+  function placeNudge() {
+    var key = kbGrid.children[nudgeTarget];
+    if (!key) return;
+    var W = nudgeWrap.offsetWidth, H = nudgeWrap.offsetHeight;
+    nudgeSvg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    var rtl = document.documentElement.dir === "rtl";
+    var k = offsetWithin(key, nudgeWrap), t = offsetWithin(nudgeText, nudgeWrap);
+    var ky = k.y + key.offsetHeight / 2, sy = t.y + nudgeText.offsetHeight / 2;
+    // how far the curve may swing out past the phone's edge: never past the window's edge
+    var rect = nudgeWrap.getBoundingClientRect();
+    var room = rtl ? rect.left - 4 : window.innerWidth - rect.right - 4;
+    var bulge = Math.max(10, Math.min(26, room));
+    var sx, ex, bx;
+    if (rtl) { sx = t.x + nudgeText.offsetWidth + 6; ex = k.x - 3; bx = -bulge; }
+    else { sx = t.x - 6; ex = k.x + key.offsetWidth + 3; bx = W + bulge; }
+    var d = "M" + sx + " " + sy + " C" + (rtl ? bx + 6 : bx - 6) + " " + sy + ", " + bx + " " + (ky + 2) + ", " + ex + " " + ky;
+    nudgeHalo.setAttribute("d", d);
+    nudgeLine.setAttribute("d", d);
+    if (nudgeDrawn) return;
+    var anim = document.documentElement.classList.contains("anim");
+    if (!anim) {
+      nudgeDrawn = true;
+      nudgeLine.setAttribute("marker-end", "url(#nudgeHead)");
+      return;
+    }
+    var len = nudgeLine.getTotalLength();
+    [nudgeLine, nudgeHalo].forEach(function (p) { p.style.strokeDasharray = len; p.style.strokeDashoffset = len; });
+    if (!nudgeInView) return;   // drawn once the keyboard is on screen
+    nudgeDrawn = true;
+    setTimeout(function () { [nudgeLine, nudgeHalo].forEach(function (p) { p.style.strokeDashoffset = "0"; }); }, 350);
+    setTimeout(function () {
+      nudgeLine.setAttribute("marker-end", "url(#nudgeHead)");
+      nudgeWrap.classList.add("nudge-live");
+    }, 1400);
+  }
+  function updateNudge() {
+    var show = nudgeVisible();
+    nudgeWrap.classList.toggle("nudge-off", !show);
+    if (show) placeNudge();
+  }
+  function nudgeDone() { if (nudgeUsed) return; nudgeUsed = true; updateNudge(); }
+  if (!nudgeInView) {
+    var nio = new IntersectionObserver(function (entries) {
+      if (entries.some(function (e) { return e.isIntersecting; })) { nudgeInView = true; nio.disconnect(); updateNudge(); }
+    }, { threshold: 0.3 });
+    nio.observe(nudgeWrap);
+  }
+  window.addEventListener("resize", function () { if (nudgeVisible()) placeNudge(); });
 
   renderBoard();
   renderKeyboard();
