@@ -273,7 +273,7 @@
   .demo .demo-hint { margin-top: 22px; }   /* room for "Press a button" under the phone */
   /* "Press a button": a neon hand-drawn arrow from under the phone, around its corner, to the edge of the
      phone beside the last square. The script draws it once the demo is on screen and keeps it there:
-     a folder dropping down never moves it. It only steps aside on the regular keyboard. */
+     an open folder never moves it. It only steps aside on the regular keyboard. */
   .phone-wrap { position: relative; width: 300px; max-width: 100%; }
   .nudge-arrow { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
   .nudge-arrow path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
@@ -353,15 +353,19 @@
   .kb-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; }
   .pill { display: inline-block; background: var(--bubble-out); color: #fff; border-radius: 999px; padding: 4px 11px; font-size: 11px; font-weight: 600; line-height: 1.3; border: 0; font-family: inherit; }   /* the same box as a span or a button, so the back pill moves nothing */
   button.pill { cursor: pointer; }
-  .kb-grid { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; grid-auto-rows: 40px; min-height: 132px; align-content: start; }   /* always three rows tall, so opening a folder moves nothing */
-  /* a folder's squares drop down in a panel right under its row (or above it, near the bottom), over the other keys */
+  /* The keys scroll inside a fixed three-row area, as on the phone: a folder's squares drop in below its
+     row and push the rows under it down (scroll to reach them), and the keyboard itself never changes size. */
+  .kb-grid {
+    position: relative; height: 132px; overflow-y: auto; scrollbar-width: none;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; align-content: start;
+  }
+  .kb-grid::-webkit-scrollbar { display: none; }
   .kb-panel {
-    position: absolute; left: 0; right: 0; z-index: 2;
+    grid-column: 1 / -1;
     background: var(--folder); border-radius: 12px; padding: 6px;
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
   }
-  .kb-panel .key { height: 36px; font-size: 10.5px; }
+  .kb-panel .key { height: 32px; font-size: 10.5px; }
   .key.folder.open { box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.55), 0 1px 0 rgba(0, 0, 0, 0.28); }
   /* keys look like keyboard keys: white, and blue for a folder */
   .key {
@@ -854,14 +858,14 @@
     updateNudge();   // the arrow is placed as soon as the keys exist, not only once the phone scrolls into view
   }
 
-  // The open folder's squares, in a panel that drops down right under the folder's row and
-  // covers the keys beneath; near the bottom it opens upward instead. The keys never move.
+  // The open folder's squares, in a panel that drops in right below the folder's row; the rows under
+  // it move down. The keys area scrolls just enough to show the panel.
   var kbPanel = null;
   function renderKbPanel() {
     if (kbPanel) { kbPanel.remove(); kbPanel = null; }
     kbGrid.querySelectorAll(".key.folder.open").forEach(function (k) { k.classList.remove("open"); });
-    if (!kbFolder) return;
-    var key = kbGrid.children[BOARD.indexOf(kbFolder)];
+    if (!kbFolder) { kbGrid.scrollTop = 0; return; }
+    var idx = BOARD.indexOf(kbFolder), key = kbGrid.children[idx];
     if (!key) { kbFolder = null; return; }
     key.classList.add("open");
     kbPanel = document.createElement("div");
@@ -875,10 +879,10 @@
       });
       kbPanel.appendChild(el);
     });
-    kbGrid.appendChild(kbPanel);
-    var below = key.offsetTop + key.offsetHeight + 4;
-    if (below + kbPanel.offsetHeight <= kbGrid.clientHeight + 50) kbPanel.style.top = below + "px";
-    else kbPanel.style.top = (key.offsetTop - 4 - kbPanel.offsetHeight) + "px";
+    var rowEnd = Math.min(BOARD.length, Math.floor(idx / 3) * 3 + 3) - 1;
+    kbGrid.insertBefore(kbPanel, kbGrid.children[rowEnd].nextSibling);
+    var need = kbPanel.offsetTop + kbPanel.offsetHeight - kbGrid.clientHeight;
+    kbGrid.scrollTop = need > 0 ? need : 0;
   }
 
   send.addEventListener("click", function () {
@@ -919,7 +923,7 @@
   }
   // Where the arrow points: the last plain square of the view that is showing (the board or the
   // Ditto keyboard), at the place its row has with no folder open, so the arrow never moves when a
-  // folder drops down. Nothing on the regular keyboard. Returns the row's middle, in screen pixels.
+  // folder opens or the keys scroll. Nothing on the regular keyboard. Returns the row's middle, in screen pixels.
   function nudgeAnchor() {
     if (nudgeIndex < 0) return null;
     var boardOn = document.getElementById("boardView").classList.contains("on");
@@ -929,8 +933,11 @@
     else return null;
     var cell = cells[nudgeIndex], first = cells[0];
     if (!cell || !first) return null;
-    var fr = first.getBoundingClientRect(), gap = parseFloat(getComputedStyle(gridEl).rowGap) || 0;
-    var top = fr.top + Math.floor(nudgeIndex / 3) * (fr.height + gap);
+    // from the grid's own top, so neither an open folder nor the keys scrolling moves it
+    var gr = gridEl.getBoundingClientRect(), cs = getComputedStyle(gridEl);
+    var fr = first.getBoundingClientRect(), gap = parseFloat(cs.rowGap) || 0;
+    var zf = fr.height / first.offsetHeight || 1;   // the desktop zoom, so padding and gap match the rects
+    var top = gr.top + (parseFloat(cs.paddingTop) || 0) * zf + Math.floor(nudgeIndex / 3) * (fr.height + gap * zf);
     var sr = nudgeScreen.getBoundingClientRect();
     if (top < sr.top || top + fr.height > sr.bottom) return null;   // scrolled out of the phone's screen
     return top + fr.height / 2;
