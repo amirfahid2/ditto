@@ -126,6 +126,8 @@
     margin: 0 auto 22px; box-shadow: var(--shadow);
   }
   .eyebrow { font-size: 14px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin: 0 0 14px; }
+  .brand { display: contents; }   /* the icon and the line under it, laid out as before; one row on a phone */
+  @media (min-width: 880px) { .phone-only { display: none; } }
   h1 {
     font-size: clamp(40px, 7vw, 64px);
     line-height: 1.04;
@@ -167,12 +169,18 @@
     .guide { justify-self: end; }
     .demo { justify-self: start; }
   }
-  /* on a phone the demo comes first, then the text, then the guide */
+  /* On a phone: the icon with "Ditto for iPhone and Android" on one line at the top, then the demo,
+     then the Get Ditto text, then the guide. The top bar goes; its links are in the footer. */
   @media (max-width: 879px) {
+    .top { display: none; }
     main { display: flex; flex-direction: column; }
-    .pair { display: contents; }
-    .demo { order: 1; align-self: center; margin: 6px 0 44px; }
-    .get { order: 2; }
+    .pair, .get { display: contents; }
+    .brand { display: flex; align-items: center; justify-content: center; gap: 10px; order: 0; margin: 18px 0 22px; }
+    .brand .appicon { width: 40px; height: 40px; border-radius: 10px; margin: 0; }
+    .brand .eyebrow { margin: 0; }
+    .demo { order: 1; align-self: center; margin: 0 0 44px; }
+    .get > h1, .get > .lede, .get > .ctas, .get > .fine { order: 2; }
+    .get > .fine { margin-bottom: 56px; }
     .guide { order: 3; align-self: center; margin: 0 0 72px; }
   }
   .label { font-size: 14px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); text-align: center; margin: 0 0 14px; }
@@ -454,8 +462,10 @@
 
   <main>
     <section class="get" aria-labelledby="getTitle">
-      <img class="appicon" src="../icon-180.png" width="96" height="96" alt="">
-      <p class="eyebrow">Ditto for iPhone and Android</p>
+      <div class="brand">
+        <img class="appicon" src="../icon-180.png" width="96" height="96" alt="">
+        <p class="eyebrow">Ditto for iPhone and Android</p>
+      </div>
       <h1 id="getTitle">Get Ditto.</h1>
       <p class="lede">Ditto is a board of big, tappable squares. Each square holds a piece of text you use again and again — a parent reminder, a grading comment, your office hours, the late-work policy you explain every week. Tap it and the text is ready to paste, or type it straight into any app with the Ditto keyboard.</p>
       <div class="ctas">
@@ -567,6 +577,7 @@
     <nav aria-label="Footer">
       <a href="../privacy.html">Privacy Policy</a>
       <a href="../about/">About</a>
+      <a href="../" class="phone-only">Web app</a>
       <a href="mailto:pentapillarapps@gmail.com?subject=Ditto">Support</a>
     </nav>
   </div>
