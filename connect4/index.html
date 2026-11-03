@@ -893,17 +893,20 @@
     nudgeSvg.setAttribute("viewBox", "0 0 " + W + " " + H);
     var rtl = document.documentElement.dir === "rtl";
     var k = offsetWithin(key, nudgeWrap), t = offsetWithin(nudgeText, nudgeWrap);
-    var ky = k.y + key.offsetHeight / 2, sy = t.y + nudgeText.offsetHeight / 2;
+    var ky = k.y + key.offsetHeight / 2;
+    // The label is turned 5 degrees, so its outer end (the last letter) sits a little above its middle.
+    var lift = (nudgeText.offsetWidth / 2) * Math.sin(5 * Math.PI / 180);
+    var sy = t.y + nudgeText.offsetHeight / 2 - lift;
     // how far the curve may swing out past the phone's edge: never past the window's edge
     var rect = nudgeWrap.getBoundingClientRect();
-    var room = rtl ? rect.left - 4 : window.innerWidth - rect.right - 4;
-    var bulge = Math.max(12, Math.min(34, room));
-    // the tip stops just outside the phone, level with the square, and never crosses the frame
-    var sx, ex, bx;
-    // the line leaves the label at its outer end (away from the phone), so it never runs through the words
-    if (rtl) { sx = t.x - 4; ex = -4; bx = -bulge; }
-    else { sx = t.x + nudgeText.offsetWidth + 4; ex = W + 4; bx = W + bulge; }
-    var d = "M" + sx + " " + sy + " C" + (rtl ? bx + 6 : bx - 6) + " " + sy + ", " + bx + " " + (ky + 2) + ", " + ex + " " + ky;
+    var room = (rtl ? rect.left : window.innerWidth - rect.right) - 10;
+    var bulge = Math.max(14, Math.min(64, room));
+    // The line comes out of the arrowhead just outside the phone, level with the square, runs back
+    // away from the phone, then curves down and lands on the last letter of the label.
+    var sx, ex, cx;
+    if (rtl) { sx = t.x - 3; ex = -4; cx = -bulge - 8; }
+    else { sx = t.x + nudgeText.offsetWidth + 3; ex = W + 4; cx = W + bulge + 8; }
+    var d = "M" + sx + " " + sy + " C" + cx + " " + (sy - 6) + ", " + cx + " " + (ky + 6) + ", " + ex + " " + ky;
     nudgeHalo.setAttribute("d", d);
     nudgeLine.setAttribute("d", d);
     if (nudgeDrawn) return;
