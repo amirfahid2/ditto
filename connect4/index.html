@@ -128,7 +128,6 @@
   }
   .eyebrow { font-size: 14px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin: 0 0 14px; }
   .brand { display: contents; }   /* the icon and the line under it, laid out as before; one row on a phone */
-  @media (min-width: 880px) { .phone-only { display: none; } }
   h1 {
     font-size: clamp(40px, 7vw, 64px);
     line-height: 1.04;
@@ -182,7 +181,8 @@
     .demo { order: 1; align-self: center; margin: 0 0 44px; }
     .get > h1, .get > .lede, .get > .ctas, .get > .fine { order: 2; }
     .get > .fine { margin-bottom: 56px; }
-    .guide { order: 3; align-self: center; margin: 0 0 72px; }
+    .guide { order: 3; align-self: center; margin: 0 0 40px; }
+    .ctas-bottom { order: 4; margin: 0 0 56px; }
   }
   .label { font-size: 14px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); text-align: center; margin: 0 0 14px; }
   /* Each phone column is exactly its phone's width at every window size, so the note under a phone
@@ -447,6 +447,8 @@
   @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; animation: none !important; }
   }
+  /* last, so it wins over any earlier display rule: phone-only things are gone from 880px up */
+  @media (min-width: 880px) { .phone-only { display: none; } }
 </style>
 </head>
 <body>
@@ -568,6 +570,17 @@
         </div>
         <p class="demo-hint" id="demoHint"><span data-hint="board">امتحان کنید: یک مربع را لمس کنید، یا چند تا را پشت سر هم.</span><span data-hint="kb" class="on">امتحان کنید: یک مربع را لمس کنید تا متنش وارد شود، بعد بفرستید. کره‌ی زمین صفحه‌کلید را عوض می‌کند.</span><span data-hint="qwerty">صفحه‌کلید همیشگی شما. برای برگشتن به Ditto کره‌ی زمین را لمس کنید.</span></p>
       </section>
+    </div>
+    <!-- on a phone, the store buttons again at the end of the page -->
+    <div class="ctas ctas-bottom phone-only">
+      <a class="btn btn-store" href="https://apps.apple.com/app/id6810430522">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 12.6c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9-.7 0-1.8-.8-3-.8-1.5 0-3 .9-3.8 2.3-1.6 2.8-.4 7 1.2 9.3.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.8 3-.8s1.8.8 3 .7c1.3 0 2.1-1.1 2.8-2.3.9-1.3 1.3-2.6 1.3-2.6s-2.5-1-2.5-3.7zM14.2 5.8c.6-.8 1.1-1.9.9-3-.9 0-2.1.6-2.7 1.4-.6.7-1.1 1.8-1 2.9 1.1.1 2.1-.5 2.8-1.3z"/></svg>
+          <span class="stack"><small>دانلود از</small><span>App Store</span></span>
+        </a>
+      <a class="btn btn-store" href="https://play.google.com/store/apps/details?id=com.pentapillars.ditto&amp;referrer=utm_source%3Ddittotap%26utm_campaign%3Dconnect">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3.3v17.4c0 .5.5.8.9.6l9.3-9.3L4.9 2.7c-.4-.2-.9.1-.9.6zm11.4 7.5L6.6 2 17 8.1zm0 2.4L6.6 22 17 15.9zm1.8-1.8 2.9-1.7c.5-.3.5-1 0-1.3l-2.9-1.7L14.5 12z"/></svg>
+          <span class="stack"><small>دریافت از</small><span>Google Play</span></span>
+        </a>
     </div>
   </main>
 </div>
