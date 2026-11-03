@@ -1,8 +1,12 @@
-var CACHE = "ditto-v6";
+var CACHE = "ditto-v7";
 // What the site needs with no connection: the app, its pages and scripts, and the bridge to the
 // iPhone's squares (which then says "can't reach" instead of failing to load).
 var PRECACHE = ["./", "about/", "privacy.html", "figures.js", "intro.js", "sample-notes.js", "manifest.webmanifest",
-  "icon-180.png", "icon-512.png", "link/link-core.js", "link/phone-board.js"];
+  "icon-180.png", "icon-512.png", "link/link-core.js", "link/phone-board.js",
+  // the fonts the app uses for Latin text; the other scripts' files are saved when they are first needed
+  "fonts/archivo-600-latin.woff2", "fonts/archivo-700-latin.woff2", "fonts/plex-sans-400-latin.woff2",
+  "fonts/plex-sans-500-latin.woff2", "fonts/plex-sans-600-latin.woff2", "fonts/plex-mono-400-latin.woff2",
+  "fonts/plex-mono-500-latin.woff2"];
 // A page that isn't saved: the app itself for its own addresses, otherwise the browser's offline page
 var SHELL = { "/": "./", "/index.html": "./", "/about": "about/", "/about/": "about/", "/about/index.html": "about/" };
 
