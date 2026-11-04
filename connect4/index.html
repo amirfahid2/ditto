@@ -27,6 +27,8 @@
     if (!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches)) {
       document.documentElement.classList.add("anim");
     }
+    // inside the web app's welcome on dittotap.com: only the Try Ditto phone (see the embed rules)
+    if (/[?&]embed\b/.test(location.search) && window.parent !== window) document.documentElement.classList.add("embed");
   } catch (e) {}
 </script>
 <style>
@@ -468,6 +470,17 @@
   @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; animation: none !important; }
   }
+  /* In the web app's welcome (dittotap.com, "?embed" in a frame): only the Try Ditto phone, on a clear
+     background; the page's own text, the guide and the footer are gone. The frame tells the page its height. */
+  html.embed, html.embed body { background: transparent; margin: 0; overflow: hidden; }
+  html.embed .top, html.embed .get, html.embed .guide, html.embed .ctas-bottom, html.embed footer,
+  html.embed .cue, html.embed .cue-fade { display: none !important; }
+  html.embed .wrap { max-width: none; padding: 0; }
+  html.embed main { display: block; padding: 0; }
+  html.embed .pair { display: block; padding: 0; zoom: 1; }
+  html.embed .demo { margin: 0 auto; padding: 4px 0 10px; }
+  /* a narrow frame: the phone a little to the left, so the arrow has room past its right edge */
+  @media (max-width: 359px) { html.embed .demo { transform: translateX(-14px); } }
   /* last, so it wins over any earlier display rule: phone-only things are gone from 880px up */
   @media (min-width: 880px) { .phone-only { display: none; } }
 </style>
@@ -1062,6 +1075,17 @@
 
   renderBoard();
   renderKeyboard();
+
+  // In the web app's welcome frame: tell the page how tall the demo is, so the frame fits it exactly.
+  if (document.documentElement.classList.contains("embed") && window.parent !== window) {
+    var sendSize = function () {
+      try { window.parent.postMessage({ ditto: "embed-size", height: document.documentElement.scrollHeight }, location.origin); } catch (e) {}
+    };
+    sendSize();
+    window.addEventListener("load", sendSize);
+    window.addEventListener("resize", sendSize);
+    setTimeout(sendSize, 1200);
+  }
 })();
 </script>
 </body>

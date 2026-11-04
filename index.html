@@ -332,6 +332,8 @@
   .settings-btn:hover { background: var(--field); }
   .settings-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .settings-btn svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; }
+  .about-link { margin-left: auto; font-size: 14px; font-weight: 600; color: var(--accent); text-decoration: none; padding: 8px 8px; border-radius: 999px; }
+  .about-link:hover { background: var(--field); }
 
   .grid {
     display: grid;
@@ -968,16 +970,64 @@
     font-size: 15px; font-weight: 600; line-height: 1.15;
   }
   .store small { font-size: 10.5px; font-weight: 500; opacity: 0.8; }
+
+  /* the first-visit welcome: a card wider than the board, the text beside the Try Ditto phone on a wide screen */
+  .welcome {
+    position: relative; display: grid; grid-template-columns: 1fr; gap: 26px; align-items: center;
+    margin: 12px -8px 30px; padding: 26px 12px 22px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 22px; box-shadow: var(--shadow);
+  }
+  @media (min-width: 480px) { .welcome { margin: 12px 0 30px; padding: 28px 22px 24px; } }
+  @media (min-width: 920px) {
+    .welcome { width: 880px; margin-left: calc(50% - 440px); grid-template-columns: minmax(0, 1fr) 400px; gap: 20px; padding: 36px 36px 32px; }
+  }
+  @media (min-width: 1080px) { .welcome { width: 1000px; margin-left: calc(50% - 500px); gap: 28px; padding: 40px 44px 36px; } }
+  .welcome .eyebrow { font-size: 12.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin: 0 0 10px; }
+  .welcome h1 { font-family: "Archivo", "IBM Plex Sans", sans-serif; font-size: clamp(32px, 5vw, 46px); line-height: 1.05; letter-spacing: -0.03em; margin: 0 0 14px; text-wrap: balance; }
+  .welcome .lede { font-size: 16.5px; line-height: 1.5; color: var(--muted); margin: 0 0 20px; max-width: 32em; }
+  .welcome-stores { justify-content: flex-start; margin: 0 0 14px; }
+  .store.plain { background: var(--card); color: var(--ink); border-color: var(--line); }   /* not "ghost": that is the drag image in Arrange */
+  .welcome-fine { font-size: 13.5px; color: var(--muted); margin: 0 0 16px; }
+  .welcome-fine b { color: var(--ink); font-weight: 600; }
+  .welcome-here { font-size: 14px; color: var(--muted); margin: 0; }
+  .welcome-here button { font: inherit; font-weight: 600; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+  .welcome-demo iframe { display: block; width: 100%; max-width: 400px; height: 800px; margin: 0 auto; border: 0; background: transparent; }
+  .welcome-close {
+    position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; border-radius: 50%; border: 0;
+    background: var(--field); color: var(--muted); font-size: 20px; line-height: 1; cursor: pointer;
+  }
+  .welcome-close:hover { color: var(--ink); }
 </style>
 
 <div class="wrap">
   <header>
     <div class="wordmark">Dit<span>to</span></div>
+    <a class="about-link" id="aboutLink" href="about/">About</a>
     <button type="button" class="settings-btn" id="settingsBtn" aria-label="Settings" title="Settings">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z"/><path d="M19.4 13.5a7.7 7.7 0 0 0 0-3l2-1.6-2-3.4-2.4 1a7.6 7.6 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.5A7.6 7.6 0 0 0 7 6.5l-2.4-1-2 3.4 2 1.6a7.7 7.7 0 0 0 0 3l-2 1.6 2 3.4 2.4-1a7.6 7.6 0 0 0 2.6 1.5l.4 2.5h4l.4-2.5a7.6 7.6 0 0 0 2.6-1.5l2.4 1 2-3.4-2-1.6Z"/></svg>
     </button>
     <button type="button" class="arrange-btn on" id="arrangeDone" hidden>Done</button>
   </header>
+
+  <!-- A first visit: what Ditto is, with the Try Ditto phone from the connect pages, above the board.
+       Gone once a square is set, a phone is linked, or it is closed. -->
+  <section class="welcome" id="welcome" hidden aria-label="About Ditto">
+    <div class="welcome-text">
+      <p class="eyebrow">Ditto for iPhone and Android</p>
+      <h1>Tap a square, paste anywhere.</h1>
+      <p class="lede">Ditto is a board of big, tappable squares for the text you type again and again. Tap one and it's ready to paste, or type it straight into any app with the Ditto keyboard. Try it on the demo phone.</p>
+      <div class="stores welcome-stores">
+        <a class="store" href="https://apps.apple.com/app/id6810430522"><small>Download on the</small>App Store</a>
+        <a class="store" href="https://play.google.com/store/apps/details?id=com.pentapillars.ditto&amp;referrer=utm_source%3Ddittotap%26utm_campaign%3Dsite"><small>Get it on</small>Google Play</a>
+        <a class="store plain" href="about/">Learn more</a>
+      </div>
+      <p class="welcome-fine"><b>No account. No tracking.</b> Nothing we can read ever leaves your phone.</p>
+      <p class="welcome-here">Or use Ditto right here, in your browser. Your own board is just below. <button type="button" id="welcomeStart">Start my board &darr;</button></p>
+    </div>
+    <div class="welcome-demo"><iframe id="welcomeFrame" title="Try Ditto" scrolling="no"></iframe></div>
+    <button type="button" class="welcome-close" id="welcomeClose" aria-label="Hide this">&times;</button>
+  </section>
+
   <p class="hint" id="mainHint">Tap a square to copy its text. Press and hold to edit.</p>
   <div class="link-card" id="linkCard" hidden>
     <svg class="link-card-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="2.6"/><path d="M10.5 18.5h3"/></svg>
@@ -1400,6 +1450,7 @@
   }
 
   function render() {
+    updateWelcome();
     grid.innerHTML = "";
     var cols = applyLayout();
     state.squares.forEach(function (sq, i) {
@@ -1619,6 +1670,7 @@
     if (arranging) openFolderId = null;
     grid.classList.toggle("arranging", arranging);
     settingsBtn.hidden = arranging;
+    document.getElementById("aboutLink").hidden = arranging;
     arrangeDone.hidden = !arranging;
     document.getElementById("arrangeLayout").hidden = !arranging;
     mainHint.textContent = arranging ? HINT_ARRANGE : HINT_TAP;
@@ -2666,6 +2718,36 @@
     render();
     closeSheets();
     showToast("Backup restored");
+  });
+
+  // ---- a first visit: what Ditto is, with the Try Ditto phone, above the empty board ----
+  var WELCOME_KEY = "ditto.welcomeHidden";
+  var welcomeEl = document.getElementById("welcome"), welcomeFrame = document.getElementById("welcomeFrame");
+  function welcomeWanted() {
+    if (stored(WELCOME_KEY) || stored(LINK_KEY) || stored(USE_KEY) || phone) return false;
+    return !state.squares.some(isSet);
+  }
+  function updateWelcome() {
+    if (!welcomeEl) return;
+    var show = welcomeWanted();
+    if (show && !welcomeFrame.getAttribute("src")) welcomeFrame.src = "connect/?embed=1";
+    welcomeEl.hidden = !show;
+  }
+  function closeWelcome() {
+    try { localStorage.setItem(WELCOME_KEY, "1"); } catch (e) {}
+    welcomeEl.hidden = true;
+  }
+  document.getElementById("welcomeClose").addEventListener("click", closeWelcome);
+  document.getElementById("welcomeStart").addEventListener("click", function () {
+    closeWelcome();
+    var first = grid.querySelector(".sq");
+    if (first) { first.scrollIntoView({ block: "center" }); first.focus(); }
+  });
+  // the demo frame says how tall it is, so it fits with no scroll bar of its own
+  window.addEventListener("message", function (e) {
+    if (e.origin !== location.origin || !e.data || e.data.ditto !== "embed-size") return;
+    var h = Math.ceil(+e.data.height || 0);
+    if (h > 300 && h < 2000) welcomeFrame.style.height = h + "px";
   });
 
   render();
