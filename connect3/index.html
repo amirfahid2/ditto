@@ -409,8 +409,24 @@
   .qk.wreturn { width: 56px; }
   .qk.space { width: 118px; font-size: 12px; }
   .qk.globe svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; }
-  .kb-bottom { display: flex; justify-content: flex-start; margin-top: 7px; }   /* the globe sits bottom-left, as on the real keyboard */
-  .kb-bottom .qk.globe { width: 36px; height: 30px; border-radius: 6px; }
+  .kb-bottom { display: flex; justify-content: flex-start; align-items: center; gap: 7px; margin-top: 7px; }   /* the globe sits bottom-left, as on the real keyboard */
+  .kb-bottom .qk.globe { width: 36px; height: 30px; border-radius: 6px; flex: none; }
+  /* After a square is pressed: a small arrow at the globe and, in the grey strip beside it, how to switch
+     back. Both go when the globe is pressed, so the switch itself is plain to see. */
+  .kb-switch-hint {
+    display: flex; align-items: center; gap: 5px; min-width: 0;
+    font-size: 10.5px; font-weight: 600; line-height: 1.15; color: var(--key-ink);
+    opacity: 0; visibility: hidden;
+  }
+  html.anim .kb-switch-hint { transition: opacity 0.25s ease, visibility 0.25s; }   /* a short fade, unless motion is reduced */
+  .kb-switch-hint.on { opacity: 1; visibility: visible; }
+  .kb-switch-hint svg { flex: none; width: 24px; height: 14px; overflow: visible; }
+  .kb-switch-hint path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .kb-switch-hint .halo { stroke: #111; stroke-width: 4.5; }   /* the same neon-on-dark as the big arrow */
+  .kb-switch-hint .line { stroke: #F0FF2A; stroke-width: 2.2; }
+  .kb-switch-hint.on svg { animation: switch-bob 1.2s ease-in-out infinite; }
+  @keyframes switch-bob { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-3px); } }
+  @media (prefers-reduced-motion: reduce) { .kb-switch-hint.on svg { animation: none; } }
 
   /* a nudge to scroll, on narrow screens only: it bobs until the bottom of the page is in view */
   .cue {
@@ -551,6 +567,7 @@
                   <div class="kb-grid" id="kbGrid"></div>
                   <div class="kb-bottom">
                     <button class="qk fn globe" type="button" id="globeDitto" aria-label="Switch to the regular keyboard"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 7.5h14M5 16.5h14"/></svg></button>
+                    <span class="kb-switch-hint" id="kbSwitchHint" aria-hidden="true"><svg viewBox="0 0 24 14" aria-hidden="true"><path class="halo" d="M22 7 H6 M11 2 L5 7 L11 12"/><path class="line" d="M22 7 H6 M11 2 L5 7 L11 12"/></svg><span dir="auto">Press this to switch back to keyboard.</span></span>
                   </div>
                 </div>
                 <div id="kbQwerty" hidden></div>
@@ -805,8 +822,12 @@
   // ---- the regular keyboard, behind the globe ----
   var kbDitto = document.getElementById("kbDitto"), kbQwerty = document.getElementById("kbQwerty");
   var onDitto = true;
+  // After a square is pressed, the arrow and the words at the globe; gone once the globe is pressed.
+  var kbSwitchHint = document.getElementById("kbSwitchHint");
+  function showSwitchHint(on) { kbSwitchHint.classList.toggle("on", on); }
   function switchKeyboard() {
     onDitto = !onDitto;
+    showSwitchHint(false);
     kbDitto.hidden = !onDitto;
     kbQwerty.hidden = onDitto;
     if (kbFolder) { kbFolder = null; renderKbPanel(); }
@@ -841,8 +862,8 @@
     globe.setAttribute("aria-label", "Switch to the Ditto keyboard");
     var last = document.createElement("div");
     last.className = "qrow";
+    last.appendChild(globe);   // the globe at the far left, then 123, as on the phone
     last.appendChild(qkey("123", "fn w123"));
-    last.appendChild(globe);
     last.appendChild(qkey("space", "space", function () { setField(field.textContent + " "); }));
     last.appendChild(qkey("return", "fn wreturn", function () { setField(field.textContent + "\n"); }));
     kbQwerty.appendChild(last);
@@ -853,6 +874,7 @@
     BOARD.forEach(function (item) {
       var el = square(item, "key");
       el.addEventListener("click", function () {
+        showSwitchHint(true);
         if (item.folder) { kbFolder = kbFolder === item ? null : item; renderKbPanel(); return; }
         el.classList.add("flash");
         setTimeout(function () { el.classList.remove("flash"); }, 200);
@@ -879,6 +901,7 @@
     kbFolder.items.forEach(function (child) {
       var el = square(child, "key");
       el.addEventListener("click", function () {
+        showSwitchHint(true);
         el.classList.add("flash");
         setTimeout(function () { el.classList.remove("flash"); }, 200);
         typeIn(expand(child.text));
