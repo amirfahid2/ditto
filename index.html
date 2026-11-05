@@ -780,6 +780,65 @@
     color: var(--ink);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
   }
+  /* Text square / Folder: two picture cards in pen and marker, as on the iPhone. The picked
+     card has a heavy pen outline and a ticked circle; the other a light outline and an empty one. */
+  .type-cards { display: flex; gap: 10px; padding: 6px 4px; margin-top: 8px; }
+  .type-card {
+    position: relative; flex: 1 1 0; min-width: 0; min-height: 96px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+    padding: 10px 10px 9px; border: none; background: none; border-radius: 18px; cursor: pointer;
+    color: var(--ink); font-family: inherit; -webkit-tap-highlight-color: transparent;
+    transition: transform 0.12s ease-out;
+  }
+  .type-card:active { transform: scale(0.97); }
+  .type-card:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 3px; }
+  .tc-edge { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+  .tc-edge path { transition: opacity 0.22s; }
+  .tc-edge .tc-heavy { stroke: var(--ink); opacity: 0; }
+  .tc-edge .tc-light { stroke: var(--muted); opacity: 0.6; }
+  .type-card.on .tc-heavy { opacity: 1; }
+  .type-card.on .tc-light { opacity: 0; }
+  .tc-art { position: relative; height: 56px; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+  .tc-art svg { overflow: visible; display: block; }
+  .tc-title {
+    font-family: "Noteworthy", "Bradley Hand", "Segoe Print", "Marker Felt", "Comic Sans MS", cursive;
+    font-weight: 700; font-size: 17px; line-height: 1.15; text-align: center; pointer-events: none;
+  }
+  /* the pen circle top right: colored in and ticked on the picked card */
+  .tc-mark { position: absolute; top: 7px; right: 7px; width: 22px; height: 22px; overflow: visible; pointer-events: none; }
+  .tc-mark .tc-mark-fill { opacity: 0; transition: opacity 0.25s ease-out; }
+  .tc-mark .tc-ring { stroke: var(--muted); transition: stroke 0.25s ease-out; }
+  .tc-mark .tc-tick { stroke: var(--ink); stroke-dasharray: 1 2; stroke-dashoffset: 1.1; transition: stroke-dashoffset 0.25s ease-out; }
+  .type-card.on .tc-mark-fill { opacity: 1; }
+  .type-card.on .tc-ring { stroke: var(--ink); }
+  .type-card.on .tc-tick { stroke-dashoffset: 0; }
+  /* the text square flashes the way a square does when it is tapped to copy */
+  .tc-text-art .tc-fill { transition: fill 0.35s ease-out; }
+  .tc-text-art .tc-streaks { transition: stroke 0.35s ease-out, opacity 0.35s ease-out; }
+  .tc-text-art.flash .tc-fill { fill: var(--flash); transition: none; }
+  .tc-text-art.flash .tc-streaks { stroke: var(--accent); opacity: 0.3; transition: none; }
+  /* the folder's texts drop open under it, the way a folder opens on the board */
+  .tc-panel { transform-box: fill-box; transform-origin: 50% 0; transition: transform 0.45s cubic-bezier(0.3, 1.45, 0.5, 1), opacity 0.3s; }
+  .tc-folder-art.shut .tc-panel { transform: translateY(-6px) scaleY(0.05); opacity: 0; }
+  .tc-chev { transform-box: fill-box; transform-origin: 50% 50%; transition: transform 0.3s; }
+  .tc-folder-art.shut .tc-chev { transform: rotate(180deg); }
+  .tc-folder-art.still .tc-panel, .tc-folder-art.still .tc-chev { transition: none !important; }
+  /* the first few times: the Folder card hops once, its sparkle twinkles and a dashed line pings out of it */
+  .tc-cue { stroke: var(--accent); opacity: 0; transform-box: fill-box; transform-origin: 50% 50%; }
+  .tc-cue.ping { animation: tcPing 0.9s ease-out; }
+  @keyframes tcPing { 0% { opacity: 0; transform: scale(1); } 13% { opacity: 0.85; transform: scale(1); } 22% { opacity: 0.85; } 100% { opacity: 0; transform: scale(1.04); } }
+  .type-card.hop { animation: tcHop 0.66s ease-out; }
+  @keyframes tcHop { 0% { transform: scale(1); } 24% { transform: scale(1.03); } 60% { transform: scale(0.995); } 100% { transform: scale(1); } }
+  .tc-sparkle { transform-box: fill-box; transform-origin: 50% 50%; }
+  .tc-sparkle.twinkle { animation: tcTwinkle 0.7s ease-out; }
+  @keyframes tcTwinkle { 0% { transform: scale(1) rotate(0deg); } 28% { transform: scale(1.7) rotate(18deg); } 60% { transform: scale(0.9) rotate(38deg); } 100% { transform: scale(1) rotate(45deg); } }
+  @keyframes tcGlow { 0% { opacity: 0; } 11% { opacity: 0.85; } 68% { opacity: 0.85; } 100% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .type-card:active { transform: none; opacity: 0.75; }
+    .type-card.hop, .tc-sparkle.twinkle { animation: none; }
+    .tc-cue.ping { animation: tcGlow 1.9s linear; }
+    .tc-folder-art.shut .tc-panel { transform: none; }   /* only hidden, nothing moves */
+  }
   /* looks: the same choices as on the iPhone */
   .look-top { display: flex; gap: 14px; align-items: flex-start; }
   .look-colors { flex: 1; min-width: 0; }
@@ -1063,9 +1122,9 @@
     <div class="sheet-title" id="editTitle">Edit square</div>
     <button class="btn-save" id="editSave">Done</button>
   </div>
-  <div class="seg" id="typeSeg" hidden>
-    <button type="button" class="seg-btn on" id="segText">Text square</button>
-    <button type="button" class="seg-btn" id="segFolder">Folder</button>
+  <div class="type-cards" id="typeSeg" role="radiogroup" aria-label="Type" hidden>
+    <button type="button" class="type-card on" id="segText" role="radio" aria-checked="true"></button>
+    <button type="button" class="type-card" id="segFolder" role="radio" aria-checked="false"></button>
   </div>
   <label for="nameInput" id="nameLabel">Name on the square</label>
   <input type="text" id="nameInput" maxlength="40" autocomplete="off" autocapitalize="characters">
@@ -1912,6 +1971,7 @@
     if (sheetOpener && sheetOpener.focus && document.contains(sheetOpener)) sheetOpener.focus({ preventScroll: true });
     sheetOpener = null;
     disarmDelete();
+    stopTypeCue();
     setEmojiPicker(false);
     importReplace.classList.remove("confirm");
     importReplace.textContent = "Replace my whole board";
@@ -2159,17 +2219,234 @@
     }
   }
 
+  // ---- pen and marker: the iPhone's drawing pieces, in SVG. The same seed always draws the same lines. ----
+  var SVG_NS = "http://www.w3.org/2000/svg";
+  function fx(n) { return Math.round(n * 100) / 100; }
+  function penRandom(seed) {   // a seeded sequence, -1 … 1
+    var st = ((seed + 1) * 2654435761) >>> 0 || 1;
+    return function () { st ^= st << 13; st >>>= 0; st ^= st >>> 7; st ^= st << 17; st >>>= 0; return (st % 20001) / 10000 - 1; };
+  }
+  // the outline of a rounded rectangle walked clockwise from the top edge: a point and its outward normal
+  function perimeter(r, radius) {
+    var w = r.w - 2 * radius, h = r.h - 2 * radius, arc = Math.PI * radius / 2;
+    var length = 2 * w + 2 * h + 2 * Math.PI * radius;
+    return { length: length, at: function (t) {
+      var s = t * length;
+      function corner(cx, cy, a0) { var a = a0 + (radius > 0 ? s / radius : 0); return [cx + radius * Math.cos(a), cy + radius * Math.sin(a), Math.cos(a), Math.sin(a)]; }
+      if (s <= w) return [r.x + radius + s, r.y, 0, -1]; s -= w;
+      if (s <= arc) return corner(r.x + r.w - radius, r.y + radius, -Math.PI / 2); s -= arc;
+      if (s <= h) return [r.x + r.w, r.y + radius + s, 1, 0]; s -= h;
+      if (s <= arc) return corner(r.x + r.w - radius, r.y + r.h - radius, 0); s -= arc;
+      if (s <= w) return [r.x + r.w - radius - s, r.y + r.h, 0, 1]; s -= w;
+      if (s <= arc) return corner(r.x + radius, r.y + r.h - radius, Math.PI / 2); s -= arc;
+      if (s <= h) return [r.x, r.y + r.h - radius - s, -1, 0]; s -= h;
+      return corner(r.x + radius, r.y + radius, Math.PI);
+    } };
+  }
+  // a rounded rectangle (corner "capsule": a capsule) drawn the way a pen draws it: loose laps that
+  // stray a little from the line and run on past where they began
+  function penOutline(box, corner, seed, wobble, laps, inset) {
+    inset = (inset || 0) + wobble * 1.5;
+    var r = { x: box.x + inset, y: box.y + inset, w: box.w - 2 * inset, h: box.h - 2 * inset };
+    if (r.w <= 1 || r.h <= 1) return "";
+    var radius = corner === "capsule" ? Math.min(r.w, r.h) / 2 : Math.min(corner, r.w / 2, r.h / 2);
+    var edge = perimeter(r, radius), next = penRandom(seed), d = "";
+    for (var l = 0; l < laps; l++) {
+      var knots = Math.max(5, Math.floor(edge.length / 20)), bumps = [];
+      for (var k = 0; k < knots; k++) bumps.push(next() * wobble);
+      var start = (next() + 1) / 2, run = 1.05 + Math.abs(next()) * 0.05, drift = next() * wobble;
+      var sx = next() * wobble * 0.5, sy = next() * wobble * 0.5;
+      var steps = Math.max(16, Math.floor(edge.length * run / 3)), pts = [];
+      for (var i = 0; i <= steps; i++) {
+        var u = i / steps * run, t = (start + u) % 1, p = edge.at(t), kk = t * knots, i0 = Math.floor(kk) % knots;
+        var ease = (1 - Math.cos((kk - Math.floor(kk)) * Math.PI)) / 2;
+        var off = bumps[i0] * (1 - ease) + bumps[(i0 + 1) % knots] * ease + drift * (u / run - 0.5);
+        pts.push([p[0] + p[2] * off + sx, p[1] + p[3] * off + sy]);
+      }
+      d += "M" + fx(pts[0][0]) + " " + fx(pts[0][1]);
+      for (var j = 1; j < pts.length - 1; j++) d += "Q" + fx(pts[j][0]) + " " + fx(pts[j][1]) + " " + fx((pts[j][0] + pts[j + 1][0]) / 2) + " " + fx((pts[j][1] + pts[j + 1][1]) / 2);
+      d += "L" + fx(pts[pts.length - 1][0]) + " " + fx(pts[pts.length - 1][1]);
+    }
+    return d;
+  }
+  // the streaks a marker leaves when it colors a shape in: loose diagonal strokes
+  function markerStreaks(box, seed, spacing) {
+    var next = penRandom(seed), d = "", run = box.h / 1.4, x = box.x - run;
+    while (x < box.x + box.w) {
+      var x0 = x + next() * spacing * 0.3;
+      d += "M" + fx(x0) + " " + fx(box.y + box.h + 1) + "L" + fx(x0 + run + next() * 1.5) + " " + fx(box.y - 1);
+      x += spacing * (1 + next() * 0.25);
+    }
+    return d;
+  }
+  var clipN = 0;
+  function svgEl(tag, attrs, parent) {
+    var e = document.createElementNS(SVG_NS, tag);
+    for (var k in attrs) if (attrs[k] != null) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function penStroke(width, more) {
+    var a = { fill: "none", "stroke-width": width, "stroke-linecap": "round", "stroke-linejoin": "round" };
+    for (var k in more) a[k] = more[k];
+    return a;
+  }
+  // a shape colored in with a marker (a flat fill under streaks) inside a pen outline
+  function markerShape(parent, box, corner, fill, streaks, seed, spacing, pen) {
+    var id = "tcClip" + (++clipN), inset = pen.inset || 1.5, g = svgEl("g", { "class": pen.cls }, parent);
+    var rect = { x: box.x + inset, y: box.y + inset, width: box.w - 2 * inset, height: box.h - 2 * inset, rx: corner };
+    svgEl("rect", rect, svgEl("clipPath", { id: id }, svgEl("defs", {}, g)));
+    rect["class"] = "tc-fill"; rect.fill = fill;
+    svgEl("rect", rect, g);
+    svgEl("path", penStroke(1.2, { "class": "tc-streaks", d: markerStreaks(box, seed, spacing), stroke: streaks, "clip-path": "url(#" + id + ")" }), g);
+    svgEl("path", penStroke(pen.width, { d: penOutline(box, pen.corner || corner, pen.seed, pen.wobble, 2, pen.width / 2), stroke: "var(--ink)" }), g);
+    return g;
+  }
+  // a text square: a colored-in tile with a few lines of text
+  function textTypeArt() {
+    var svg = svgEl("svg", { width: 50, height: 50, viewBox: "0 0 50 50", "class": "tc-text-art", "aria-hidden": "true" });
+    markerShape(svg, { x: 0, y: 0, w: 50, h: 50 }, 11, "var(--folder)", "var(--flash)", 37, 4, { seed: 31, wobble: 0.7, width: 1.8, corner: 12 });
+    [[24, 41], [31, 43], [19, 47]].forEach(function (ln, i) {
+      var box = { x: (50 - ln[0]) / 2, y: 11 + i * 11, w: ln[0], h: 6 };
+      svgEl("rect", { x: box.x + 0.5, y: box.y + 0.5, width: box.w - 1, height: 5, rx: 2.5, fill: "var(--muted)" }, svg);
+      svgEl("path", penStroke(1, { d: penOutline(box, "capsule", ln[1], 0.3, 1, 0.5), stroke: "var(--ink)" }), svg);
+    });
+    return svg;
+  }
+  // a folder square with its texts dropped open in a dashed panel under it, a doodled sparkle beside them
+  function folderTypeArt() {
+    var svg = svgEl("svg", { width: 61, height: 56, viewBox: "0 0 61 56", "class": "tc-folder-art", "aria-hidden": "true" });
+    markerShape(svg, { x: 5.5, y: 0, w: 50, h: 28 }, 9, "var(--folder)", "var(--flash)", 53, 4, { seed: 59, wobble: 0.7, width: 1.8, corner: 10 });
+    var glyph = svgEl("g", { transform: "translate(25.5 14)" }, svg);
+    svgEl("path", penStroke(1.2, { d: "M-7 -4.5h4.5l1.5 1.5h7.5a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-13.5a1 1 0 0 1-1-1v-7.5a1 1 0 0 1 1-1z", fill: "#5C94CC", stroke: "var(--ink)" }), glyph);
+    svgEl("path", penStroke(1, { d: "M-8 -1.2h16", stroke: "var(--ink)" }), glyph);
+    svgEl("path", penStroke(2, { "class": "tc-chev", d: "M-3.3 1.6L0 -1.6L3.3 1.6", stroke: "var(--ink)", opacity: 0.8 }), svgEl("g", { transform: "translate(13 0)" }, glyph));
+    var panel = svgEl("g", { "class": "tc-panel" }, svg), pbox = { x: 0, y: 33, w: 61, h: 23 };
+    svgEl("path", penStroke(1.1, { d: penOutline(pbox, 8, 71, 0.5, 1, 0.55), stroke: "var(--ink)", opacity: 0.55, "stroke-dasharray": "3 2.5" }), panel);
+    ["teal", "amber", "rose"].forEach(function (c, i) {
+      markerShape(panel, { x: 4 + i * 19, y: 37, w: 15, h: 15 }, 3, "var(--c-" + c + ")", "rgba(255,255,255,0.3)", 61 + i, 3, { seed: 67 + i, wobble: 0.35, width: 1.2, inset: 1, corner: 2.5 });
+    });
+    var sparkle = svgEl("g", { "class": "tc-sparkle" }, svgEl("g", { transform: "translate(69.5 51.5)" }, panel));
+    for (var a = 0; a < 4; a++) {
+      var dx = Math.cos(a * Math.PI / 4) * 3.5, dy = Math.sin(a * Math.PI / 4) * 3.5;
+      svgEl("path", penStroke(1, { d: "M" + fx(-dx) + " " + fx(-dy) + "L" + fx(dx) + " " + fx(dy), stroke: "var(--muted)", opacity: 0.8 }), sparkle);
+    }
+    return svg;
+  }
+  // the pen circle top right: colored in and ticked on the picked card, left empty on the other
+  function typeMark(seed) {
+    var svg = svgEl("svg", { width: 22, height: 22, viewBox: "0 0 22 22", "class": "tc-mark", "aria-hidden": "true" });
+    var id = "tcClip" + (++clipN);
+    svgEl("circle", { cx: 11, cy: 11, r: 8.5 }, svgEl("clipPath", { id: id }, svgEl("defs", {}, svg)));
+    var fill = svgEl("g", { "class": "tc-mark-fill" }, svg);
+    svgEl("circle", { cx: 11, cy: 11, r: 8.5, fill: "var(--flash)" }, fill);
+    svgEl("path", penStroke(1.2, { d: markerStreaks({ x: 2.5, y: 2.5, w: 17, h: 17 }, seed + 2, 3), stroke: "var(--folder)", opacity: 0.8, "clip-path": "url(#" + id + ")" }), fill);
+    svgEl("path", penStroke(1.6, { "class": "tc-ring", d: penOutline({ x: 0, y: 0, w: 22, h: 22 }, "capsule", seed, 0.45, 2, 0.8) }), svg);
+    svgEl("path", penStroke(2.4, { "class": "tc-tick", d: "M4.84 11Q7.26 13.2 9.24 16.28Q13.64 7.04 20.68 0.88", pathLength: 1 }), svg);
+    return svg;
+  }
+  // "Text square" or "Folder" as two picture cards, each showing what it makes
+  [[segText, false], [segFolder, true]].forEach(function (c) {
+    var btn = c[0], folder = c[1], edge = svgEl("svg", { "class": "tc-edge", "aria-hidden": "true" }, btn);
+    svgEl("path", penStroke(1.2, { "class": "tc-light" }), edge);
+    svgEl("path", penStroke(2.4, { "class": "tc-heavy" }), edge);
+    if (folder) svgEl("path", penStroke(2, { "class": "tc-cue", "stroke-dasharray": "7 5" }), edge);
+    var art = document.createElement("span"); art.className = "tc-art"; art.appendChild(folder ? folderTypeArt() : textTypeArt()); btn.appendChild(art);
+    var title = document.createElement("span"); title.className = "tc-title"; title.textContent = folder ? "Folder" : "Text square"; btn.appendChild(title);
+    btn.appendChild(typeMark(folder ? 29 : 17));
+  });
+  // one pen line round each card, drawn to the card's real size (heavy and light are the same line)
+  function drawTypeEdges() {
+    [[segText, 11], [segFolder, 23]].forEach(function (c) {
+      var btn = c[0], w = btn.offsetWidth, h = btn.offsetHeight, edge = btn.firstChild;
+      if (!w || !h || edge.getAttribute("data-size") === w + "x" + h) return;
+      edge.setAttribute("data-size", w + "x" + h);
+      edge.setAttribute("viewBox", "0 0 " + w + " " + h);
+      var box = { x: 0, y: 0, w: w, h: h };
+      edge.querySelector(".tc-light").setAttribute("d", penOutline(box, 18, c[1], 1.2, 2, 1.2));
+      edge.querySelector(".tc-heavy").setAttribute("d", penOutline(box, 18, c[1], 1.2, 2, 1.2));
+      var cue = edge.querySelector(".tc-cue");
+      if (cue) cue.setAttribute("d", penOutline(box, 18, 97, 1.2, 1, 1));
+    });
+  }
+  if (window.ResizeObserver) { var typeRO = new ResizeObserver(drawTypeEdges); typeRO.observe(segText); typeRO.observe(segFolder); }
+  else window.addEventListener("resize", drawTypeEdges);
+
   function setEditType(t) {
     editType = t;
     segText.classList.toggle("on", t === "text");
+    segText.setAttribute("aria-checked", String(t === "text"));
     segFolder.classList.toggle("on", t === "folder");
+    segFolder.setAttribute("aria-checked", String(t === "folder"));
     textField.hidden = (t === "folder");
     buildSwatches();
     showLooks();
     fitTextBox();
   }
-  segText.addEventListener("click", function () { setEditType("text"); });
-  segFolder.addEventListener("click", function () { setEditType("folder"); });
+  var typeTap = null;
+  function replayClass(node, cls) { node.classList.remove(cls); void node.offsetWidth; node.classList.add(cls); }
+  function setFolderOpen(open, animated) {
+    var art = segFolder.querySelector(".tc-folder-art");
+    if (!animated) { art.classList.add("still"); void art.offsetWidth; }
+    art.classList.toggle("shut", !open);
+    if (!animated) { void art.offsetWidth; art.classList.remove("still"); }
+  }
+  function chooseType(t) {
+    clearTimeout(typeTap);
+    setEditType(t);
+    if (t === "folder") {
+      remember(TYPE_CUE_DONE, "1");          // Folder has been found: the cue retires for good
+      typeCue.folderTapped = true;
+      clearTypeCue();
+      setFolderOpen(false, false);           // the folder's texts drop open again, the way a folder opens on the board
+      typeTap = setTimeout(function () { setFolderOpen(true, true); }, 50);
+    } else {
+      var art = segText.querySelector(".tc-text-art");   // the text square flashes the way a square does when it is tapped to copy
+      art.classList.add("flash");
+      typeTap = setTimeout(function () { art.classList.remove("flash"); }, 150);
+    }
+  }
+  segText.addEventListener("click", function () { chooseType("text"); });
+  segFolder.addEventListener("click", function () { chooseType("folder"); });
+
+  // The Folder card shows itself off the first 3 times the chooser opens: its texts drop open under
+  // it, it hops once, its sparkle twinkles and a dashed line pings out of it twice. Never again once
+  // Folder has been tapped, and not at all on a board that already has 2 or more folders.
+  var TYPE_CUE_DONE = "ditto.typeCueDone", TYPE_CUE_PLAYS = "ditto.typeCuePlays";
+  var typeCue = { timers: [], folderTapped: false };
+  function remember(key, val) { try { localStorage.setItem(key, val); } catch (e) {} }
+  function foldersOnBoard(list) { return list.reduce(function (n, sq) { return n + (isFolder(sq) ? 1 + foldersOnBoard(sq.items || []) : 0); }, 0); }
+  function typeCueDue() { return !stored(TYPE_CUE_DONE) && parseInt(stored(TYPE_CUE_PLAYS) || "0", 10) < 3 && foldersOnBoard(state.squares) < 2; }
+  function reduceMotion() { return !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches); }
+  function pingFolder() {
+    replayClass(segFolder.querySelector(".tc-cue"), "ping");
+    replayClass(segFolder.querySelector(".tc-sparkle"), "twinkle");
+  }
+  function startTypeCue() {
+    stopTypeCue();
+    typeCue.folderTapped = false;
+    if (!typeCueDue()) return;
+    setFolderOpen(false, false);             // shut only while it waits to drop open
+    typeCue.timers.push(setTimeout(function () {   // let the box finish opening first
+      if (editType !== "text" || typeCue.folderTapped) return;
+      var plays = parseInt(stored(TYPE_CUE_PLAYS) || "0", 10) + 1;   // counted only when it really plays
+      remember(TYPE_CUE_PLAYS, String(plays));
+      if (plays >= 3) remember(TYPE_CUE_DONE, "1");
+      setFolderOpen(true, true);
+      pingFolder();
+      if (reduceMotion()) return;            // one longer glow, no hop
+      replayClass(segFolder, "hop");
+      typeCue.timers.push(setTimeout(function () { if (editType === "text" && !typeCue.folderTapped) pingFolder(); }, 900));
+    }, 1000));
+  }
+  function clearTypeCue() { typeCue.timers.forEach(clearTimeout); typeCue.timers = []; }
+  function stopTypeCue() {                   // the drawings at rest at once: folder open, no flash
+    clearTypeCue();
+    clearTimeout(typeTap);
+    setFolderOpen(true, false);
+    segFolder.classList.remove("hop");
+    segText.querySelector(".tc-text-art").classList.remove("flash");
+  }
 
   function getEditSquare() {
     if (!editTarget) return null;
@@ -2195,6 +2472,8 @@
         editTitle.textContent = "Set up square";
         typeSeg.hidden = false;
         setEditType("text");
+        drawTypeEdges();
+        startTypeCue();
         clearBtn.textContent = 'Clear to "…"';
         deleteBtn.textContent = "Delete square";
       } else if (isFolder(sq)) {
