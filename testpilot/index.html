@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Ditto Test Pilots</title>
-<meta name="description" content="One hundred Dittos, each with one thing of their own.">
+<meta name="description" content="Two hundred Dittos, each with one thing of their own.">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#F2F5F6" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0F1518" media="(prefers-color-scheme: dark)">
@@ -63,12 +63,13 @@
   .hero { padding: 18px 0 6px; }
   .eyebrow { margin: 0 0 6px; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
   h1 { margin: 0 0 8px; font-size: 40px; line-height: 1.05; letter-spacing: -0.03em; }
-  .lede { margin: 0; max-width: 560px; font-size: 17px; color: var(--muted); }
+  .lede { margin: 0; max-width: 600px; font-size: 17px; color: var(--muted); }
   @media (max-width: 480px) { h1 { font-size: 32px; } .lede { font-size: 16px; } }
 
-  /* the picks bar: what has been tapped so far */
+  /* the picks bar: what has been tapped so far, and whether they move */
   .picks {
-    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    position: sticky; top: 0; z-index: 5;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
     margin: 18px 0 6px; padding: 12px 14px;
     background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow);
     font-size: 15px;
@@ -82,6 +83,8 @@
   }
   .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
   .btn:disabled { opacity: 0.45; cursor: default; }
+  h2 { margin: 34px 0 0; font-size: 22px; letter-spacing: -0.02em; }
+  h2 small { font-weight: 500; color: var(--muted); font-size: 15px; margin-left: 8px; }
 
   /* the sheet: one-inch boxes, nine to a row on a laptop, three on a phone */
   .grid {
@@ -89,7 +92,7 @@
     grid-template-columns: repeat(auto-fill, 1in);
     gap: 20px 12px;
     justify-content: center;
-    margin: 22px 0 10px;
+    margin: 18px 0 10px;
   }
   .cell { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 5px; }
   .box {
@@ -146,17 +149,22 @@
   <main>
     <div class="hero">
       <p class="eyebrow">Test pilots</p>
-      <h1>One hundred Dittos</h1>
-      <p class="lede">Each one has a thing of their own, written under their box. Tap the ones you like; your picks stay here, in this browser.</p>
+      <h1>Two hundred Dittos</h1>
+      <p class="lede">Each one has a thing of their own, written under their box, and moves the way it would. Tap the ones you like; your picks stay here, in this browser.</p>
     </div>
 
     <div class="picks" id="picks">
       <span class="count" id="pickCount">Tap a box to pick a Ditto.</span>
+      <button type="button" class="btn" id="stillBtn">Hold still</button>
       <button type="button" class="btn" id="clearPicks" disabled>Clear</button>
       <button type="button" class="btn primary" id="copyPicks" disabled>Copy picks</button>
     </div>
 
-    <div class="grid" id="grid" role="list"></div>
+    <h2 id="first">The first hundred <small>1 to 100</small></h2>
+    <div class="grid" id="grid1" role="list"></div>
+
+    <h2 id="second">The second hundred <small>101 to 200</small></h2>
+    <div class="grid" id="grid2" role="list"></div>
 
     <p class="foot">Drawn the way the walkers on the <a href="../">web app</a> are drawn. Numbers are the names.</p>
   </main>
@@ -172,10 +180,13 @@
   var INK = "#16262E", RED = "#D62828", TEAL = "#0E7C86", TEAL2 = "#53B7C0", GOLD = "#E3B23C", NAVY = "#1F3D69";
   var WOOD = "#A66A2E", DARKWOOD = "#6B4423", PINK = "#F48FB1", ORANGE = "#F2994A", YEL = "#F2C94C", GRAY = "#8A8F98";
   var WHITE = "#FFFFFF", SKY = "#B9DFF5", GREEN = "#2E7D4F", PURPLE = "#3B2A7A", SAND = "#C9A97A", CORAL = "#F25F5C";
+  var LIME = "#7CB342", BROWN = "#8D5A2B", SILVER = "#C7D0D8";
 
   function f(n) { return Math.round(n * 100) / 100; }
   function hand(a, al) { al = al || 4.6; return [f(al * Math.sin(a)), f(-10.4 + al * Math.cos(a))]; }
+  function foot(a, ll) { ll = ll || 6.6; return [f(ll * Math.sin(a)), f(-6.6 + ll * Math.cos(a))]; }
   function sw(w) { return 'stroke-width="' + w + '"'; }
+  function col(c) { return 'stroke="' + c + '"'; }
   function P(d, fill, extra) { return '<path d="' + d + '"' + (fill ? ' fill="' + fill + '"' : "") + (extra ? " " + extra : "") + "/>"; }
   function L(x1, y1, x2, y2, extra) { return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '"' + (extra ? " " + extra : "") + "/>"; }
   function C(cx, cy, r, fill, extra) { return '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '"' + (fill ? ' fill="' + fill + '"' : "") + (extra ? " " + extra : "") + "/>"; }
@@ -184,227 +195,529 @@
   function T(x, y, s, size) { return '<text x="' + x + '" y="' + y + '" font-size="' + size + '" fill="' + INK + '" stroke="none" text-anchor="middle" font-family="-apple-system, Segoe UI, Roboto, sans-serif" font-weight="600">' + s + "</text>"; }
   function sparkle(x, y, r, extra) { return L(x - r, y, x + r, y, extra || sw(0.5)) + L(x, y - r, x, y + r, extra || sw(0.5)); }
   function flake(x, y, r) {
-    var e = 'stroke="' + TEAL2 + '" ' + sw(0.45);
+    var e = col(TEAL2) + " " + sw(0.45);
     return L(x - r, y, x + r, y, e) + L(x - r * 0.5, y - r * 0.87, x + r * 0.5, y + r * 0.87, e) + L(x - r * 0.5, y + r * 0.87, x + r * 0.5, y - r * 0.87, e);
   }
+  function starPath(cx, cy, r) {
+    var d = "";
+    for (var i = 0; i < 10; i++) { var rr = i % 2 ? r * 0.45 : r, a = -Math.PI / 2 + i * Math.PI / 5; d += (i ? "L" : "M") + f(cx + rr * Math.cos(a)) + "," + f(cy + rr * Math.sin(a)); }
+    return d + "Z";
+  }
   var NONE = 'stroke="none"';
+  function eyes() { return C(-0.65, -13.1, 0.3, INK, NONE) + C(0.65, -13.1, 0.3, INK, NONE); }
+  function smile() { return P("M-0.9,-12.2 Q0,-11.3 0.9,-12.2", null, sw(0.5)); }
+  function note(x, y, size) { return T(x, y, "♪", size || 2.4); }
 
-  // One stick figure. o: la/lb leg angles, aa/ab arm angles (or legs:[..], arms:[..]), legPath/armPath extra
-  // strokes, nolegs/nobody/nohead, hr head radius, dx/dy, rot (about (0, rc)), sc, op, dash.
+  /* ---------- motion: SMIL, so every joint turns about its own point ---------- */
+  var EASE = 'calcMode="spline" keyTimes="0;0.5;1" keySplines="0.42 0 0.58 1;0.42 0 0.58 1"';
+  var JUMP = 'calcMode="spline" keyTimes="0;0.5;1" keySplines="0.1 0.7 0.3 1;0.7 0 0.9 0.3"';
+  function rep(dur, begin, extra) { return ' dur="' + dur + 's" repeatCount="indefinite"' + (begin ? ' begin="' + begin + 's"' : "") + (extra ? " " + extra : "") + "/>"; }
+  function rotAnim(cx, cy, d1, d2, dur, begin, mode) {
+    var v = d1 + " " + cx + " " + cy + ";" + d2 + " " + cx + " " + cy + ";" + d1 + " " + cx + " " + cy;
+    return '<animateTransform attributeName="transform" type="rotate" values="' + v + '"' + rep(dur, begin, mode === "step" ? 'calcMode="discrete" keyTimes="0;0.5;1"' : mode === "linear" ? "" : EASE);
+  }
+  function spinAnim(cx, cy, dur, begin) { return '<animateTransform attributeName="transform" type="rotate" values="0 ' + cx + " " + cy + ";360 " + cx + " " + cy + '"' + rep(dur, begin); }
+  function slideAnim(values, dur, begin, extra) { return '<animateTransform attributeName="transform" type="translate" values="' + values + '"' + rep(dur, begin, extra === undefined ? EASE : extra); }
+  function scaleAnim(values, dur, begin, extra) { return '<animateTransform attributeName="transform" type="scale" values="' + values + '"' + rep(dur, begin, extra === undefined ? EASE : extra); }
+  function fadeAnim(values, dur, begin, extra) { return '<animate attributeName="opacity" values="' + values + '"' + rep(dur, begin, extra || ""); }
+  function attrAnim(name, values, dur, begin, extra) { return '<animate attributeName="' + name + '" values="' + values + '"' + rep(dur, begin, extra === undefined ? EASE : extra); }
+  // wrappers: the fragment inside turns, spins, slides, fades, grows or travels
+  function sway(frag, cx, cy, deg, dur, begin, mode) { return "<g>" + rotAnim(cx, cy, -deg, deg, dur, begin, mode) + frag + "</g>"; }
+  function spin(frag, cx, cy, dur, begin) { return "<g>" + spinAnim(cx, cy, dur, begin) + frag + "</g>"; }
+  function slide(frag, values, dur, begin, extra) { return "<g>" + slideAnim(values, dur, begin, extra) + frag + "</g>"; }
+  function fade(frag, values, dur, begin, extra) { return "<g>" + fadeAnim(values, dur, begin, extra) + frag + "</g>"; }
+  function grow(frag, cx, cy, values, dur, begin, extra) { return '<g transform="translate(' + cx + " " + cy + ')"><g>' + scaleAnim(values, dur, begin, extra) + '<g transform="translate(' + (-cx) + " " + (-cy) + ')">' + frag + "</g></g></g>"; }
+  function motion(frag, path, dur, begin, extra) { return '<g><animateMotion path="' + path + '"' + rep(dur, begin, extra || "") + frag + "</g>"; }
+  function morph(d1, d2, dur, attrs, begin, extra) { return '<path d="' + d1 + '"' + (attrs ? " " + attrs : "") + '><animate attributeName="d" values="' + d1 + ";" + d2 + ";" + d1 + '"' + rep(dur, begin, extra === undefined ? EASE : extra) + "</path>"; }
+  function drops(list, dur) { return list.map(function (p, i) { return slide(fade(p, "0;1;1;0", dur, -i * dur / list.length, ""), "0 -1;0 3", dur, -i * dur / list.length, ""); }).join(""); }
+  function rising(list, dur) { return list.map(function (p, i) { return slide(fade(p, "0;0.9;0", dur, -i * dur / list.length, ""), "0 0.5;0 -2.5", dur, -i * dur / list.length, ""); }).join(""); }
+  function twinkle(list, dur) { return list.map(function (p, i) { return fade(p, "1;0.2;1", dur, -i * dur / list.length); }).join(""); }
+
+  // One stick figure. Pose: la/lb leg angles, aa/ab arm angles (or legs:[..], arms:[..]), legPath/armPath extra
+  // strokes, armProps/legProps (fragments that ride on a limb), nolegs/nobody/nohead, hr head radius, headFill,
+  // dx/dy, rot (about (0, rc)), sc, op, dash. Motion (anim): legs [degA, degB] (0 = still), arms [degA, degB(, degC)]
+  // or "windmill", dur, sync (arms together), step (robot), head (bob), fig {rock, cx, cy, dur} or {spin, cx, cy}.
   function figure(o) {
     o = o || {};
+    var an = o.anim || {}, dur = an.dur || 0.8, mode = an.step ? "step" : undefined;
     var legs = o.legs || [o.la == null ? 0.14 : o.la, o.lb == null ? -0.14 : o.lb];
     var arms = o.arms || [o.aa == null ? 0.22 : o.aa, o.ab == null ? -0.22 : o.ab];
+    var windmill = an.arms === "windmill";
+    var legSpec = an.legs === undefined ? [16, 16] : (an.legs || []);
+    var armSpec = (an.arms === undefined ? [14, 14] : (an.arms || [])); if (windmill) armSpec = [];
     var ll = o.ll || 6.6, al = o.al || 4.6, hr = o.hr || 1.95;
     var hy = o.hy != null ? o.hy : (hr === 1.95 ? -12.7 : -11 - hr + 0.25);
-    var d = "";
-    if (!o.nolegs) legs.forEach(function (a) { d += "M0,-6.6 L" + f(ll * Math.sin(a)) + "," + f(-6.6 + ll * Math.cos(a)); });
-    if (o.legPath) d += o.legPath;
-    if (!o.nobody) d += "M0,-6.6 L0,-11";
-    arms.forEach(function (a) { d += "M0,-10.4 L" + f(al * Math.sin(a)) + "," + f(-10.4 + al * Math.cos(a)); });
-    if (o.armPath) d += o.armPath;
-    var head = o.nohead ? "" : C(0, f(hy), hr);
+    function part(x0, y0, len, a, deg, begin, prop, turn) {
+      var inner = P("M" + x0 + "," + y0 + " L" + f(x0 + len * Math.sin(a)) + "," + f(y0 + len * Math.cos(a))) + (prop || "");
+      if (turn) return "<g>" + spinAnim(x0, y0, dur, begin) + inner + "</g>";
+      if (!deg) return inner;
+      return "<g>" + rotAnim(x0, y0, -deg, deg, dur, begin, mode) + inner + "</g>";
+    }
+    var out = "";
+    if (!o.nolegs) legs.forEach(function (a, i) { out += part(0, -6.6, ll, a, legSpec[i] || 0, i % 2 ? -dur / 2 : 0, (o.legProps || [])[i]); });
+    if (o.legMorph) out += morph(o.legMorph[0], o.legMorph[1], o.legMorph[2] || dur, "", 0, "");
+    if (o.legPath) out += P(o.legPath);
+    if (!o.nobody) out += P("M0,-6.6 L0,-11");
+    arms.forEach(function (a, i) { out += part(0, -10.4, al, a, armSpec[i] || 0, an.sync ? 0 : (i % 2 ? 0 : -dur / 2), (o.armProps || [])[i], windmill); });
+    if (o.armMorph) out += morph(o.armMorph[0], o.armMorph[1], o.armMorph[2] || 2, "");
+    if (o.armPath) out += P(o.armPath);
+    if (!o.nohead) {
+      var hc = C(0, f(hy), hr, o.headFill || null);
+      out += an.head ? "<g>" + slideAnim("0 0;0 " + (-an.head) + ";0 0", an.headDur || dur / 2) + hc + "</g>" : hc;
+    }
+    var inner = (o.inner || "") + out + (o.innerFront || "");
+    if (an.fig) inner = "<g>" + (an.fig.spin ? spinAnim(an.fig.cx || 0, an.fig.cy == null ? -7.3 : an.fig.cy, an.fig.spin) : rotAnim(an.fig.cx || 0, an.fig.cy == null ? -7.3 : an.fig.cy, -an.fig.rock, an.fig.rock, an.fig.dur || 1.6, 0)) + inner + "</g>";
     var tr = [];
     if (o.dx || o.dy) tr.push("translate(" + (o.dx || 0) + " " + (o.dy || 0) + ")");
     if (o.rot) tr.push("rotate(" + o.rot + " 0 " + (o.rc == null ? -7.3 : o.rc) + ")");
     if (o.sc) tr.push("scale(" + o.sc + ")");
     var attrs = (tr.length ? ' transform="' + tr.join(" ") + '"' : "") + (o.op ? ' opacity="' + o.op + '"' : "") + (o.dash ? ' stroke-dasharray="' + o.dash + '"' : "");
-    return "<g" + attrs + ">" + (o.inner || "") + P(d) + head + (o.innerFront || "") + "</g>";
+    return "<g" + attrs + ">" + inner + "</g>";
   }
 
-  // The site's dog, standing, facing +x, at (x, y) with its feet on y.
+  // The site's dog, facing +x, at (x, y) with its feet on y: legs trotting, tail wagging.
   function dog(x, y) {
-    var a = 0.2, d = "M-2.6,-4.4 L1.6,-4.7";
-    [[1.5, -4.7, a, 4.4], [0.9, -4.7, -a, 4.4], [-2.5, -4.4, -a, 4.2], [-1.9, -4.4, a, 4.2]].forEach(function (l) {
-      d += "M" + l[0] + "," + l[1] + " L" + f(l[0] + Math.sin(l[2]) * l[3]) + "," + f(l[1] + Math.cos(l[2]) * l[3]);
-    });
-    d += "M1.6,-4.7 L2.3,-6 M-2.6,-4.4 L-3.64,-6.65 M2,-8.9 L1.3,-7.4";
-    return '<g transform="translate(' + x + " " + y + ')">' + P(d) + C(2.9, -7.3, 1.85) + C(3.6, -7.6, 0.45, INK, NONE) + L(1.9, -5.2, 2.9, -5.6, 'stroke="' + RED + '" ' + sw(0.6)) + "</g>";
+    var a = 0.2;
+    function leg(x0, y0, ang, len, i) { return "<g>" + rotAnim(x0, y0, -14, 14, 0.5, i % 2 ? -0.25 : 0) + P("M" + x0 + "," + y0 + " L" + f(x0 + Math.sin(ang) * len) + "," + f(y0 + Math.cos(ang) * len)) + "</g>"; }
+    return '<g transform="translate(' + x + " " + y + ')">' + P("M-2.6,-4.4 L1.6,-4.7 M1.6,-4.7 L2.3,-6 M2,-8.9 L1.3,-7.4") +
+      leg(1.5, -4.7, a, 4.4, 0) + leg(0.9, -4.7, -a, 4.4, 1) + leg(-2.5, -4.4, -a, 4.2, 1) + leg(-1.9, -4.4, a, 4.2, 0) +
+      sway(P("M-2.6,-4.4 L-3.64,-6.65"), -2.6, -4.4, 22, 0.4) + C(2.9, -7.3, 1.85) + C(3.6, -7.6, 0.45, INK, NONE) + L(1.9, -5.2, 2.9, -5.6, col(RED) + " " + sw(0.6)) + "</g>";
   }
 
   var dome = function (r, fill) { return P("M-" + r + ",-13.9 A" + r + "," + r + " 0 0 1 " + r + ",-13.9 Z", fill, sw(0.6)); };
+  // things that ride on a leg: striped socks, pyjama legs, boots, skate blades
+  function sock(a) {
+    var out = "";
+    [0.6, 0.74, 0.88].forEach(function (t, i) {
+      var px = 6.6 * Math.sin(a) * t, py = -6.6 + 6.6 * Math.cos(a) * t, nx = Math.cos(a) * 0.75, ny = -Math.sin(a) * 0.75;
+      out += L(f(px - nx), f(py - ny), f(px + nx), f(py + ny), col(i % 2 ? WHITE : RED) + " " + sw(0.9));
+    });
+    return out;
+  }
+  function pant(a, color) { var p = foot(a); return L(0, -6.6, p[0], p[1], col(color) + " " + sw(2.6)) + L(0, -6.6, p[0], p[1]); }
+  function boot(a, color) { var p = foot(a); return R(p[0] - 0.6, p[1] - 1.5, 2.1, 1.7, color, 'rx="0.4" ' + sw(0.4)); }
+  function blade(a) { var p = foot(a); return R(p[0] - 0.5, p[1] - 1.4, 1.6, 1.6, WHITE, 'rx="0.3" ' + sw(0.4)) + L(p[0] - 1.1, p[1] + 0.7, p[0] + 1.5, p[1] + 0.7, sw(0.5)); }
+  function glove(a, color) { var p = hand(a); return C(p[0], p[1], 0.8, color, sw(0.4)); }
 
   /* ---------- the hundred ----------
-     [label, pose, behind the figure, in front of the figure]  (behind/front in world units) */
+     [label, pose (with its motion), behind the figure, in front of the figure]  (behind/front in world units) */
   var H = hand;
+  var S0 = { legs: 0, arms: 0 };
   var PILOTS = [
     // hats and headwear
-    ["Striped top hat", {}, "", '<g transform="translate(0.2 0) rotate(-5 0 -14.2)">' +
+    ["Striped top hat", {}, "", sway('<g transform="translate(0.2 0) rotate(-5 0 -14.2)">' +
       [0, 1, 2, 3].map(function (i) { return R(-1.7, f(-14.2 - (i + 1) * 1.45), 3.4, 1.5, i % 2 ? WHITE : RED, NONE); }).join("") +
-      R(-1.7, -20, 3.4, 5.8, null, sw(0.7)) + L(-2.8, -14.2, 2.8, -14.2) + "</g>"],
+      R(-1.7, -20, 3.4, 5.8, null, sw(0.7)) + L(-2.8, -14.2, 2.8, -14.2) + "</g>", 0, -14.2, 3, 0.8)],
     ["Cowboy hat", {}, "", P("M-2.4,-14.3 L-2.4,-16.8 Q-1.2,-17.7 0,-16.9 Q1.2,-17.7 2.4,-16.8 L2.4,-14.3 Z", WOOD, sw(0.6)) +
-      L(-2.4, -15.3, 2.4, -15.3, 'stroke="' + DARKWOOD + '" ' + sw(0.6)) + P("M-5,-15.6 Q0,-13.5 5,-15.6", null, 'stroke="' + WOOD + '" ' + sw(1.2))],
+      L(-2.4, -15.3, 2.4, -15.3, col(DARKWOOD) + " " + sw(0.6)) + P("M-5,-15.6 Q0,-13.5 5,-15.6", null, col(WOOD) + " " + sw(1.2))],
     ["Crown", {}, "", P("M-2.5,-14.4 L-2.5,-17.7 L-1.25,-16.1 L0,-18.1 L1.25,-16.1 L2.5,-17.7 L2.5,-14.4 Z", GOLD, sw(0.6)) +
-      C(-1.25, -16.3, 0.3, RED, NONE) + C(1.25, -16.3, 0.3, TEAL, NONE) + C(0, -18.1, 0.32, RED, NONE)],
+      twinkle([C(-1.25, -16.3, 0.3, RED, NONE), C(1.25, -16.3, 0.3, TEAL, NONE), C(0, -18.1, 0.32, RED, NONE)], 1.5)],
     ["Propeller beanie", {}, "", dome(2.1, RED) + L(0, -16, 0, -17.2, sw(0.7)) +
-      P("M-2.8,-17.2 Q0,-18.3 2.8,-17.2 Q0,-16.1 -2.8,-17.2 Z", TEAL, sw(0.4)) + C(0, -17.2, 0.35, INK, NONE)],
+      grow(P("M-2.8,-17.2 Q0,-18.3 2.8,-17.2 Q0,-16.1 -2.8,-17.2 Z", TEAL, sw(0.4)), 0, -17.2, "1 1;0.12 1;1 1", 0.3, 0, "") + C(0, -17.2, 0.35, INK, NONE)],
     ["Wizard hat", {}, "", E(0, -14.2, 4, 0.85, PURPLE, sw(0.6)) + P("M-3.3,-14.2 L3.3,-14.2 L0.7,-20.8 Z", PURPLE, sw(0.6)) +
-      C(0.4, -17.2, 0.35, WHITE, NONE) + C(-0.9, -15.4, 0.3, WHITE, NONE) + C(1.5, -15.7, 0.25, WHITE, NONE)],
+      twinkle([C(0.4, -17.2, 0.35, WHITE, NONE), C(-0.9, -15.4, 0.3, WHITE, NONE), C(1.5, -15.7, 0.25, WHITE, NONE)], 1.8)],
     ["Chef's hat", {}, "", C(-1.4, -17.4, 1.35, WHITE, sw(0.6)) + C(1.4, -17.4, 1.35, WHITE, sw(0.6)) + C(0, -18.3, 1.4, WHITE, sw(0.6)) +
       R(-2.1, -17.2, 4.2, 3, WHITE, sw(0.6))],
     ["Hard hat", {}, "", dome(3.3, YEL) + L(-4.2, -13.9, 4.2, -13.9, sw(0.9)) + L(0, -17.2, 0, -14.6, sw(0.5))],
-    ["Party hat", {}, "", P("M-2.2,-14.2 L2.2,-14.2 L0,-20 Z", CORAL, sw(0.6)) + C(-0.5, -15.6, 0.35, WHITE, NONE) +
-      C(0.7, -17.2, 0.3, WHITE, NONE) + C(-0.2, -18.5, 0.25, WHITE, NONE) + C(0, -20.1, 0.7, TEAL, sw(0.4))],
+    ["Party hat", {}, "", sway(P("M-2.2,-14.2 L2.2,-14.2 L0,-20 Z", CORAL, sw(0.6)) + C(-0.5, -15.6, 0.35, WHITE, NONE) +
+      C(0.7, -17.2, 0.3, WHITE, NONE) + C(-0.2, -18.5, 0.25, WHITE, NONE) + C(0, -20.1, 0.7, TEAL, sw(0.4)), 0, -14.2, 4, 0.8)],
     ["Beret", {}, "", E(0.5, -14.8, 2.9, 1.15, NAVY, sw(0.5)) + L(0.5, -15.9, 0.8, -16.6, sw(0.6))],
-    ["Halo", {}, "", E(0, -16.6, 2.6, 0.75, null, 'stroke="' + GOLD + '" ' + sw(0.8))],
+    ["Halo", {}, "", slide(fade(E(0, -16.6, 2.6, 0.75, null, col(GOLD) + " " + sw(0.8)), "1;0.6;1", 1.6), "0 0;0 -0.5;0 0", 1.6)],
     ["Viking helmet", {}, "", dome(2.5, GRAY) + L(-2.7, -13.9, 2.7, -13.9, sw(0.8)) +
       P("M-2.2,-14.7 Q-4.5,-15.6 -4.1,-18.6 Q-2.6,-16.6 -2.2,-14.7 Z", WHITE, sw(0.6)) + P("M2.2,-14.7 Q4.5,-15.6 4.1,-18.6 Q2.6,-16.6 2.2,-14.7 Z", WHITE, sw(0.6))],
     ["Graduation cap", {}, "", dome(2, INK) + P("M-3.7,-15.3 L0,-16.8 L3.7,-15.3 L0,-13.9 Z", INK, sw(0.5)) +
-      L(2.3, -15.6, 3.3, -13.1, 'stroke="' + GOLD + '" ' + sw(0.6)) + C(3.4, -12.8, 0.4, GOLD, NONE)],
-    ["Headphones", {}, "", P("M-2.7,-12.7 A2.7,2.7 0 0 1 2.7,-12.7", null, sw(0.9)) +
-      R(-3.2, -13.5, 1.1, 1.7, TEAL, 'rx="0.4" ' + sw(0.5)) + R(2.1, -13.5, 1.1, 1.7, TEAL, 'rx="0.4" ' + sw(0.5))],
+      sway(L(2.3, -15.6, 3.3, -13.1, col(GOLD) + " " + sw(0.6)) + C(3.4, -12.8, 0.4, GOLD, NONE), 2.3, -15.6, 14, 0.8)],
+    ["Headphones", { anim: { head: 0.35, headDur: 0.4 } }, "", slide(P("M-2.7,-12.7 A2.7,2.7 0 0 1 2.7,-12.7", null, sw(0.9)) +
+      R(-3.2, -13.5, 1.1, 1.7, TEAL, 'rx="0.4" ' + sw(0.5)) + R(2.1, -13.5, 1.1, 1.7, TEAL, 'rx="0.4" ' + sw(0.5)), "0 0;0 -0.35;0 0", 0.4)],
     ["Sombrero", {}, "", E(0, -14.4, 6.2, 1.3, GOLD, sw(0.6)) + P("M-2.3,-14.4 L2.3,-14.4 L0,-18.3 Z", GOLD, sw(0.6)) +
-      L(-1.5, -15.7, 1.5, -15.7, 'stroke="' + RED + '" ' + sw(0.7))],
-    ["Pirate hat & hook", { aa: 0.9 }, "", P("M-4.6,-14.4 L-2.2,-17.6 Q0,-16.5 2.2,-17.6 L4.6,-14.4 Z", INK, sw(0.4)) +
+      L(-1.5, -15.7, 1.5, -15.7, col(RED) + " " + sw(0.7))],
+    ["Pirate hat & hook", { aa: 0.9, anim: { arms: [0, 14] } }, "", P("M-4.6,-14.4 L-2.2,-17.6 Q0,-16.5 2.2,-17.6 L4.6,-14.4 Z", INK, sw(0.4)) +
       C(0, -15.5, 0.45, WHITE, NONE) + P("M3.6,-7.5 Q5.2,-7.6 5.2,-6.2 Q5.2,-5.1 4.2,-5.3", null, sw(0.9))],
     // faces
     ["Sunglasses", {}, "", R(-2.2, -13.45, 1.8, 1.1, INK, 'rx="0.35" ' + NONE) + R(0.4, -13.45, 1.8, 1.1, INK, 'rx="0.35" ' + NONE) + L(-0.4, -12.9, 0.4, -12.9, sw(0.5))],
-    ["Monocle", {}, "", C(0.9, -12.9, 0.95, null, sw(0.6)) + P("M1.6,-12.3 Q2.9,-11.5 2.4,-9.7", null, sw(0.4))],
+    ["Monocle", {}, "", C(0.9, -12.9, 0.95, null, sw(0.6)) + sway(P("M1.6,-12.3 Q2.9,-11.5 2.4,-9.7", null, sw(0.4)), 1.6, -12.3, 8, 0.8)],
     ["Mustache", {}, "", P("M-1.8,-11.8 Q-0.9,-12.8 0,-11.85 Q0.9,-12.8 1.8,-11.8 Q0.9,-11.1 0,-11.7 Q-0.9,-11.1 -1.8,-11.8 Z", INK, NONE)],
     ["Beard", {}, "", P("M-1.9,-12.3 Q-1.7,-9 0,-8.7 Q1.7,-9 1.9,-12.3 Q0,-11 -1.9,-12.3 Z", INK, NONE)],
     ["Eyepatch", {}, "", L(-1.9, -13.7, 1.9, -12.2, sw(0.5)) + C(0.7, -13, 0.72, INK, NONE)],
-    ["A face", {}, "", C(-0.65, -13.1, 0.3, INK, NONE) + C(0.65, -13.1, 0.3, INK, NONE) + P("M-0.9,-12.2 Q0,-11.3 0.9,-12.2", null, sw(0.5))],
+    ["A face", {}, "", fade(eyes(), "1;1;0;1", 3, 0, 'calcMode="discrete" keyTimes="0;0.88;0.93;1"') + smile()],
     ["Hero mask", {}, "", R(-2.3, -13.6, 4.6, 1.25, RED, 'rx="0.5" ' + NONE) + C(-0.7, -13, 0.32, WHITE, NONE) + C(0.7, -13, 0.32, WHITE, NONE)],
-    ["Clown nose", {}, C(-2.2, -13.3, 0.95, ORANGE, NONE) + C(2.2, -13.3, 0.95, ORANGE, NONE), C(0.2, -12.4, 0.68, RED, NONE)],
+    ["Clown nose", {}, C(-2.2, -13.3, 0.95, ORANGE, NONE) + C(2.2, -13.3, 0.95, ORANGE, NONE), grow(C(0.2, -12.4, 0.68, RED, NONE), 0.2, -12.4, "1;1.3;1", 0.6)],
     // what they wear
-    ["Cape", {}, P("M-0.4,-10.8 Q-4,-7 -6.4,-1.4 L-3.2,-2.7 L-1.4,-3.6 Q-0.8,-7 -0.4,-10.8 Z", RED, sw(0.5)), ""],
-    ["Scarf", {}, "", R(-1.6, -11.65, 3.2, 1.25, TEAL, 'rx="0.4" ' + sw(0.4)) + P("M-1.4,-11 L-4.7,-9.2 L-4,-8 L-1.2,-10.2 Z", TEAL, sw(0.4)) +
-      L(-4.4, -8.5, -4.9, -7.8, sw(0.4)) + L(-3.8, -8.1, -4.2, -7.4, sw(0.4))],
-    ["Bow tie", {}, "", P("M-1.5,-11.9 L-1.5,-10.3 L0,-11.1 Z", RED, sw(0.4)) + P("M1.5,-11.9 L1.5,-10.3 L0,-11.1 Z", RED, sw(0.4)) + C(0, -11.1, 0.36, RED, sw(0.4))],
-    ["Necktie", {}, "", P("M0,-11 L-0.6,-10.3 L0,-6.3 L0.6,-10.3 Z", NAVY, sw(0.4)) + C(0, -10.85, 0.42, NAVY, NONE)],
-    ["Tutu", { la: 0.3, lb: -0.75, aa: 2.9, ab: -2.9 }, "", P("M-1.5,-6.9 L-4.3,-4.5 Q-2.1,-3.5 0,-4.4 Q2.1,-3.5 4.3,-4.5 L1.5,-6.9 Z", PINK, sw(0.4) + ' opacity="0.92"')],
-    ["Big boots", {}, "", R(-2, -1.7, 2.7, 2, DARKWOOD, 'rx="0.6" ' + sw(0.5)) + R(0.2, -1.7, 2.9, 2, DARKWOOD, 'rx="0.6" ' + sw(0.5)) +
-      L(-1.3, -1.2, -0.5, -1.2, 'stroke="' + GOLD + '" ' + sw(0.3)) + L(1, -1.2, 1.9, -1.2, 'stroke="' + GOLD + '" ' + sw(0.3))],
+    ["Cape", {}, sway(P("M-0.4,-10.8 Q-4,-7 -6.4,-1.4 L-3.2,-2.7 L-1.4,-3.6 Q-0.8,-7 -0.4,-10.8 Z", RED, sw(0.5)), -0.4, -10.8, 6, 0.9), ""],
+    ["Scarf", {}, "", R(-1.6, -11.65, 3.2, 1.25, TEAL, 'rx="0.4" ' + sw(0.4)) + sway(P("M-1.4,-11 L-4.7,-9.2 L-4,-8 L-1.2,-10.2 Z", TEAL, sw(0.4)) +
+      L(-4.4, -8.5, -4.9, -7.8, sw(0.4)) + L(-3.8, -8.1, -4.2, -7.4, sw(0.4)), -1.4, -11, 8, 0.7)],
+    ["Bow tie", {}, "", sway(P("M-1.5,-11.9 L-1.5,-10.3 L0,-11.1 Z", RED, sw(0.4)) + P("M1.5,-11.9 L1.5,-10.3 L0,-11.1 Z", RED, sw(0.4)) + C(0, -11.1, 0.36, RED, sw(0.4)), 0, -11.1, 9, 0.5)],
+    ["Necktie", {}, "", sway(P("M0,-11 L-0.6,-10.3 L0,-6.3 L0.6,-10.3 Z", NAVY, sw(0.4)), 0, -11, 5, 0.8) + C(0, -10.85, 0.42, NAVY, NONE)],
+    ["Tutu", { la: 0.3, lb: -0.75, aa: 2.9, ab: -2.9, anim: S0, scene: { bob: 0.5, dur: 0.6 } }, "",
+      grow(P("M-1.5,-6.9 L-4.3,-4.5 Q-2.1,-3.5 0,-4.4 Q2.1,-3.5 4.3,-4.5 L1.5,-6.9 Z", PINK, sw(0.4) + ' opacity="0.92"'), 0, -5, "1 1;1.14 1;1 1", 0.6)],
+    ["Big boots", { anim: { legs: 0, dur: 0.9 }, scene: { bob: 0.5, dur: 0.9 } }, "", R(-2, -1.7, 2.7, 2, DARKWOOD, 'rx="0.6" ' + sw(0.5)) + R(0.2, -1.7, 2.9, 2, DARKWOOD, 'rx="0.6" ' + sw(0.5)) +
+      L(-1.3, -1.2, -0.5, -1.2, col(GOLD) + " " + sw(0.3)) + L(1, -1.2, 1.9, -1.2, col(GOLD) + " " + sw(0.3))],
     ["Backpack", {}, R(-3, -10.5, 2.3, 3.9, GREEN, 'rx="0.6" ' + sw(0.5)) + R(-2.6, -8.3, 1.5, 1.3, null, 'rx="0.3" ' + sw(0.4)), P("M-0.8,-10.2 Q-1.7,-8.6 -0.8,-7", null, sw(0.5))],
-    ["Umbrella", { aa: 2.6 }, "", L(2.4, -14.3, 2.4, -15.8, sw(0.7)) + L(2.4, -19.8, 2.4, -20.6, sw(0.6)) +
-      P("M-1.6,-15.8 A4,4 0 0 1 6.4,-15.8 Q5.4,-14.8 4.4,-15.8 Q3.4,-14.8 2.4,-15.8 Q1.4,-14.8 0.4,-15.8 Q-0.6,-14.8 -1.6,-15.8 Z", TEAL, sw(0.6)) +
-      L(-4.8, -18.4, -5.4, -16.8, 'stroke="' + TEAL2 + '" ' + sw(0.5)) + L(-3.6, -13, -4.2, -11.4, 'stroke="' + TEAL2 + '" ' + sw(0.5)) + L(8.2, -17, 7.6, -15.4, 'stroke="' + TEAL2 + '" ' + sw(0.5)) + L(8.6, -12.6, 8, -11, 'stroke="' + TEAL2 + '" ' + sw(0.5))],
-    ["Angel wings", {}, P("M-0.6,-10.6 C-4,-14.8 -8.2,-12.6 -6.8,-7.6 C-5.2,-9.1 -3.1,-8.7 -0.8,-8.6 Z", WHITE, sw(0.5)) + P("M0.6,-10.6 C4,-14.8 8.2,-12.6 6.8,-7.6 C5.2,-9.1 3.1,-8.7 0.8,-8.6 Z", WHITE, sw(0.5)) +
-      L(-3.6, -11.6, -5.2, -9.2, sw(0.35)) + L(3.6, -11.6, 5.2, -9.2, sw(0.35)), ""],
-    ["Bat wings", {}, P("M-0.6,-10.4 L-5,-13.6 L-7.6,-10 L-6.3,-8.3 L-4.7,-9.6 L-3.3,-7.7 L-1.4,-8.4 Z", INK, NONE) + P("M0.6,-10.4 L5,-13.6 L7.6,-10 L6.3,-8.3 L4.7,-9.6 L3.3,-7.7 L1.4,-8.4 Z", INK, NONE), ""],
-    ["Cat ears & tail", {}, P("M-0.3,-6.4 C-3.5,-6.2 -4.9,-3 -3.3,-1.2 C-2.7,-0.6 -2.2,-1.2 -2.6,-1.9", null, sw(1)),
-      P("M-1.8,-13.6 L-2.5,-16.1 L-0.6,-14.5 Z", INK, sw(0.4)) + P("M1.8,-13.6 L2.5,-16.1 L0.6,-14.5 Z", INK, sw(0.4))],
-    ["Stethoscope", {}, "", P("M-1.2,-10.3 Q-1.4,-7.6 0.2,-7.4 Q1.4,-7.6 1.3,-10.3", null, 'stroke="' + TEAL + '" ' + sw(0.7)) + P("M0.2,-7.4 L2.2,-5.6", null, 'stroke="' + TEAL + '" ' + sw(0.7)) +
-      C(2.6, -5.2, 0.85, GRAY, 'stroke="' + TEAL + '" ' + sw(0.5)) + C(-1.2, -10.3, 0.3, INK, NONE) + C(1.3, -10.3, 0.3, INK, NONE)],
-    ["Ninja headband", {}, "", L(-2, -13.3, 2, -13.3, 'stroke="' + RED + '" ' + sw(0.8)) + P("M-1.9,-13.3 L-4.9,-12.3", null, 'stroke="' + RED + '" ' + sw(0.6)) + P("M-1.9,-13.3 L-4.7,-14.3", null, 'stroke="' + RED + '" ' + sw(0.6))],
-    ["Astronaut helmet", {}, "", C(0, -12.7, 3.3, "rgba(185,223,245,0.4)", sw(0.6)) + P("M-2.4,-13.4 Q-1.8,-15.5 0.4,-15.5", null, 'stroke="' + WHITE + '" ' + sw(0.7)) + L(-2.1, -9.6, 2.1, -9.6, sw(0.8))],
-    ["Snorkel & fins", {}, "", E(0.3, -13, 1.6, 1.05, "rgba(83,183,192,0.45)", sw(0.6)) + P("M1.6,-12.6 L2.7,-12.8 L2.7,-16.9", null, 'stroke="' + TEAL + '" ' + sw(0.9)) +
+    ["Umbrella", { aa: 2.6, anim: { arms: 0 } }, "", sway(L(2.4, -14.3, 2.4, -15.8, sw(0.7)) + L(2.4, -19.8, 2.4, -20.6, sw(0.6)) +
+      P("M-1.6,-15.8 A4,4 0 0 1 6.4,-15.8 Q5.4,-14.8 4.4,-15.8 Q3.4,-14.8 2.4,-15.8 Q1.4,-14.8 0.4,-15.8 Q-0.6,-14.8 -1.6,-15.8 Z", TEAL, sw(0.6)), 2.4, -14.3, 4, 1.4) +
+      drops([L(-4.8, -18.4, -5.4, -16.8, col(TEAL2) + " " + sw(0.5)), L(-3.6, -13, -4.2, -11.4, col(TEAL2) + " " + sw(0.5)), L(8.2, -17, 7.6, -15.4, col(TEAL2) + " " + sw(0.5)), L(8.6, -12.6, 8, -11, col(TEAL2) + " " + sw(0.5))], 0.9)],
+    ["Angel wings", { anim: { legs: [6, 6], arms: [4, 4], dur: 1.2 }, scene: { bob: 0.7, dur: 1.2 } },
+      sway(P("M-0.6,-10.6 C-4,-14.8 -8.2,-12.6 -6.8,-7.6 C-5.2,-9.1 -3.1,-8.7 -0.8,-8.6 Z", WHITE, sw(0.5)) + L(-3.6, -11.6, -5.2, -9.2, sw(0.35)), -0.6, -10.6, 10, 0.6) +
+      sway(P("M0.6,-10.6 C4,-14.8 8.2,-12.6 6.8,-7.6 C5.2,-9.1 3.1,-8.7 0.8,-8.6 Z", WHITE, sw(0.5)) + L(3.6, -11.6, 5.2, -9.2, sw(0.35)), 0.6, -10.6, 10, 0.6, -0.3), ""],
+    ["Bat wings", { anim: { legs: [5, 5], arms: [3, 3], dur: 0.7 }, scene: { bob: 0.5, dur: 0.7 } },
+      sway(P("M-0.6,-10.4 L-5,-13.6 L-7.6,-10 L-6.3,-8.3 L-4.7,-9.6 L-3.3,-7.7 L-1.4,-8.4 Z", INK, NONE), -0.6, -10.4, 16, 0.35) +
+      sway(P("M0.6,-10.4 L5,-13.6 L7.6,-10 L6.3,-8.3 L4.7,-9.6 L3.3,-7.7 L1.4,-8.4 Z", INK, NONE), 0.6, -10.4, 16, 0.35, -0.175), ""],
+    ["Cat ears & tail", {}, sway(P("M-0.3,-6.4 C-3.5,-6.2 -4.9,-3 -3.3,-1.2 C-2.7,-0.6 -2.2,-1.2 -2.6,-1.9", null, sw(1)), -0.3, -6.4, 14, 0.9),
+      sway(P("M-1.8,-13.6 L-2.5,-16.1 L-0.6,-14.5 Z", INK, sw(0.4)), -1.2, -14, 6, 1.1) + sway(P("M1.8,-13.6 L2.5,-16.1 L0.6,-14.5 Z", INK, sw(0.4)), 1.2, -14, 6, 1.1, -0.4)],
+    ["Stethoscope", {}, "", P("M-1.2,-10.3 Q-1.4,-7.6 0.2,-7.4 Q1.4,-7.6 1.3,-10.3", null, col(TEAL) + " " + sw(0.7)) +
+      sway(P("M0.2,-7.4 L2.2,-5.6", null, col(TEAL) + " " + sw(0.7)) + C(2.6, -5.2, 0.85, GRAY, col(TEAL) + " " + sw(0.5)), 0.2, -7.4, 8, 0.8) +
+      C(-1.2, -10.3, 0.3, INK, NONE) + C(1.3, -10.3, 0.3, INK, NONE)],
+    ["Ninja headband", { anim: { dur: 0.55 } }, "", L(-2, -13.3, 2, -13.3, col(RED) + " " + sw(0.8)) +
+      sway(P("M-1.9,-13.3 L-4.9,-12.3", null, col(RED) + " " + sw(0.6)) + P("M-1.9,-13.3 L-4.7,-14.3", null, col(RED) + " " + sw(0.6)), -1.9, -13.3, 12, 0.4)],
+    ["Astronaut helmet", { anim: { legs: [5, 5], arms: [8, 8], dur: 1.8 }, scene: { bob: 1, dur: 2.4 } }, "",
+      C(0, -12.7, 3.3, "rgba(185,223,245,0.4)", sw(0.6)) + P("M-2.4,-13.4 Q-1.8,-15.5 0.4,-15.5", null, col(WHITE) + " " + sw(0.7)) + L(-2.1, -9.6, 2.1, -9.6, sw(0.8))],
+    ["Snorkel & fins", { anim: S0, scene: { x: 1.5, dur: 1.6 } }, "", E(0.3, -13, 1.6, 1.05, "rgba(83,183,192,0.45)", sw(0.6)) + P("M1.6,-12.6 L2.7,-12.8 L2.7,-16.9", null, col(TEAL) + " " + sw(0.9)) +
       P("M0.9,0 L4.7,-0.3 L4.5,0.9 L0.6,0.8 Z", TEAL, sw(0.4)) + P("M-0.9,0 L2.9,-0.3 L2.7,0.9 L-1.2,0.8 Z", TEAL, sw(0.4))],
-    ["Knight's shield", { ab: -1.25 }, "", P("M-6.3,-11.5 L-2.6,-11.5 L-2.6,-8.2 Q-4.45,-5.5 -6.3,-8.2 Z", NAVY, sw(0.6)) +
-      L(-4.45, -11, -4.45, -6.7, 'stroke="' + GOLD + '" ' + sw(0.6)) + L(-5.7, -9.8, -3.2, -9.8, 'stroke="' + GOLD + '" ' + sw(0.6))],
-    ["Bubble shield", {}, "", C(0, -7.4, 8.3, "rgba(83,183,192,0.12)", 'stroke="' + TEAL2 + '" ' + sw(0.6)) + P("M-5.8,-11.9 Q-3.2,-14.8 0.6,-15.2", null, 'stroke="' + WHITE + '" ' + sw(0.9))],
+    ["Knight's shield", { ab: -1.25, anim: { arms: [14, 0] } }, "", P("M-6.3,-11.5 L-2.6,-11.5 L-2.6,-8.2 Q-4.45,-5.5 -6.3,-8.2 Z", NAVY, sw(0.6)) +
+      L(-4.45, -11, -4.45, -6.7, col(GOLD) + " " + sw(0.6)) + L(-5.7, -9.8, -3.2, -9.8, col(GOLD) + " " + sw(0.6))],
+    ["Bubble shield", {}, "", grow(C(0, -7.4, 8.3, "rgba(83,183,192,0.12)", col(TEAL2) + " " + sw(0.6)) + P("M-5.8,-11.9 Q-3.2,-14.8 0.6,-15.2", null, col(WHITE) + " " + sw(0.9)), 0, -7.4, "1;1.03;1", 1.6)],
     // what they do
-    ["Juggles", { aa: 2.4, ab: -2.4 }, "", C(-3.2, -15.9, 0.85, RED, NONE) + C(0, -19.3, 0.85, TEAL, NONE) + C(3.2, -15.9, 0.85, GOLD, NONE)],
-    ["Skateboards", { dy: -1.6, la: 0.55, lb: -0.5, aa: 1.2, ab: -0.9 }, "", R(-5.2, -2.3, 10.4, 0.9, DARKWOOD, 'rx="0.45" ' + sw(0.5)) + C(-3.2, -0.8, 0.75, INK, NONE) + C(3.2, -0.8, 0.75, INK, NONE)],
-    ["Rides a unicycle", { dy: -2.2, la: 0.5, lb: -0.5, aa: 1.4, ab: -1.4 }, L(0, -8.8, 0, -3, sw(0.8)), C(0, -3, 3, null, sw(0.8)) + L(-3, -3, 3, -3, sw(0.4)) + L(0, -6, 0, 0, sw(0.4)) + L(2.6, -3, 3.8, -3, sw(0.7)) + L(-2.6, -3, -3.8, -3, sw(0.7))],
-    ["Balances a ball", { aa: 1.35, ab: -1.35 }, "", C(0, -16.4, 1.7, RED, sw(0.5)) + C(-0.5, -16.9, 0.4, WHITE, NONE)],
-    ["Handstand", { rot: 180, la: 0.35, lb: -0.25, aa: 2.9, ab: -2.9 }, "", ""],
-    ["Dances", { la: 0.45, lb: -1.1, aa: 2.5, ab: 1.3 }, "", T(4.8, -15.6, "♪", 2.8) + T(-4.6, -17.4, "♫", 2.8)],
-    ["Waves a flag", { aa: 2.6 }, "", L(2.4, -14.3, 2.4, -20.4, sw(0.6)) + P("M2.4,-20.4 L7.8,-19.2 L2.4,-18 Z", TEAL, sw(0.4))],
-    ["Holds a balloon", { aa: 2.9 }, "", P("M1.1,-14.9 Q1.6,-16.4 2.5,-17.2", null, sw(0.4)) + E(2.8, -19, 1.6, 1.9, RED, sw(0.4)) + P("M2.5,-17.2 L2.9,-17.4 L3.1,-17", INK, NONE)],
-    ["Floats on balloons", { sc: 0.85, dy: -2.4, la: 0.28, lb: -0.1, aa: 2.9, ab: -2.9 }, "",
-      L(0.94, -15.05, -2.4, -17.2, sw(0.4)) + L(0.94, -15.05, 0.3, -17.9, sw(0.4)) + L(-0.94, -15.05, 3, -17.2, sw(0.4)) +
-      C(-2.6, -18.6, 1.45, RED, sw(0.4)) + C(3, -18.6, 1.45, GOLD, sw(0.4)) + C(0.3, -19.3, 1.5, TEAL, sw(0.4))],
-    ["Carries a box", { aa: 1.35, ab: 1.1 }, "", R(2.4, -12, 4, 3.6, SAND, sw(0.6)) + L(4.4, -12, 4.4, -8.4, 'stroke="' + YEL + '" ' + sw(0.7))],
-    ["Pushes a cart", { aa: 1.45, ab: 1.25 }, "", L(4.5, -9.9, 6, -9.9, sw(0.7)) + P("M6,-9.9 L10.6,-9.9 L10,-5.4 L6.6,-5.4 Z", null, sw(0.6)) +
+    ["Juggles", { aa: 2.4, ab: -2.4, anim: { arms: 0, legs: 0 }, scene: null }, "",
+      [RED, TEAL, GOLD].map(function (c, i) { return motion(C(-3.2, -15.9, 0.85, c, NONE), "M0,0 Q1.6,-7.2 6.4,0 Q3.2,1.8 0,0", 1.2, -i * 0.4); }).join("")],
+    ["Skateboards", { dy: -1.6, la: 0.55, lb: -0.5, aa: 1.2, ab: -0.9, anim: { legs: 0, arms: [6, 6], dur: 1.2 }, scene: { x: 2.5, dur: 2.4 } }, "",
+      R(-5.2, -2.3, 10.4, 0.9, DARKWOOD, 'rx="0.45" ' + sw(0.5)) + spin(C(-3.2, -0.8, 0.75, INK, NONE) + L(-3.2, -1.4, -3.2, -0.2, col(WHITE) + " " + sw(0.3)), -3.2, -0.8, 0.5) + spin(C(3.2, -0.8, 0.75, INK, NONE) + L(3.2, -1.4, 3.2, -0.2, col(WHITE) + " " + sw(0.3)), 3.2, -0.8, 0.5)],
+    ["Rides a unicycle", { dy: -2.2, la: 0.5, lb: -0.5, aa: 1.4, ab: -1.4, anim: { legs: [12, 12], arms: [5, 5], dur: 0.6 }, scene: { rock: 3, cx: 0, cy: 0, dur: 1.2 } }, L(0, -8.8, 0, -3, sw(0.8)),
+      C(0, -3, 3, null, sw(0.8)) + spin(L(-3, -3, 3, -3, sw(0.4)) + L(0, -6, 0, 0, sw(0.4)), 0, -3, 0.9) + L(2.6, -3, 3.8, -3, sw(0.7)) + L(-2.6, -3, -3.8, -3, sw(0.7))],
+    ["Balances a ball", { aa: 1.35, ab: -1.35, anim: { legs: 0, arms: [6, 6], sync: true, dur: 1.2 }, scene: null }, "", slide(C(0, -16.4, 1.7, RED, sw(0.5)) + C(-0.5, -16.9, 0.4, WHITE, NONE), "-0.5 0;0.5 0;-0.5 0", 1.2)],
+    ["Handstand", { rot: 180, la: 0.35, lb: -0.25, aa: 2.9, ab: -2.9, anim: { legs: [8, 8], arms: 0, dur: 1 }, scene: { rock: 2.5, cx: 0, cy: 0, dur: 1.4 } }, "", ""],
+    ["Dances", { la: 0.45, lb: -1.1, aa: 2.5, ab: 1.3, anim: { legs: [26, 26], arms: [24, 24], dur: 0.6 }, scene: { bob: 0.7, dur: 0.3 } }, "",
+      twinkle([T(4.8, -15.6, "♪", 2.8), T(-4.6, -17.4, "♫", 2.8)], 0.6)],
+    ["Waves a flag", { aa: 2.6, anim: { arms: 0 } }, "", L(2.4, -14.3, 2.4, -20.4, sw(0.6)) + sway(P("M2.4,-20.4 L7.8,-19.2 L2.4,-18 Z", TEAL, sw(0.4)), 2.4, -20.4, 8, 0.6)],
+    ["Holds a balloon", { aa: 2.9, anim: { arms: 0 } }, "", sway(P("M1.1,-14.9 Q1.6,-16.4 2.5,-17.2", null, sw(0.4)) + E(2.8, -19, 1.6, 1.9, RED, sw(0.4)) + P("M2.5,-17.2 L2.9,-17.4 L3.1,-17", INK, NONE), 1.1, -14.9, 6, 1.8)],
+    ["Floats on balloons", { sc: 0.85, dy: -2.4, la: 0.28, lb: -0.1, aa: 2.9, ab: -2.9, anim: { legs: [7, 7], arms: 0, dur: 1.6 }, scene: { bob: 1.2, dur: 2.6 } }, "",
+      sway(L(0.94, -15.05, -2.4, -17.2, sw(0.4)) + L(0.94, -15.05, 0.3, -17.9, sw(0.4)) + L(-0.94, -15.05, 3, -17.2, sw(0.4)) +
+      C(-2.6, -18.6, 1.45, RED, sw(0.4)) + C(3, -18.6, 1.45, GOLD, sw(0.4)) + C(0.3, -19.3, 1.5, TEAL, sw(0.4)), 0, -15, 4, 2.2)],
+    ["Carries a box", { aa: 1.35, ab: 1.1, anim: { arms: 0 } }, "", R(2.4, -12, 4, 3.6, SAND, sw(0.6)) + L(4.4, -12, 4.4, -8.4, col(YEL) + " " + sw(0.7))],
+    ["Pushes a cart", { aa: 1.45, ab: 1.25, anim: { arms: 0 } }, "", L(4.5, -9.9, 6, -9.9, sw(0.7)) + P("M6,-9.9 L10.6,-9.9 L10,-5.4 L6.6,-5.4 Z", null, sw(0.6)) +
       L(7.1, -9.9, 7.4, -5.4, sw(0.3)) + L(8.3, -9.9, 8.4, -5.4, sw(0.3)) + L(9.5, -9.9, 9.3, -5.4, sw(0.3)) + L(6.3, -8.4, 10.3, -8.4, sw(0.3)) + L(6.5, -6.9, 10.2, -6.9, sw(0.3)) +
-      L(6.8, -5.4, 6.6, -1.2, sw(0.5)) + L(9.9, -5.4, 10, -1.2, sw(0.5)) + C(6.6, -0.7, 0.7, INK, NONE) + C(10, -0.7, 0.7, INK, NONE)],
-    ["Fishes", { aa: 1.9, ab: 1.6, noground: true }, "", L(4.3, -11.9, 10.2, -17.6, sw(0.6)) + L(10.2, -17.6, 10.2, -2.4, sw(0.3)) +
-      P("M5.4,-2 q1,-0.9 2,0 q1,0.9 2,0 q1,-0.9 2,0", null, 'stroke="' + TEAL2 + '" ' + sw(0.7)) +
-      P("M9.2,-0.8 Q10.1,-1.7 11,-0.8 Q10.1,0.1 9.2,-0.8 Z M11,-0.8 L11.7,-1.4 L11.7,-0.2 Z", ORANGE, sw(0.3))],
-    ["Reads a book", { aa: 1.05, ab: 0.85 }, "", P("M2.6,-9.6 L5.4,-9 L5.4,-6.2 L2.6,-6.8 Z", WHITE, sw(0.5)) + P("M5.4,-9 L8.2,-9.6 L8.2,-6.8 L5.4,-6.2 Z", WHITE, sw(0.5)) +
+      L(6.8, -5.4, 6.6, -1.2, sw(0.5)) + L(9.9, -5.4, 10, -1.2, sw(0.5)) + spin(C(6.6, -0.7, 0.7, INK, NONE) + L(6.6, -1.3, 6.6, -0.1, col(WHITE) + " " + sw(0.3)), 6.6, -0.7, 0.6) + spin(C(10, -0.7, 0.7, INK, NONE) + L(10, -1.3, 10, -0.1, col(WHITE) + " " + sw(0.3)), 10, -0.7, 0.6)],
+    ["Fishes", { aa: 1.9, ab: 1.6, noground: true, anim: S0, scene: null }, "", sway(L(4.3, -11.9, 10.2, -17.6, sw(0.6)) + L(10.2, -17.6, 10.2, -2.4, sw(0.3)), 4.3, -11.9, 3, 1.6) +
+      slide(P("M5.4,-2 q1,-0.9 2,0 q1,0.9 2,0 q1,-0.9 2,0", null, col(TEAL2) + " " + sw(0.7)), "0 0;1 0;0 0", 2) +
+      slide(P("M9.2,-0.8 Q10.1,-1.7 11,-0.8 Q10.1,0.1 9.2,-0.8 Z M11,-0.8 L11.7,-1.4 L11.7,-0.2 Z", ORANGE, sw(0.3)), "0 0;-0.8 0.3;0 0", 1)],
+    ["Reads a book", { aa: 1.05, ab: 0.85, anim: S0, scene: { bob: 0.25, dur: 2 } }, "", P("M2.6,-9.6 L5.4,-9 L5.4,-6.2 L2.6,-6.8 Z", WHITE, sw(0.5)) + P("M5.4,-9 L8.2,-9.6 L8.2,-6.8 L5.4,-6.2 Z", WHITE, sw(0.5)) +
       L(3.2, -8.6, 4.8, -8.3, sw(0.3)) + L(3.2, -7.8, 4.8, -7.5, sw(0.3)) + L(6, -8.3, 7.6, -8.6, sw(0.3)) + L(6, -7.5, 7.6, -7.8, sw(0.3))],
-    ["Plays guitar", { aa: 1.0, ab: 2.05 }, L(-1, -10.6, 1.8, -9.4, sw(0.5)), E(2.6, -7.4, 2, 2.5, WOOD, sw(0.5)) + C(2.8, -7.6, 0.6, INK, NONE) +
-      L(4, -9.4, 8, -13.6, 'stroke="' + DARKWOOD + '" ' + sw(1.1)) + R(7.5, -14.7, 1.3, 1.5, DARKWOOD, 'rx="0.3" ' + sw(0.3)) + L(3, -8, 8, -13.4, 'stroke="' + WHITE + '" ' + sw(0.25))],
-    ["Drums", { aa: 1.3, ab: 0.95 }, "", E(5.2, -2.8, 2.4, 0.8, RED, sw(0.5)) + R(2.8, -6.4, 4.8, 3.6, RED, sw(0.5)) + E(5.2, -6.4, 2.4, 0.8, "#F2F5F6", sw(0.5)) +
-      L(4.4, -9.2, 6.4, -7, sw(0.6)) + L(3.7, -7.7, 4.6, -6.7, sw(0.6)) + L(6.8, -8.6, 7.4, -9.4, sw(0.4)) + L(7.6, -7.8, 8.5, -8.1, sw(0.4))],
-    ["Kicks a ball", { la: 1.45, lb: -0.25, aa: -0.7, ab: -1 }, "", C(8.9, -4.4, 1.5, WHITE, sw(0.5)) + P("M8.9,-5.2 L9.6,-4.7 L9.3,-3.9 L8.5,-3.9 L8.2,-4.7 Z", INK, NONE) +
-      L(6.6, -2.6, 5.4, -1.8, sw(0.4)) + L(7.2, -1.9, 6.2, -1, sw(0.4))],
-    ["Magnifying glass", { aa: 1.9 }, "", L(4.3, -11.9, 6.4, -13.8, sw(0.9)) + C(7.9, -15.2, 2, "rgba(185,223,245,0.35)", sw(0.8)) + P("M6.8,-16.2 Q7.2,-16.8 7.9,-16.9", null, 'stroke="' + WHITE + '" ' + sw(0.6))],
-    ["Paints", { aa: 1.75, ab: -1.5 }, "", E(-6, -10.2, 2.1, 1.5, WHITE, sw(0.5)) + C(-6.7, -10.5, 0.35, null, sw(0.3)) + C(-5.2, -10.9, 0.4, RED, NONE) + C(-6.2, -9.4, 0.4, TEAL, NONE) + C(-4.9, -9.7, 0.4, GOLD, NONE) +
-      L(4.5, -11.2, 7.4, -14.3, 'stroke="' + DARKWOOD + '" ' + sw(0.6)) + P("M7.4,-14.3 L8.3,-15.3", null, 'stroke="' + RED + '" ' + sw(0.9))],
-    ["Carries a torch", { aa: 2.7 }, "", L(2, -14.6, 2.7, -17.2, 'stroke="' + DARKWOOD + '" ' + sw(0.9)) + P("M1.5,-17.2 Q2.7,-20.7 3.9,-17.2 Z", ORANGE, NONE) + P("M2.1,-17.2 Q2.7,-19.2 3.3,-17.2 Z", YEL, NONE)],
-    ["Waters a flower", { aa: 1.1 }, "", R(3.6, -9.2, 2.6, 2, TEAL, 'rx="0.3" ' + sw(0.5)) + L(6.2, -8.6, 8, -9.8, 'stroke="' + TEAL + '" ' + sw(0.8)) +
-      C(8.3, -8.2, 0.3, TEAL2, NONE) + C(8.6, -6.4, 0.3, TEAL2, NONE) + C(8.4, -4.6, 0.3, TEAL2, NONE) +
-      L(8.6, 0, 8.6, -2.8, 'stroke="' + GREEN + '" ' + sw(0.6)) + P("M8.6,-1.4 Q10,-2.3 9.6,-0.8 Z", GREEN, NONE) + C(8.6, -3.4, 0.95, CORAL, sw(0.3)) + C(8.6, -3.4, 0.35, GOLD, NONE)],
-    ["Walks a dog", { aa: 1.3 }, "", P("M4.4,-9.2 Q6.5,-6.8 8.3,-5.8", null, sw(0.4)) + dog(6.2, 0)],
-    ["Flies a kite", { aa: 2.5 }, "", L(2.8, -14.1, 8.2, -18.4, sw(0.3)) + P("M8.2,-20.6 L10.2,-18.4 L8.2,-16.2 L6.2,-18.4 Z", GOLD, sw(0.5)) + L(8.2, -20.6, 8.2, -16.2, sw(0.3)) + L(6.2, -18.4, 10.2, -18.4, sw(0.3)) +
-      P("M8.2,-16.2 Q7.2,-15 8,-13.8 Q8.8,-12.8 7.6,-11.6", null, sw(0.4)) + P("M7.2,-14.9 L8.2,-14.3 L7.2,-13.7 Z", RED, NONE) + P("M8.1,-12.9 L9.1,-12.3 L8.1,-11.7 Z", RED, NONE)],
-    ["Surfs", { dy: -2, la: 0.55, lb: -0.55, aa: 1.5, ab: -1.3, noground: true }, "",
-      P("M-6.4,-1.2 Q0,-3 6.6,-1.2 Q0,0.4 -6.4,-1.2 Z", YEL, sw(0.5)) + L(-4, -1.3, 4, -1.3, 'stroke="' + RED + '" ' + sw(0.4)) +
-      P("M-11,1 Q-8,-1.4 -5,1 T1,1 T7,1 T13,1", null, 'stroke="' + TEAL2 + '" ' + sw(0.9))],
-    ["Skis", { la: 0.35, lb: 0.15, aa: 0.95, ab: 0.6, noground: true }, "", P("M-3.6,0.4 L6.6,0.4 Q7.6,0.4 7.6,-0.6", null, 'stroke="' + RED + '" ' + sw(0.8)) + P("M-2.6,1.6 L7.6,1.6 Q8.6,1.6 8.6,0.6", null, 'stroke="' + RED + '" ' + sw(0.8)) +
+    ["Plays guitar", { aa: 1.0, ab: 2.05, anim: { arms: [12, 0], legs: [0, 5], dur: 0.3 }, scene: null }, L(-1, -10.6, 1.8, -9.4, sw(0.5)), E(2.6, -7.4, 2, 2.5, WOOD, sw(0.5)) + C(2.8, -7.6, 0.6, INK, NONE) +
+      L(4, -9.4, 8, -13.6, col(DARKWOOD) + " " + sw(1.1)) + R(7.5, -14.7, 1.3, 1.5, DARKWOOD, 'rx="0.3" ' + sw(0.3)) + L(3, -8, 8, -13.4, col(WHITE) + " " + sw(0.25)) + fade(note(-4, -14), "0;1;0", 1.2)],
+    ["Drums", { aa: 1.3, ab: 0.95, anim: { arms: [16, 16], legs: 0, dur: 0.35 }, scene: null, armProps: [L(4.4, -9.2, 6.4, -7, sw(0.6)), L(3.7, -7.7, 4.6, -6.7, sw(0.6))] }, "",
+      E(5.2, -2.8, 2.4, 0.8, RED, sw(0.5)) + R(2.8, -6.4, 4.8, 3.6, RED, sw(0.5)) + E(5.2, -6.4, 2.4, 0.8, "#F2F5F6", sw(0.5)) +
+      fade(L(6.8, -8.6, 7.4, -9.4, sw(0.4)) + L(7.6, -7.8, 8.5, -8.1, sw(0.4)), "1;0;1", 0.35)],
+    ["Kicks a ball", { la: 1.45, lb: -0.25, aa: -0.7, ab: -1, anim: { legs: [30, 0], arms: [10, 10], dur: 1.8 }, scene: null }, "",
+      slide(fade(C(8.9, -4.4, 1.5, WHITE, sw(0.5)) + P("M8.9,-5.2 L9.6,-4.7 L9.3,-3.9 L8.5,-3.9 L8.2,-4.7 Z", INK, NONE), "1;1;0;0;1", 1.8, 0, 'calcMode="discrete" keyTimes="0;0.3;0.6;0.9;1"'), "0 0;0 0;5 -1.5;5 -1.5;0 0", 1.8, 0, 'keyTimes="0;0.3;0.6;0.9;1"') +
+      fade(L(6.6, -2.6, 5.4, -1.8, sw(0.4)) + L(7.2, -1.9, 6.2, -1, sw(0.4)), "0;0;1;0;0", 1.8, 0, 'keyTimes="0;0.3;0.45;0.6;1"')],
+    ["Magnifying glass", { aa: 1.9, anim: S0, scene: null }, "", sway(L(4.3, -11.9, 6.4, -13.8, sw(0.9)) + C(7.9, -15.2, 2, "rgba(185,223,245,0.35)", sw(0.8)) + fade(P("M6.8,-16.2 Q7.2,-16.8 7.9,-16.9", null, col(WHITE) + " " + sw(0.6)), "1;0.2;1", 1.4), 4.3, -11.9, 5, 2)],
+    ["Paints", { aa: 1.75, ab: -1.5, anim: { arms: [10, 0], legs: 0, dur: 0.7 }, scene: null, armProps: [L(4.5, -11.2, 7.4, -14.3, col(DARKWOOD) + " " + sw(0.6)) + P("M7.4,-14.3 L8.3,-15.3", null, col(RED) + " " + sw(0.9))] }, "",
+      E(-6, -10.2, 2.1, 1.5, WHITE, sw(0.5)) + C(-6.7, -10.5, 0.35, null, sw(0.3)) + C(-5.2, -10.9, 0.4, RED, NONE) + C(-6.2, -9.4, 0.4, TEAL, NONE) + C(-4.9, -9.7, 0.4, GOLD, NONE)],
+    ["Carries a torch", { aa: 2.7, anim: { arms: 0 } }, "", L(2, -14.6, 2.7, -17.2, col(DARKWOOD) + " " + sw(0.9)) +
+      grow(fade(P("M1.5,-17.2 Q2.7,-20.7 3.9,-17.2 Z", ORANGE, NONE) + P("M2.1,-17.2 Q2.7,-19.2 3.3,-17.2 Z", YEL, NONE), "1;0.8;1", 0.3), 2.7, -17.2, "1 1;1.15 1.3;1 1", 0.3)],
+    ["Waters a flower", { aa: 1.1, anim: S0, scene: null }, "", R(3.6, -9.2, 2.6, 2, TEAL, 'rx="0.3" ' + sw(0.5)) + L(6.2, -8.6, 8, -9.8, col(TEAL) + " " + sw(0.8)) +
+      drops([C(8.3, -8.2, 0.3, TEAL2, NONE), C(8.6, -6.4, 0.3, TEAL2, NONE), C(8.4, -4.6, 0.3, TEAL2, NONE)], 0.9) +
+      sway(L(8.6, 0, 8.6, -2.8, col(GREEN) + " " + sw(0.6)) + P("M8.6,-1.4 Q10,-2.3 9.6,-0.8 Z", GREEN, NONE) + C(8.6, -3.4, 0.95, CORAL, sw(0.3)) + C(8.6, -3.4, 0.35, GOLD, NONE), 8.6, 0, 4, 1.6)],
+    ["Walks a dog", { aa: 1.3, anim: { arms: [0, 14] } }, "", P("M4.4,-9.2 Q6.5,-6.8 8.3,-5.8", null, sw(0.4)) + dog(6.2, 0)],
+    ["Flies a kite", { aa: 2.5, anim: S0, scene: null }, "", sway(L(2.8, -14.1, 8.2, -18.4, sw(0.3)) + P("M8.2,-20.6 L10.2,-18.4 L8.2,-16.2 L6.2,-18.4 Z", GOLD, sw(0.5)) + L(8.2, -20.6, 8.2, -16.2, sw(0.3)) + L(6.2, -18.4, 10.2, -18.4, sw(0.3)) +
+      sway(P("M8.2,-16.2 Q7.2,-15 8,-13.8 Q8.8,-12.8 7.6,-11.6", null, sw(0.4)) + P("M7.2,-14.9 L8.2,-14.3 L7.2,-13.7 Z", RED, NONE) + P("M8.1,-12.9 L9.1,-12.3 L8.1,-11.7 Z", RED, NONE), 8.2, -16.2, 10, 0.7), 2.8, -14.1, 6, 2.2)],
+    ["Surfs", { dy: -2, la: 0.55, lb: -0.55, aa: 1.5, ab: -1.3, noground: true, anim: { legs: 0, arms: [6, 6], sync: true, dur: 1.6 }, scene: { rock: 4, cx: 0, cy: -1, dur: 1.6 },
+      over: slide(P("M-11,1 Q-8,-1.4 -5,1 T1,1 T7,1 T13,1", null, col(TEAL2) + " " + sw(0.9)), "0 0;2 0;0 0", 1.6) }, "",
+      P("M-6.4,-1.2 Q0,-3 6.6,-1.2 Q0,0.4 -6.4,-1.2 Z", YEL, sw(0.5)) + L(-4, -1.3, 4, -1.3, col(RED) + " " + sw(0.4))],
+    ["Skis", { la: 0.35, lb: 0.15, aa: 0.95, ab: 0.6, noground: true, anim: S0, scene: { x: 2, dur: 2 } }, "", P("M-3.6,0.4 L6.6,0.4 Q7.6,0.4 7.6,-0.6", null, col(RED) + " " + sw(0.8)) + P("M-2.6,1.6 L7.6,1.6 Q8.6,1.6 8.6,0.6", null, col(RED) + " " + sw(0.8)) +
       L(3.7, -7.7, 1.6, 1.2, sw(0.5)) + L(2.6, -6.6, 0.2, 2.2, sw(0.5)) + C(1.6, 1.2, 0.4, null, sw(0.4)) + C(0.2, 2.2, 0.4, null, sw(0.4))],
-    ["Pogo stick", { dy: -3.5, la: 0.06, lb: -0.06, aa: 0.5, ab: 0.5 }, "", L(2.2, -9.9, 2.2, 0.2, sw(0.9)) + L(0.6, -9.9, 3.8, -9.9, sw(0.9)) + L(-1, -3.5, 3.4, -3.5, sw(0.9)) +
-      P("M2.2,-3.4 L3,-2.8 L1.4,-2.2 L3,-1.6 L1.4,-1 L3,-0.4 L2.2,0.2", null, sw(0.6)) + L(-1.6, 1.4, -2.6, 2.4, sw(0.4)) + L(5.8, 1.4, 6.8, 2.4, sw(0.4))],
-    ["Hula hoop", { aa: 1.5, ab: -1.5 }, P("M-5.2,-6.2 A5.2,1.35 0 0 1 5.2,-6.2", null, 'stroke="' + CORAL + '" ' + sw(0.9)), P("M-5.2,-6.2 A5.2,1.35 0 0 0 5.2,-6.2", null, 'stroke="' + CORAL + '" ' + sw(0.9))],
-    ["Jumps rope", { dy: -1.8, la: 0.22, lb: 0.05, aa: 1.15, ab: -1.15 }, P("M-4.2,-10.3 C-7,-22 7,-22 4.2,-10.3", null, 'stroke="' + RED + '" ' + sw(0.55)), P("M-4.2,-10.3 C-6.5,1.6 6.5,1.6 4.2,-10.3", null, 'stroke="' + RED + '" ' + sw(0.55))],
-    ["Fences", { dy: 1.2, la: 0.7, lb: -0.4, aa: 1.55, ab: -1.9 }, "", L(4.6, -9.1, 10.8, -9.9, sw(0.6)) + L(5.2, -10.2, 5.6, -8.2, sw(0.6)) +
+    ["Pogo stick", { dy: -3.5, la: 0.06, lb: -0.06, aa: 0.5, ab: 0.5, anim: S0, scene: { bounce: 4, dur: 0.6 } }, "", L(2.2, -9.9, 2.2, -3.5, sw(0.9)) + L(0.6, -9.9, 3.8, -9.9, sw(0.9)) + L(-1, -3.5, 3.4, -3.5, sw(0.9)) +
+      grow(L(2.2, -3.5, 2.2, -2.6, sw(0.9)) + P("M2.2,-3.4 L3,-2.8 L1.4,-2.2 L3,-1.6 L1.4,-1 L3,-0.4 L2.2,0.2", null, sw(0.6)), 2.2, 0.2, "1 0.6;1 1;1 0.6", 0.6, 0, JUMP) +
+      fade(L(-1.6, 1.4, -2.6, 2.4, sw(0.4)) + L(5.8, 1.4, 6.8, 2.4, sw(0.4)), "1;0;1", 0.6)],
+    ["Hula hoop", { aa: 1.5, ab: -1.5, anim: S0, scene: { rock: 3, cx: 0, cy: 0, dur: 0.6 } }, slide(P("M-5.2,-6.2 A5.2,1.35 0 0 1 5.2,-6.2", null, col(CORAL) + " " + sw(0.9)), "-0.7 0;0 -0.3;0.7 0;0 0.3;-0.7 0", 0.6, 0, ""),
+      slide(P("M-5.2,-6.2 A5.2,1.35 0 0 0 5.2,-6.2", null, col(CORAL) + " " + sw(0.9)), "-0.7 0;0 -0.3;0.7 0;0 0.3;-0.7 0", 0.6, 0, "")],
+    ["Jumps rope", { dy: -1.8, la: 0.22, lb: 0.05, aa: 1.15, ab: -1.15, anim: { legs: 0, arms: [8, 8], sync: true, dur: 0.6 }, scene: { bounce: 2.5, dur: 0.6 } },
+      fade(P("M-4.2,-10.3 C-7,-22 7,-22 4.2,-10.3", null, col(RED) + " " + sw(0.55)), "1;0;1", 0.6, 0, 'calcMode="discrete" keyTimes="0;0.2;0.7"'),
+      fade(P("M-4.2,-10.3 C-6.5,1.6 6.5,1.6 4.2,-10.3", null, col(RED) + " " + sw(0.55)), "0;1;0", 0.6, 0, 'calcMode="discrete" keyTimes="0;0.2;0.7"')],
+    ["Fences", { dy: 1.2, la: 0.7, lb: -0.4, aa: 1.55, ab: -1.9, anim: S0, scene: { x: 1.2, dur: 0.8 } }, "", L(4.6, -9.1, 10.8, -9.9, sw(0.6)) + L(5.2, -10.2, 5.6, -8.2, sw(0.6)) +
       E(0.2, -11.5, 2.3, 2.5, "rgba(22,38,46,0.12)", sw(0.5)) + L(-1.6, -12.4, 2, -12.4, sw(0.25)) + L(-1.7, -11.2, 2.1, -11.2, sw(0.25)) + L(-1.2, -10.1, 1.6, -10.1, sw(0.25))],
-    ["Archer", { aa: 1.57, ab: 1.3 }, "", P("M4.2,-15.2 Q9,-10.4 4.2,-5.6", null, 'stroke="' + DARKWOOD + '" ' + sw(0.9)) + L(4.2, -15.2, 4.2, -5.6, sw(0.35)) +
-      L(1.2, -10.4, 8.4, -10.4, sw(0.5)) + P("M8.4,-10.4 L7.5,-10.9 L7.5,-9.9 Z", INK, NONE) + L(1.2, -10.4, 0.6, -11, sw(0.4)) + L(1.2, -10.4, 0.6, -9.8, sw(0.4))],
-    ["Takes photos", { aa: 1.9, ab: 1.65 }, "", R(2.6, -13.1, 3.8, 2.6, INK, 'rx="0.4" ' + NONE) + C(4.5, -11.8, 0.9, WHITE, sw(0.4)) + C(4.5, -11.8, 0.4, INK, NONE) +
-      L(7.2, -14.2, 7.8, -14.9, sw(0.5)) + L(7.6, -13.3, 8.5, -13.4, sw(0.5)) + L(6.9, -14.9, 6.9, -15.8, sw(0.5))],
-    ["Coffee", { aa: 1.75 }, "", R(3.6, -12.6, 2.4, 2.4, WHITE, 'rx="0.3" ' + sw(0.5)) + P("M6,-12 Q7.2,-11.6 6,-10.8", null, sw(0.5)) + P("M4.3,-13.2 q0.5,-0.7 0,-1.4 M5.3,-13.2 q0.5,-0.7 0,-1.4", null, sw(0.4) + ' opacity="0.7"')],
-    ["Pizza slice", { aa: 1.6 }, "", P("M4.2,-10.9 L8.8,-9.6 L5.6,-6.4 Z", YEL, 'stroke="' + RED + '" ' + sw(0.5)) + P("M4.2,-10.9 L8.8,-9.6", null, 'stroke="' + SAND + '" ' + sw(1)) +
-      C(5.8, -9.4, 0.42, RED, NONE) + C(6.8, -8.4, 0.42, RED, NONE) + C(5.3, -8.2, 0.35, RED, NONE)],
-    ["Ice cream", { aa: 1.45 }, "", P("M3.7,-11.9 L5.5,-11.9 L4.6,-9.7 Z", SAND, sw(0.4)) + C(4.6, -12.6, 1, PINK, sw(0.3)) + C(4.6, -14.2, 0.9, TEAL2, sw(0.3)) + C(4.6, -15.3, 0.35, RED, NONE)],
-    ["Sleeps", { rot: 90, rc: 0, dx: -7.6, dy: -1.6, la: 0.1, lb: -0.1, aa: 0.3, ab: -0.1, noground: true }, R(4.6, -3.2, 5.2, 2.4, WHITE, 'rx="0.8" ' + sw(0.5)),
-      P("M-8.4,-3.4 L1.4,-3.4 L1.4,0.4 L-8.4,0.4 Z", TEAL2, sw(0.5) + ' opacity="0.6"') + T(9.6, -5.2, "z", 2) + T(11, -7.6, "Z", 2.6)],
-    ["Meditates", { nolegs: true, legPath: "M0,-6.6 C3.8,-6.2 4.8,-2.4 0,-2.2 C-4.8,-2.4 -3.8,-6.2 0,-6.6", dy: 2.2, aa: 1.15, ab: -1.15 }, "",
-      C(4.2, -6.3, 0.35, null, sw(0.5)) + C(-4.2, -6.3, 0.35, null, sw(0.5)) + sparkle(-6.5, -13, 0.8) + sparkle(6.5, -13, 0.8) + sparkle(0, -17.5, 0.6)],
-    ["Tree pose", { legs: [0.04], legPath: "M0,-6.6 L2.8,-4.6 L0.5,-2.6", aa: 2.95, ab: -2.95 }, "", ""],
-    ["Thinks", { arms: [-0.3], armPath: "M0,-10.4 L2.8,-8.6 L1.2,-11.1" }, "", C(2.4, -15.2, 0.4, null, sw(0.4)) + C(3.5, -17, 0.6, null, sw(0.4)) + E(6.2, -19, 3, 1.7, WHITE, sw(0.5)) + T(6.2, -18.2, "?", 2.4)],
-    ["Shrugs", { arms: [], armPath: "M0,-10.4 L2.9,-9.4 L4.4,-11.6 M0,-10.4 L-2.9,-9.4 L-4.4,-11.6" }, "", ""],
-    ["Cartwheel", { rot: 90, dy: 2.1, la: 0.9, lb: -0.9, aa: 2.3, ab: -2.3 }, "", P("M-8,-15 Q0,-19.5 8,-15", null, sw(0.4) + ' stroke-dasharray="1 1"')],
-    ["Trapeze", { dy: -2.6, rot: 12, rc: -15, la: 0.55, lb: 0.35, aa: 2.93, ab: -2.93, noground: true }, L(-4.2, -17.6, 4.2, -17.6, sw(0.9)) + L(-4.2, -17.6, -4.6, -21, sw(0.5)) + L(4.2, -17.6, 4.6, -21, sw(0.5)), ""],
+    ["Archer", { aa: 1.57, ab: 1.3, anim: S0, scene: null }, "", P("M4.2,-15.2 Q9,-10.4 4.2,-5.6", null, col(DARKWOOD) + " " + sw(0.9)) +
+      '<path d="M4.2,-15.2 L4.2,-10.4 L4.2,-5.6" ' + sw(0.35) + '><animate attributeName="d" values="M4.2,-15.2 L4.2,-10.4 L4.2,-5.6;M4.2,-15.2 L1.4,-10.4 L4.2,-5.6;M4.2,-15.2 L4.2,-10.4 L4.2,-5.6;M4.2,-15.2 L4.2,-10.4 L4.2,-5.6" dur="2s" repeatCount="indefinite" keyTimes="0;0.5;0.56;1"/></path>' +
+      slide(fade(L(1.2, -10.4, 8.4, -10.4, sw(0.5)) + P("M8.4,-10.4 L7.5,-10.9 L7.5,-9.9 Z", INK, NONE) + L(1.2, -10.4, 0.6, -11, sw(0.4)) + L(1.2, -10.4, 0.6, -9.8, sw(0.4)), "1;1;1;0;1", 2, 0, 'keyTimes="0;0.5;0.7;0.9;1"'), "0 0;-2.8 0;6 0;6 0;0 0", 2, 0, 'keyTimes="0;0.5;0.7;0.9;1"')],
+    ["Takes photos", { aa: 1.9, ab: 1.65, anim: S0, scene: null }, "", R(2.6, -13.1, 3.8, 2.6, INK, 'rx="0.4" ' + NONE) + C(4.5, -11.8, 0.9, WHITE, sw(0.4)) + C(4.5, -11.8, 0.4, INK, NONE) +
+      fade(L(7.2, -14.2, 7.8, -14.9, sw(0.5)) + L(7.6, -13.3, 8.5, -13.4, sw(0.5)) + L(6.9, -14.9, 6.9, -15.8, sw(0.5)) + C(4.5, -11.8, 1.3, "rgba(255,255,255,0.9)", NONE), "0;1;0", 2.4, 0, 'calcMode="discrete" keyTimes="0;0.84;0.94"')],
+    ["Coffee", { aa: 1.75, anim: S0, scene: null }, "", R(3.6, -12.6, 2.4, 2.4, WHITE, 'rx="0.3" ' + sw(0.5)) + P("M6,-12 Q7.2,-11.6 6,-10.8", null, sw(0.5)) +
+      rising([P("M4.3,-13.2 q0.5,-0.7 0,-1.4", null, sw(0.4)), P("M5.3,-13.2 q0.5,-0.7 0,-1.4", null, sw(0.4))], 1.6)],
+    ["Pizza slice", { aa: 1.6, anim: { arms: [10, 0], legs: 0, dur: 1.4 }, scene: null, armProps: [P("M4.2,-10.9 L8.8,-9.6 L5.6,-6.4 Z", YEL, col(RED) + " " + sw(0.5)) + P("M4.2,-10.9 L8.8,-9.6", null, col(SAND) + " " + sw(1)) +
+      C(5.8, -9.4, 0.42, RED, NONE) + C(6.8, -8.4, 0.42, RED, NONE) + C(5.3, -8.2, 0.35, RED, NONE)] }, "", ""],
+    ["Ice cream", { aa: 1.45, anim: { arms: [8, 0], legs: 0, dur: 1.2 }, scene: null, armProps: [P("M3.7,-11.9 L5.5,-11.9 L4.6,-9.7 Z", SAND, sw(0.4)) + C(4.6, -12.6, 1, PINK, sw(0.3)) + C(4.6, -14.2, 0.9, TEAL2, sw(0.3)) + C(4.6, -15.3, 0.35, RED, NONE)] }, "", ""],
+    ["Sleeps", { rot: 90, rc: 0, dx: -7.6, dy: -1.6, la: 0.1, lb: -0.1, aa: 0.3, ab: -0.1, noground: true, anim: S0, scene: null }, R(4.6, -3.2, 5.2, 2.4, WHITE, 'rx="0.8" ' + sw(0.5)),
+      P("M-8.4,-3.4 L1.4,-3.4 L1.4,0.4 L-8.4,0.4 Z", TEAL2, sw(0.5) + ' opacity="0.6"') + rising([T(9.6, -5.2, "z", 2), T(11, -7.6, "Z", 2.6)], 2.4)],
+    ["Meditates", { nolegs: true, legPath: "M0,-6.6 C3.8,-6.2 4.8,-2.4 0,-2.2 C-4.8,-2.4 -3.8,-6.2 0,-6.6", dy: 2.2, aa: 1.15, ab: -1.15, anim: S0, scene: { bob: 0.3, dur: 3 } }, "",
+      C(4.2, -6.3, 0.35, null, sw(0.5)) + C(-4.2, -6.3, 0.35, null, sw(0.5)) + twinkle([sparkle(-6.5, -13, 0.8), sparkle(6.5, -13, 0.8), sparkle(0, -17.5, 0.6)], 2.4)],
+    ["Tree pose", { legs: [0.04], legPath: "M0,-6.6 L2.8,-4.6 L0.5,-2.6", aa: 2.95, ab: -2.95, anim: S0, scene: { rock: 2, cx: 0, cy: 0, dur: 2.2 } }, "", ""],
+    ["Thinks", { arms: [-0.3], armPath: "M0,-10.4 L2.8,-8.6 L1.2,-11.1", anim: S0, scene: null }, "",
+      fade(C(2.4, -15.2, 0.4, null, sw(0.4)), "0;1;1;0", 3, 0, 'keyTimes="0;0.15;0.8;1"') + fade(C(3.5, -17, 0.6, null, sw(0.4)), "0;1;1;0", 3, -0.25, 'keyTimes="0;0.15;0.8;1"') +
+      fade(E(6.2, -19, 3, 1.7, WHITE, sw(0.5)) + T(6.2, -18.2, "?", 2.4), "0;1;1;0", 3, -0.5, 'keyTimes="0;0.15;0.8;1"')],
+    ["Shrugs", { arms: [], armPath: "M0,-10.4 L2.9,-9.4 L4.4,-11.6 M0,-10.4 L-2.9,-9.4 L-4.4,-11.6", anim: S0, scene: { bob: 0.5, dur: 1.4 } }, "", ""],
+    ["Cartwheel", { rot: 90, dy: 2.1, la: 0.9, lb: -0.9, aa: 2.3, ab: -2.3, anim: { legs: 0, arms: 0, fig: { spin: 1.6 } }, scene: null }, "", P("M-8,-15 Q0,-19.5 8,-15", null, sw(0.4) + ' stroke-dasharray="1 1"')],
+    ["Trapeze", { dy: -2.6, rot: 12, rc: -15, la: 0.55, lb: 0.35, aa: 2.93, ab: -2.93, noground: true, anim: { legs: [8, 8], arms: 0, dur: 1.8, fig: { rock: 18, cx: 0, cy: -15, dur: 1.8 } }, scene: null },
+      L(-4.2, -17.6, 4.2, -17.6, sw(0.9)) + L(-4.2, -17.6, -4.6, -21, sw(0.5)) + L(4.2, -17.6, 4.6, -21, sw(0.5)), ""],
     // what they can do
-    ["Jetpack", { dy: -3.6, la: 0.32, lb: 0.12, aa: 0.45, ab: -0.25 }, R(-2.8, -14.4, 2.2, 4.4, GRAY, 'rx="0.6" ' + sw(0.5)) + R(-2.3, -10, 1.2, 0.8, INK, NONE) +
-      P("M-2.5,-9.2 Q-1.7,-4.6 -0.9,-9.2 Z", ORANGE, NONE) + P("M-2.1,-9.2 Q-1.7,-6.8 -1.3,-9.2 Z", YEL, NONE) + L(-6, -4, -8, -4, sw(0.4)) + L(-5.5, -7, -7.5, -7, sw(0.4)), ""],
-    ["Invisible", { dash: "0.1 2", op: 0.55 }, "", ""],
-    ["Ghost", { nolegs: true, nobody: true, dy: -1.6, op: 0.85, aa: 1.3, ab: -1.3 }, P("M-2.3,-14 L-2.6,-3 Q-1.7,-4.2 -0.9,-3 Q0,-4.2 0.9,-3 Q1.7,-4.2 2.6,-3 L2.3,-14", WHITE, sw(0.6)),
+    ["Jetpack", { dy: -3.6, la: 0.32, lb: 0.12, aa: 0.45, ab: -0.25, anim: { legs: [4, 4], arms: [4, 4], dur: 1.2 }, scene: { bob: 0.8, dur: 1.4 } },
+      R(-2.8, -14.4, 2.2, 4.4, GRAY, 'rx="0.6" ' + sw(0.5)) + R(-2.3, -10, 1.2, 0.8, INK, NONE) +
+      grow(P("M-2.5,-9.2 Q-1.7,-4.6 -0.9,-9.2 Z", ORANGE, NONE) + P("M-2.1,-9.2 Q-1.7,-6.8 -1.3,-9.2 Z", YEL, NONE), -1.7, -9.2, "1 1;1 1.3;1 1", 0.2) +
+      fade(L(-6, -4, -8, -4, sw(0.4)) + L(-5.5, -7, -7.5, -7, sw(0.4)), "1;0.2;1", 0.5), ""],
+    ["Invisible", { dash: "0.1 2", op: 0.55, wrap: function (m) { return fade(m, "1;0.25;1", 2.2); } }, "", ""],
+    ["Ghost", { nolegs: true, nobody: true, dy: -1.6, op: 0.85, aa: 1.3, ab: -1.3, anim: { arms: [8, 8], sync: true, dur: 2.2 }, scene: { bob: 0.8, dur: 2.2 } },
+      morph("M-2.3,-14 L-2.6,-3 Q-1.7,-4.2 -0.9,-3 Q0,-4.2 0.9,-3 Q1.7,-4.2 2.6,-3 L2.3,-14", "M-2.3,-14 L-2.6,-3.4 Q-1.7,-2.2 -0.9,-3.4 Q0,-2.2 0.9,-3.4 Q1.7,-2.2 2.6,-3.4 L2.3,-14", 1.1, 'fill="' + WHITE + '" ' + sw(0.6)),
       C(-0.6, -14.6, 0.3, INK, NONE) + C(0.6, -14.6, 0.3, INK, NONE) + C(0, -13.4, 0.3, null, sw(0.4))],
-    ["Robot", { nohead: true, la: 0.12, lb: -0.12 }, "", R(-1.95, -14.7, 3.9, 3.9, null, 'rx="0.5"') + L(0, -14.7, 0, -16.4, sw(0.7)) + C(0, -16.8, 0.45, RED, NONE) +
+    ["Robot", { nohead: true, la: 0.12, lb: -0.12, anim: { legs: [12, 12], arms: [10, 10], step: true, dur: 0.9 }, scene: { bob: 0.25, dur: 0.45 } }, "", R(-1.95, -14.7, 3.9, 3.9, null, 'rx="0.5"') + L(0, -14.7, 0, -16.4, sw(0.7)) +
+      fade(C(0, -16.8, 0.45, RED, NONE), "1;0.2;1", 0.9, 0, 'calcMode="discrete" keyTimes="0;0.5;1"') +
       R(-1.2, -13.6, 0.8, 0.8, INK, NONE) + R(0.4, -13.6, 0.8, 0.8, INK, NONE) + L(-0.8, -11.8, 0.8, -11.8, sw(0.5)) + R(-1.1, -10.2, 2.2, 3, null, sw(0.5)) + C(-0.4, -9.2, 0.25, TEAL, NONE) +
       P("M1,-5.9 L1.6,-5 M1,-5.9 L0.4,-5 M-1,-5.9 L-1.6,-5 M-1,-5.9 L-0.4,-5", null, sw(0.7))],
-    ["Giant", { sc: 1.35 }, "", ""],
-    ["Tiny", { sc: 0.5 }, E(0, 0.5, 2.2, 0.4, "rgba(22,38,46,0.15)", NONE), ""],
-    ["Twins", { figs: [{ dx: -3.2, aa: 1.25, ab: -0.3 }, { dx: 3.2, aa: 0.3, ab: -1.25 }] }, "", L(-1.2, -8.95, 1.2, -8.95, sw(0.8))],
-    ["Lightning", {}, "", P("M-4.6,-18.4 L-2,-14.6 L-3.6,-14.6 L-1.4,-10.6 L-5.2,-15 L-3.6,-15 Z", YEL, sw(0.35)) + L(-1.2, -14.5, -1.8, -16, sw(0.5)) + L(0, -14.65, 0, -16.3, sw(0.5)) + L(1.2, -14.5, 1.8, -16, sw(0.5))],
-    ["Flame hair", {}, "", P("M-1.9,-14 Q-1.8,-17.4 -0.7,-15.6 Q-0.1,-19.4 0.9,-15.8 Q1.6,-18.2 1.9,-14 Z", ORANGE, NONE) + P("M-0.9,-14.2 Q-0.5,-16.6 0.1,-15.4 Q0.5,-17.2 0.9,-14.2 Z", YEL, NONE)],
-    ["Makes it snow", { aa: 2.3, ab: -2.3 }, "", flake(-6.5, -8, 0.9) + flake(7, -9, 0.9) + flake(2.5, -19.4, 0.8) + flake(-3, -19, 0.8) + flake(8, -16, 0.9) + flake(-8, -14.5, 0.9) +
-      P("M-9,0.6 Q0,-1 9,0.6", null, 'stroke="' + SKY + '" ' + sw(0.9))],
-    ["Magnet hand", { aa: 2.2 }, "", P("M4.2,-16.4 L4.2,-13.4 A1.3,1.3 0 0 0 6.8,-13.4 L6.8,-16.4", null, 'stroke="' + RED + '" ' + sw(1.2)) +
-      L(4.2, -16.4, 4.2, -15.6, 'stroke="' + GRAY + '" ' + sw(1.2)) + L(6.8, -16.4, 6.8, -15.6, 'stroke="' + GRAY + '" ' + sw(1.2)) +
-      L(4.6, -19.2, 4.8, -17.9, sw(0.5)) + L(6.9, -19.8, 6.7, -18.4, sw(0.5)) + C(5.6, -18.9, 0.3, INK, NONE)],
-    ["Rides a rocket", { sc: 0.85, dy: -5.6, la: 0.75, lb: -0.75, aa: 2.4, ab: -2.4, noground: true },
+    ["Giant", { sc: 1.35, anim: { legs: [14, 14], arms: [12, 12], dur: 1.3 }, scene: { bob: 0.5, dur: 0.65 } }, "", ""],
+    ["Tiny", { sc: 0.5, anim: { dur: 0.45 }, scene: { bob: 0.25, dur: 0.22 } }, E(0, 0.5, 2.2, 0.4, "rgba(22,38,46,0.15)", NONE), ""],
+    ["Twins", { figs: [{ dx: -3.2, aa: 1.25, ab: -0.3, anim: { arms: [0, 14] } }, { dx: 3.2, aa: 0.3, ab: -1.25, anim: { arms: [14, 0] } }], scene: { bob: 0.35, dur: 0.4 } }, "", L(-1.2, -8.95, 1.2, -8.95, sw(0.8))],
+    ["Lightning", {}, "", fade(P("M-4.6,-18.4 L-2,-14.6 L-3.6,-14.6 L-1.4,-10.6 L-5.2,-15 L-3.6,-15 Z", YEL, sw(0.35)), "1;0.15;1;1;0.15;1", 1.6, 0, 'keyTimes="0;0.08;0.16;0.5;0.58;0.66"') +
+      L(-1.2, -14.5, -1.8, -16, sw(0.5)) + L(0, -14.65, 0, -16.3, sw(0.5)) + L(1.2, -14.5, 1.8, -16, sw(0.5))],
+    ["Flame hair", {}, "", grow(fade(P("M-1.9,-14 Q-1.8,-17.4 -0.7,-15.6 Q-0.1,-19.4 0.9,-15.8 Q1.6,-18.2 1.9,-14 Z", ORANGE, NONE) + P("M-0.9,-14.2 Q-0.5,-16.6 0.1,-15.4 Q0.5,-17.2 0.9,-14.2 Z", YEL, NONE), "1;0.85;1", 0.25), 0, -14, "1 1;1.1 1.25;1 1", 0.25)],
+    ["Makes it snow", { aa: 2.3, ab: -2.3, anim: S0, scene: null }, "", [[-6.5, -8], [7, -9], [2.5, -19.4], [-3, -19], [8, -16], [-8, -14.5]].map(function (p, i) {
+        return slide(fade(flake(p[0], p[1], 0.9), "0;1;1;0", 2.5, -i * 0.42, ""), "0 -3;0 4", 2.5, -i * 0.42, "");
+      }).join("") + P("M-9,0.6 Q0,-1 9,0.6", null, col(SKY) + " " + sw(0.9))],
+    ["Magnet hand", { aa: 2.2, anim: S0, scene: null }, "", grow(P("M4.2,-16.4 L4.2,-13.4 A1.3,1.3 0 0 0 6.8,-13.4 L6.8,-16.4", null, col(RED) + " " + sw(1.2)) +
+      L(4.2, -16.4, 4.2, -15.6, col(GRAY) + " " + sw(1.2)) + L(6.8, -16.4, 6.8, -15.6, col(GRAY) + " " + sw(1.2)), 5.5, -14.5, "1;1.06;1", 0.9) +
+      slide(fade(L(4.6, -19.2, 4.8, -17.9, sw(0.5)) + L(6.9, -19.8, 6.7, -18.4, sw(0.5)) + C(5.6, -18.9, 0.3, INK, NONE), "0;1;1", 0.9, 0, ""), "0 -3;0 0.8;0 0.8", 0.9, 0, 'calcMode="spline" keyTimes="0;0.7;1" keySplines="0.4 0 1 0.6;0 0 1 1"')],
+    ["Rides a rocket", { sc: 0.85, dy: -5.6, la: 0.75, lb: -0.75, aa: 2.4, ab: -2.4, noground: true, anim: { legs: 0, arms: [10, 10], sync: true, dur: 0.6 }, scene: { shake: 0.3, dur: 0.25 } },
       R(-1.7, -5.6, 3.4, 6.6, GRAY, 'rx="0.8" ' + sw(0.5)) + P("M-1.7,-5.6 L0,-8.4 L1.7,-5.6 Z", RED, sw(0.5)) + C(0, -3.4, 0.7, SKY, sw(0.4)) +
-      P("M-1.7,-1 L-3.4,1 L-1.7,1 Z", RED, sw(0.4)) + P("M1.7,-1 L3.4,1 L1.7,1 Z", RED, sw(0.4)) + P("M-1.1,1 Q0,4 1.1,1 Z", ORANGE, NONE) + L(-5, -4, -7, -2.4, sw(0.4)) + L(5, -4, 7, -2.4, sw(0.4)), ""],
-    ["Teleports", { figs: [{ op: 0.55 }, { dx: 5.6, op: 0.22, dash: "0.6 1" }] }, "", sparkle(-4, -16, 0.9) + sparkle(5, -18.5, 0.9) + sparkle(-5.5, -6, 0.7) + sparkle(9, -9, 0.8) + sparkle(3, -3, 0.6)],
-    ["Stretchy arms", { arms: [], armPath: "M0,-10.4 C3,-12.6 6,-8 10.4,-10.4 M0,-10.4 C-3,-12.6 -6,-8 -10.4,-10.4" }, "", C(10.4, -10.4, 0.5, null, sw(0.5)) + C(-10.4, -10.4, 0.5, null, sw(0.5))],
-    ["Big head", { hr: 3.6 }, "", ""],
-    ["Three arms", { arms: [0.35, -0.35, 2] }, "", ""],
-    ["Wheel feet", { dy: -2.1, la: 0.08, lb: -0.08 }, "", C(-1.2, -1.05, 1.05, null, sw(0.8)) + C(1.2, -1.05, 1.05, null, sw(0.8)) + C(-1.2, -1.05, 0.25, INK, NONE) + C(1.2, -1.05, 0.25, INK, NONE) +
-      L(-4, -3, -6.4, -3, sw(0.4)) + L(-4.4, -5, -6.2, -5, sw(0.4))],
-    ["Spring legs", { nolegs: true, legPath: "M0,-6.6 L1.3,-5.9 L-1.3,-5.1 L1.3,-4.3 L-1.3,-3.5 L1.3,-2.7 L-1.3,-1.9 L1.3,-1.1 L0,-0.4 L0,0 M-1.8,0 L1.8,0", dy: -1.6, aa: 2.2, ab: -2.2 }, "",
-      L(-3, 0.4, -4, 1.4, sw(0.4)) + L(3, 0.4, 4, 1.4, sw(0.4))],
-    ["Levitates", { dy: -3.4, la: 0.2, lb: 0.06, aa: 0.95, ab: -0.95, noground: true }, E(0, 0.6, 3.2, 0.55, "rgba(22,38,46,0.18)", NONE), L(-5, -9, -5.8, -9.8, sw(0.4)) + L(5.4, -12, 6.2, -12.8, sw(0.4))],
-    ["Lifts a barbell", { la: 0.3, lb: -0.3, aa: 2.99, ab: -2.99 }, "", L(-6.2, -15, 6.2, -15, sw(0.9)) + R(-7.6, -17.6, 1.4, 5.2, INK, 'rx="0.3" ' + NONE) + R(-6.2, -16.9, 0.9, 3.8, INK, 'rx="0.3" ' + NONE) +
-      R(6.2, -17.6, 1.4, 5.2, INK, 'rx="0.3" ' + NONE) + R(5.3, -16.9, 0.9, 3.8, INK, 'rx="0.3" ' + NONE)]
+      P("M-1.7,-1 L-3.4,1 L-1.7,1 Z", RED, sw(0.4)) + P("M1.7,-1 L3.4,1 L1.7,1 Z", RED, sw(0.4)) + grow(P("M-1.1,1 Q0,4 1.1,1 Z", ORANGE, NONE), 0, 1, "1 1;1 1.4;1 1", 0.18) +
+      fade(L(-5, -4, -7, -2.4, sw(0.4)) + L(5, -4, 7, -2.4, sw(0.4)), "1;0.2;1", 0.4), ""],
+    ["Teleports", { figs: [{ op: 0.55, anim: S0, wrap: function (m) { return fade(m, "1;0.1;1", 2.4); } }, { dx: 5.6, op: 0.22, dash: "0.6 1", anim: S0, wrap: function (m) { return fade(m, "0.2;1;0.2", 2.4); } }], scene: null }, "",
+      twinkle([sparkle(-4, -16, 0.9), sparkle(5, -18.5, 0.9), sparkle(-5.5, -6, 0.7), sparkle(9, -9, 0.8), sparkle(3, -3, 0.6)], 1.2)],
+    ["Stretchy arms", { arms: [], armMorph: ["M0,-10.4 C1,-11.2 2,-9.6 3.2,-10.4 M0,-10.4 C-1,-11.2 -2,-9.6 -3.2,-10.4", "M0,-10.4 C3,-12.6 6,-8 10.4,-10.4 M0,-10.4 C-3,-12.6 -6,-8 -10.4,-10.4", 2] }, "",
+      '<circle cy="-10.4" r="0.5" ' + sw(0.5) + ">" + attrAnim("cx", "3.2;10.4;3.2", 2) + "</circle>" + '<circle cy="-10.4" r="0.5" ' + sw(0.5) + ">" + attrAnim("cx", "-3.2;-10.4;-3.2", 2) + "</circle>"],
+    ["Big head", { hr: 3.6, anim: { fig: { rock: 3, cx: 0, cy: 0, dur: 1 } } }, "", ""],
+    ["Three arms", { arms: [0.35, -0.35, 2], anim: { arms: [14, 14, 20] } }, "", ""],
+    ["Wheel feet", { dy: -2.1, la: 0.08, lb: -0.08, anim: { legs: 0, arms: [6, 6], dur: 1.2 }, scene: { x: 2, dur: 2.4 } }, "", spin(C(-1.2, -1.05, 1.05, null, sw(0.8)) + L(-1.2, -2.1, -1.2, 0, sw(0.4)) + L(-2.25, -1.05, -0.15, -1.05, sw(0.4)), -1.2, -1.05, 0.5) +
+      spin(C(1.2, -1.05, 1.05, null, sw(0.8)) + L(1.2, -2.1, 1.2, 0, sw(0.4)) + L(0.15, -1.05, 2.25, -1.05, sw(0.4)), 1.2, -1.05, 0.5) +
+      fade(L(-4, -3, -6.4, -3, sw(0.4)) + L(-4.4, -5, -6.2, -5, sw(0.4)), "1;0.2;1", 0.5)],
+    ["Spring legs", { nolegs: true, legPath: "M0,-6.6 L1.3,-5.9 L-1.3,-5.1 L1.3,-4.3 L-1.3,-3.5 L1.3,-2.7 L-1.3,-1.9 L1.3,-1.1 L0,-0.4 L0,0 M-1.8,0 L1.8,0", dy: -1.6, aa: 2.2, ab: -2.2, anim: { arms: [10, 10], sync: true, dur: 0.7 }, scene: { bounce: 3, dur: 0.7 } }, "",
+      fade(L(-3, 0.4, -4, 1.4, sw(0.4)) + L(3, 0.4, 4, 1.4, sw(0.4)), "1;0;1", 0.7)],
+    ["Levitates", { dy: -3.4, la: 0.2, lb: 0.06, aa: 0.95, ab: -0.95, noground: true, anim: { legs: [4, 4], arms: [6, 6], dur: 2.4 }, scene: { bob: 1.2, dur: 2.8 },
+      fixed: grow(E(0, 0.6, 3.2, 0.55, "rgba(22,38,46,0.18)", NONE), 0, 0.6, "1 1;0.8 1;1 1", 2.8) }, "", twinkle([L(-5, -9, -5.8, -9.8, sw(0.4)), L(5.4, -12, 6.2, -12.8, sw(0.4))], 1.4)],
+    ["Lifts a barbell", { la: 0.3, lb: -0.3, aa: 2.99, ab: -2.99, anim: { legs: [6, 6], sync: true, arms: 0, dur: 1.2 }, scene: { bob: 0.4, dur: 1.2 } }, "",
+      sway(L(-6.2, -15, 6.2, -15, sw(0.9)) + R(-7.6, -17.6, 1.4, 5.2, INK, 'rx="0.3" ' + NONE) + R(-6.2, -16.9, 0.9, 3.8, INK, 'rx="0.3" ' + NONE) +
+      R(6.2, -17.6, 1.4, 5.2, INK, 'rx="0.3" ' + NONE) + R(5.3, -16.9, 0.9, 3.8, INK, 'rx="0.3" ' + NONE), 0, -15, 3, 1.2)]
   ];
 
+  /* ---------- the second hundred ---------- */
+  var hair = col(BROWN) + " " + sw(0.9);
+  var PILOTS2 = [
+    // headwear and hair
+    ["Bunny ears", {}, "", sway(P("M-1.4,-14.2 Q-2.8,-19.6 -0.8,-19.4 Q0.2,-16.6 -0.2,-14.5 Z", WHITE, sw(0.5)) + P("M-1.1,-15 Q-1.9,-18.2 -1,-18.3 Q-0.5,-16.6 -0.6,-15 Z", PINK, NONE), -0.8, -14.4, 5, 1.1) +
+      sway(P("M1.4,-14.2 Q2.8,-19.6 0.8,-19.4 Q-0.2,-16.6 0.2,-14.5 Z", WHITE, sw(0.5)) + P("M1.1,-15 Q1.9,-18.2 1,-18.3 Q0.5,-16.6 0.6,-15 Z", PINK, NONE), 0.8, -14.4, 5, 1.1, -0.55)],
+    ["Tiara", {}, "", P("M-2.1,-14.2 L-1.4,-15.8 L-0.7,-14.5 L0,-16.5 L0.7,-14.5 L1.4,-15.8 L2.1,-14.2", SILVER, sw(0.45)) + twinkle([C(0, -15.9, 0.38, TEAL2, NONE)], 1.2)],
+    ["Backwards cap", {}, "", dome(2.1, NAVY) + P("M-2.1,-13.9 L-4.5,-13.5 L-4.3,-12.8 L-2,-13.2 Z", NAVY, sw(0.4))],
+    ["Fez", {}, "", R(-1.6, -17.2, 3.2, 3, RED, 'rx="0.2" ' + sw(0.5)) + sway(L(1.6, -17.2, 2.5, -15.2, sw(0.5)) + C(2.6, -15, 0.38, INK, NONE), 1.6, -17.2, 16, 0.8)],
+    ["Aviator goggles", { anim: { dur: 0.55 } }, fade(L(-6, -12, -9, -12, sw(0.4)) + L(-5.5, -9, -8.5, -9, sw(0.4)) + L(-6, -6, -9, -6, sw(0.4)), "1;0.1;1", 0.5), L(-2, -13.4, 2, -13.4, sw(0.7)) + C(-0.9, -13.2, 0.8, SKY, sw(0.5)) + C(0.9, -13.2, 0.8, SKY, sw(0.5))],
+    ["Flower crown", {}, "", [[-1.8, -14.4, PINK], [-0.9, -15, YEL], [0, -15.2, CORAL], [0.9, -15, YEL], [1.8, -14.4, PINK]].map(function (p) { return C(p[0], p[1], 0.48, p[2], sw(0.25)) + C(p[0], p[1], 0.16, INK, NONE); }).join("") +
+      C(-1.35, -15, 0.25, LIME, NONE) + C(0.45, -15.4, 0.25, LIME, NONE) + C(1.4, -14.9, 0.25, LIME, NONE)],
+    ["Antlers", {}, "", P("M-1.2,-14.2 L-1.8,-16.8 L-3.4,-17.6 M-1.8,-16.8 L-1.4,-18.9 M1.2,-14.2 L1.8,-16.8 L3.4,-17.6 M1.8,-16.8 L1.4,-18.9", null, col(BROWN) + " " + sw(0.7))],
+    ["Unicorn horn", {}, "", fade(P("M-0.6,-14.4 L0.6,-14.4 L0.3,-18.8 Z", GOLD, sw(0.4)) + L(-0.35, -15.6, 0.45, -15.9, sw(0.3)) + L(-0.2, -16.7, 0.4, -16.9, sw(0.3)), "1;0.6;1", 1.4)],
+    ["Afro", { headFill: WHITE }, C(0, -13.3, 3.5, INK, NONE), ""],
+    ["Mohawk", { anim: { dur: 0.55 } }, "", P("M-1.6,-14.2 L-1.2,-17.8 L-0.4,-14.6 L0,-18.8 L0.4,-14.6 L1.2,-17.8 L1.6,-14.2", TEAL2, sw(0.45))],
+    ["Pigtails", {}, "", sway(P("M-1.9,-13 Q-3.7,-12.6 -3.5,-9.6", null, hair), -1.9, -13, 10, 0.8) + sway(P("M1.9,-13 Q3.7,-12.6 3.5,-9.6", null, hair), 1.9, -13, 10, 0.8, -0.4) +
+      C(-2, -13, 0.5, RED, NONE) + C(2, -13, 0.5, RED, NONE)],
+    ["Long hair", { headFill: WHITE }, sway(P("M-2,-13.6 Q-3.2,-9 -2.8,-5.2 L-0.8,-5.6 L-0.3,-11 L0.3,-11 L0.8,-5.6 L2.8,-5.2 Q3.2,-9 2,-13.6 Q0,-16 -2,-13.6 Z", BROWN, sw(0.4)), 0, -13.6, 3, 1.4), ""],
+    ["Bucket hat", {}, "", P("M-2,-14.2 L-1.6,-17 L1.6,-17 L2,-14.2 Z", "#9C7A3C", sw(0.5)) + P("M-2,-14.3 L-3.7,-13.1 M2,-14.3 L3.7,-13.1", null, col("#9C7A3C") + " " + sw(0.9)) + L(-2, -14.3, 2, -14.3, col("#9C7A3C") + " " + sw(0.9))],
+    ["Santa hat", {}, "", P("M-2.2,-14.2 L2.2,-14.2 L0.4,-19.2 Z", RED, sw(0.5)) + sway(P("M0.4,-19.2 Q1.4,-21 3,-19.8", null, col(RED) + " " + sw(1.2)) + C(3.2, -19.6, 0.7, WHITE, sw(0.4)), 0.4, -19.2, 9, 1) +
+      R(-2.6, -14.9, 5.2, 1, WHITE, 'rx="0.4" ' + sw(0.4))],
+    ["Top-knot bun", {}, "", C(0, -15.5, 1.1, INK, NONE) + L(-0.9, -14.5, 0.9, -14.5, col(RED) + " " + sw(0.5))],
+    ["Bee", { anim: { legs: [4, 4], arms: [3, 3], dur: 1.1 }, scene: { bob: 0.7, dur: 1.1 } }, R(-1.3, -10.2, 2.6, 3.6, YEL, 'rx="1" ' + sw(0.4)) +
+      sway(E(-1.7, -11.3, 1.4, 0.7, "rgba(185,223,245,0.75)", sw(0.3)), -0.4, -11, 22, 0.16) + sway(E(1.7, -11.3, 1.4, 0.7, "rgba(185,223,245,0.75)", sw(0.3)), 0.4, -11, 22, 0.16, -0.08),
+      L(-1.3, -9, 1.3, -9, sw(0.6)) + L(-1.3, -7.8, 1.3, -7.8, sw(0.6)) + P("M-0.8,-14.4 Q-1.6,-16.4 -2.4,-16.2 M0.8,-14.4 Q1.6,-16.4 2.4,-16.2", null, sw(0.5)) + C(-2.5, -16.2, 0.3, INK, NONE) + C(2.5, -16.2, 0.3, INK, NONE)],
+    ["Has an idea", { aa: 2.8, anim: S0, scene: null }, "", fade(C(0, -18.3, 1.4, YEL, sw(0.5)) + R(-0.6, -17, 1.2, 0.8, GRAY, sw(0.3)), "0.3;1;1;0.3", 2.4, 0, 'keyTimes="0;0.3;0.8;1"') +
+      fade(L(-2.6, -18.3, -3.4, -18.3, sw(0.5)) + L(2.6, -18.3, 3.4, -18.3, sw(0.5)) + L(-1.8, -20, -2.4, -20.6, sw(0.5)) + L(1.8, -20, 2.4, -20.6, sw(0.5)), "0;1;1;0", 2.4, 0, 'keyTimes="0;0.35;0.8;1"')],
+    ["Rain cloud", { aa: 0.1, ab: -0.1, anim: S0, scene: null }, "", P("M-3.4,-17.4 Q-4.8,-17.4 -4.5,-18.8 Q-4.5,-20.4 -2.6,-20.2 Q-2,-21 -0.6,-20.6 Q0.6,-21 1.4,-20 Q3.5,-20.2 3.3,-18.6 Q3.5,-17.4 2,-17.4 Z", GRAY, sw(0.4)) +
+      drops([L(-2.6, -16.6, -2.9, -15.4, col(TEAL2) + " " + sw(0.5)), L(0, -16.6, -0.3, -15.4, col(TEAL2) + " " + sw(0.5)), L(2.2, -16.6, 1.9, -15.4, col(TEAL2) + " " + sw(0.5))], 0.9)],
+    ["Butterfly on head", { anim: S0, scene: null }, "", L(0, -16.2, 0, -14.8, sw(0.5)) + grow(E(-0.75, -15.5, 0.75, 0.5, CORAL, sw(0.3)) + E(0.75, -15.5, 0.75, 0.5, CORAL, sw(0.3)), 0, -15.5, "1 1;0.25 1;1 1", 0.5)],
+    ["Laurel wreath", {}, "", P("M-2.4,-12.6 Q-2.9,-14.6 -1.2,-15.7 M2.4,-12.6 Q2.9,-14.6 1.2,-15.7", null, col(GREEN) + " " + sw(0.6)) +
+      [[-2.5, -13.5, -20], [-2.1, -14.6, 10], [-1.3, -15.4, 40], [2.5, -13.5, 20], [2.1, -14.6, -10], [1.3, -15.4, -40]].map(function (p) { return '<ellipse cx="' + p[0] + '" cy="' + p[1] + '" rx="0.55" ry="0.28" fill="' + GREEN + '" stroke="none" transform="rotate(' + p[2] + " " + p[0] + " " + p[1] + ')"/>'; }).join("")],
+    // faces
+    ["Winks", {}, "", C(-0.65, -13.1, 0.3, INK, NONE) + fade(C(0.65, -13.1, 0.3, INK, NONE), "0;1;0;0", 2, 0, 'calcMode="discrete" keyTimes="0;0.45;0.6;1"') +
+      fade(L(0.25, -13.1, 1.05, -13.1, sw(0.45)), "1;0;1;1", 2, 0, 'calcMode="discrete" keyTimes="0;0.45;0.6;1"') + smile()],
+    ["Tongue out", {}, "", eyes() + L(-0.6, -11.9, 0.6, -11.9, sw(0.4)) + sway(P("M-0.4,-11.9 Q0,-10.5 0.5,-11.9 Z", PINK, sw(0.3)), 0, -11.9, 12, 0.5)],
+    ["Big grin", {}, "", eyes() + P("M-1.3,-12.4 Q0,-10.3 1.3,-12.4 Z", WHITE, sw(0.4)) + L(-0.9, -12, 0.9, -12, sw(0.25))],
+    ["Yawns", { anim: S0, scene: null }, "", L(-1, -13.2, -0.3, -13.2, sw(0.4)) + L(0.3, -13.2, 1, -13.2, sw(0.4)) + grow(E(0, -11.7, 0.5, 0.7, INK, NONE), 0, -11.7, "1 0.3;1 1;1 0.3", 3)],
+    ["Surprised", { aa: 2.5, ab: -2.5, anim: { legs: 0, arms: [5, 5], sync: true, dur: 0.9 }, scene: { bounce: 0.8, dur: 0.9 } }, "", C(-0.65, -13.2, 0.4, INK, NONE) + C(0.65, -13.2, 0.4, INK, NONE) + E(0, -11.7, 0.4, 0.55, INK, NONE) +
+      L(-1, -14, -0.3, -14.2, sw(0.4)) + L(1, -14, 0.3, -14.2, sw(0.4))],
+    ["Grumpy brows", { arms: [], armPath: "M0,-10.4 L2,-8.4 L-1.6,-8 M0,-10.4 L-2,-8.4 L1.6,-8", anim: { legs: [0, 6], dur: 0.4 }, scene: null }, "", eyes() + L(-1.1, -13.9, -0.3, -13.5, sw(0.5)) + L(1.1, -13.9, 0.3, -13.5, sw(0.5)) + P("M-0.8,-11.6 Q0,-12.3 0.8,-11.6", null, sw(0.45))],
+    ["Blushes", { aa: 0.1, ab: -0.1, anim: S0, scene: null }, "", eyes() + P("M-0.6,-12.1 Q0,-11.6 0.6,-12.1", null, sw(0.4)) + fade(C(-1.3, -12.2, 0.5, "rgba(244,143,177,0.85)", NONE) + C(1.3, -12.2, 0.5, "rgba(244,143,177,0.85)", NONE), "0.5;1;0.5", 1.6)],
+    ["Round glasses", {}, "", C(-0.9, -13, 0.75, null, sw(0.45)) + C(0.9, -13, 0.75, null, sw(0.45)) + L(-0.15, -13, 0.15, -13, sw(0.4)) + L(-1.65, -13, -2.2, -13.2, sw(0.35)) + L(1.65, -13, 2.2, -13.2, sw(0.35))],
+    ["Freckles", {}, "", eyes() + [[-1.1, -12.3], [-0.7, -12], [-0.3, -12.3], [0.3, -12.3], [0.7, -12], [1.1, -12.3]].map(function (p) { return C(p[0], p[1], 0.15, "#C97B4A", NONE); }).join("")],
+    ["Hoop earrings", {}, "", sway(C(-2.2, -11.9, 0.6, null, col(GOLD) + " " + sw(0.5)), -2.1, -12.4, 15, 0.8) + sway(C(2.2, -11.9, 0.6, null, col(GOLD) + " " + sw(0.5)), 2.1, -12.4, 15, 0.8, -0.4)],
+    ["Cries", { aa: 0.1, ab: -0.1, anim: S0, scene: null }, "", L(-1, -13.2, -0.3, -13.1, sw(0.4)) + L(0.3, -13.1, 1, -13.2, sw(0.4)) + P("M-0.7,-11.6 Q0,-12.2 0.7,-11.6", null, sw(0.45)) +
+      drops([C(-0.75, -12.5, 0.28, TEAL2, NONE), C(0.75, -12.5, 0.28, TEAL2, NONE)], 1.2)],
+    ["Whistles", { anim: { arms: 0 } }, "", eyes() + C(0.6, -11.9, 0.32, null, sw(0.4)) + rising([note(2.8, -14.2, 2), note(4, -16, 1.7)], 1.6)],
+    // what they wear
+    ["Striped shirt", {}, "", P("M-1.4,-10.8 L1.4,-10.8 L1.6,-6.6 L-1.6,-6.6 Z", WHITE, sw(0.4)) + L(-1.45, -9.8, 1.45, -9.8, col(NAVY) + " " + sw(0.5)) + L(-1.5, -8.6, 1.5, -8.6, col(NAVY) + " " + sw(0.5)) + L(-1.55, -7.4, 1.55, -7.4, col(NAVY) + " " + sw(0.5))],
+    ["Overalls", {}, "", P("M-1.3,-9.6 L1.3,-9.6 L1.6,-5.6 L-1.6,-5.6 Z", NAVY, sw(0.4)) + L(-1, -9.6, -0.5, -10.7, sw(0.5)) + L(1, -9.6, 0.5, -10.7, sw(0.5)) + R(-0.6, -8.6, 1.2, 0.9, null, col(WHITE) + " " + sw(0.25))],
+    ["Lab coat", {}, "", P("M-1.8,-10.8 L1.8,-10.8 L2.4,-3.6 L-2.4,-3.6 Z", WHITE, sw(0.5)) + L(0, -10.8, -0.8, -8.4, sw(0.35)) + L(0, -10.8, 0.8, -8.4, sw(0.35)) + C(0, -7.4, 0.2, INK, NONE) + C(0, -6, 0.2, INK, NONE) + L(1.2, -9.4, 1.2, -8.2, col(TEAL) + " " + sw(0.4))],
+    ["Apron", {}, "", P("M-1,-10 L1,-10 L1,-8.4 L2,-8.4 L2,-3.8 L-2,-3.8 L-2,-8.4 L-1,-8.4 Z", TEAL, sw(0.4)) + P("M-1,-10 Q0,-11.3 1,-10", null, sw(0.35)) + R(-0.7, -6.6, 1.4, 1.1, null, col(WHITE) + " " + sw(0.25))],
+    ["Chest star", {}, "", twinkle([P(starPath(0, -9, 1.1), YEL, sw(0.3))], 1.2)],
+    ["Big belt buckle", {}, "", L(-1.6, -6.6, 1.6, -6.6, col(DARKWOOD) + " " + sw(0.9)) + R(-0.75, -7.25, 1.5, 1.3, GOLD, sw(0.35))],
+    ["Wristwatch", { armProps: [C(0.85, -6.6, 0.55, SKY, sw(0.45)) + L(0.85, -6.6, 0.85, -7, sw(0.25))] }, "", ""],
+    ["Mittens", { armProps: [glove(0.22, RED) + C(1.6, -6.3, 0.3, RED, sw(0.3)), glove(-0.22, RED) + C(-1.6, -6.3, 0.3, RED, sw(0.3))] }, "", ""],
+    ["Striped socks", { legProps: [sock(0.14), sock(-0.14)] }, "", ""],
+    ["Rain boots & puddle", { legProps: [boot(0.14, YEL), boot(-0.14, YEL)], scene: { bob: 0.5, dur: 0.45 }, fixed: E(0, 0.9, 4.2, 0.55, "rgba(83,183,192,0.45)", NONE) + fade(L(-4.6, 0.2, -5.4, -0.8, col(TEAL2) + " " + sw(0.4)) + L(4.6, 0.2, 5.4, -0.8, col(TEAL2) + " " + sw(0.4)), "0;1;0", 0.9) }, "", ""],
+    ["Dino tail & spikes", {}, sway(P("M-0.3,-6.2 Q-4,-5.4 -6.8,-2.2 Q-5,-3.6 -2.2,-4.2 Q-1.4,-5.4 -0.3,-6.2 Z", GREEN, sw(0.4)) + P("M-3.6,-4.4 L-3.4,-5.6 L-2.6,-4.6 M-5,-3.2 L-5.2,-4.4 L-4.2,-3.6", null, col(GREEN) + " " + sw(0.5)), -0.3, -6.2, 8, 1),
+      P("M-1.6,-14 L-1.2,-15.7 L-0.6,-14.3 L0,-16 L0.6,-14.3 L1.2,-15.7 L1.6,-14", GREEN, sw(0.35))],
+    ["Mermaid tail", { nolegs: true, aa: 1.2, ab: -0.5, noground: true, anim: { arms: [8, 8], dur: 1.6 }, scene: { bob: 0.6, dur: 1.6 },
+      fixed: P("M-11,1 q2,-1 4,0 t4,0 t4,0 t4,0 t4,0", null, col(TEAL2) + " " + sw(0.7)) }, "",
+      sway(P("M-1.2,-6.6 L1.2,-6.6 Q2.2,-3 0.6,-0.6 L2.8,0.6 L0,-0.2 L-2.8,0.6 L-0.6,-0.6 Q-2.2,-3 -1.2,-6.6 Z", TEAL2, sw(0.4)) + P("M-0.8,-5 Q0,-4.6 0.8,-5 M-0.7,-3.6 Q0,-3.2 0.7,-3.6", null, sw(0.3)), 0, -6.6, 6, 0.8)],
+    ["Butterfly wings", { anim: { legs: [5, 5], arms: [3, 3], dur: 1 }, scene: { bob: 0.6, dur: 1 } },
+      grow(P("M-0.4,-10.4 Q-6.6,-15.4 -5.8,-9.6 Q-3,-9 -0.4,-9.6 Z", CORAL, sw(0.4)) + P("M-0.4,-9.2 Q-5.6,-8.2 -3.9,-5.2 Q-1.8,-6.4 -0.4,-8 Z", GOLD, sw(0.4)) + C(-3.6, -11.2, 0.45, WHITE, NONE) +
+      P("M0.4,-10.4 Q6.6,-15.4 5.8,-9.6 Q3,-9 0.4,-9.6 Z", CORAL, sw(0.4)) + P("M0.4,-9.2 Q5.6,-8.2 3.9,-5.2 Q1.8,-6.4 0.4,-8 Z", GOLD, sw(0.4)) + C(3.6, -11.2, 0.45, WHITE, NONE), 0, -9.5, "1 1;0.55 1;1 1", 0.5), ""],
+    ["Turtle shell", { anim: { legs: [8, 8], arms: [6, 6], dur: 1.6 }, scene: { bob: 0.2, dur: 0.8 } }, E(0, -8.4, 3, 2.8, GREEN, sw(0.5)) + P("M-1.4,-10.4 L1.4,-10.4 L2.2,-8.4 L1.4,-6.4 L-1.4,-6.4 L-2.2,-8.4 Z", null, col("#1E5A38") + " " + sw(0.4)), ""],
+    ["Knight's helmet", { nohead: true, anim: { legs: [12, 12], arms: [8, 8], dur: 1.2 }, scene: { bob: 0.3, dur: 0.6 } }, "", R(-2.2, -15, 4.4, 4.6, GRAY, 'rx="1.2" ' + sw(0.5)) + L(-1.4, -13, 1.4, -13, sw(0.5)) +
+      sway(P("M0,-15 Q1,-17.6 2.6,-18.4", null, col(RED) + " " + sw(1.2)), 0, -15, 8, 0.9)],
+    ["Raincoat hood", { fixed: drops([L(-7, -16, -7.3, -14.8, col(TEAL2) + " " + sw(0.45)), L(6, -18, 5.7, -16.8, col(TEAL2) + " " + sw(0.45)), L(-5, -8, -5.3, -6.8, col(TEAL2) + " " + sw(0.45)), L(8, -10, 7.7, -8.8, col(TEAL2) + " " + sw(0.45))], 1) },
+      P("M-2.7,-12.2 Q-2.9,-16.3 0,-16.5 Q2.9,-16.3 2.7,-12.2 L2.7,-10.6 L-2.7,-10.6 Z", YEL, sw(0.5)), P("M-2.2,-10.6 L2.2,-10.6 L2.8,-3.4 L-2.8,-3.4 Z", YEL, sw(0.5)) + C(0, -8.2, 0.22, INK, NONE) + C(0, -6.4, 0.22, INK, NONE)],
+    ["Nightcap", { anim: { dur: 1.4 }, scene: { bob: 0.3, dur: 0.7 } }, "", P("M-2.2,-14.2 L2.2,-14.2 L0.8,-18.6 Z", NAVY, sw(0.5)) + sway(P("M0.8,-18.6 Q2.2,-20.2 3.8,-19", null, col(NAVY) + " " + sw(1.2)) + C(4, -18.9, 0.65, WHITE, sw(0.4)), 0.8, -18.6, 8, 1.4) +
+      R(-2.6, -14.9, 5.2, 1, WHITE, 'rx="0.4" ' + sw(0.4)) + C(-1.1, -16.2, 0.2, WHITE, NONE) + C(0.4, -15.8, 0.2, WHITE, NONE)],
+    ["Polka-dot pyjamas", { legProps: [pant(0.14, SKY), pant(-0.14, SKY)], anim: { dur: 1.3 }, scene: { bob: 0.3, dur: 0.65 } }, "", P("M-1.5,-10.8 L1.5,-10.8 L1.7,-6.4 L-1.7,-6.4 Z", SKY, sw(0.4)) +
+      [[-0.8, -9.8], [0.7, -9.2], [-0.4, -8], [0.9, -7.4], [-1, -7]].map(function (p) { return C(p[0], p[1], 0.22, NAVY, NONE); }).join("")],
+    // what they do
+    ["Bowls", { la: 0.6, lb: -0.3, aa: 0.9, ab: -0.6, anim: { legs: 0, arms: [30, 0], dur: 1.4 }, scene: null }, "",
+      slide(fade(C(4.6, -1.3, 1.3, NAVY, sw(0.4)) + C(4.3, -1.7, 0.2, WHITE, NONE) + C(4.9, -1.9, 0.2, WHITE, NONE), "1;1;0;1", 1.4, 0, 'keyTimes="0;0.6;0.9;1"'), "0 0;0 0;6 0;0 0", 1.4, 0, 'keyTimes="0;0.4;0.9;1"') +
+      [9.4, 10.3, 11.2].map(function (x) { return P("M" + x + ",0.4 Q" + (x - 0.5) + ",-1 " + x + ",-2.6 Q" + (x + 0.5) + ",-1 " + x + ",0.4 Z", WHITE, sw(0.3)) + L(x - 0.3, -1.6, x + 0.3, -1.6, col(RED) + " " + sw(0.3)); }).join("")],
+    ["Dribbles a basketball", { la: 0.3, lb: -0.3, aa: 1.1, ab: -0.4, anim: { legs: 0, arms: [10, 0], dur: 0.5 }, scene: { bob: 0.2, dur: 0.5 } }, "",
+      slide(C(4.4, -4, 1.3, ORANGE, sw(0.4)) + P("M3.1,-4 L5.7,-4 M4.4,-5.3 L4.4,-2.7", null, sw(0.3)), "0 0;0 2.7;0 0", 0.5, 0, JUMP)],
+    ["Plays tennis", { la: 0.45, lb: -0.45, aa: 2.3, ab: -1.2, anim: { legs: 0, arms: [40, 5], dur: 0.9 }, scene: null,
+      armProps: [L(3.4, -13.5, 5.2, -15.6, sw(0.7)) + E(6.2, -16.8, 1.5, 1.9, "rgba(185,223,245,0.3)", sw(0.5)) + P("M5.2,-16.8 L7.2,-16.8 M6.2,-18.4 L6.2,-15.2 M5.5,-17.8 L6.9,-17.8 M5.5,-15.8 L6.9,-15.8", null, sw(0.2))] }, "",
+      slide(fade(C(9, -12, 0.55, YEL, sw(0.3)), "0;1;1;0", 0.9, 0, 'keyTimes="0;0.1;0.6;1"'), "-7 2;2 -1", 0.9, 0, "")],
+    ["Golfs", { la: 0.25, lb: -0.25, aa: 0.6, ab: 0.5, anim: { legs: 0, arms: [35, 35], sync: true, dur: 1.4 }, scene: null,
+      armProps: [L(2.6, -6.6, 5.6, -0.3, col(GRAY) + " " + sw(0.6)) + P("M5.6,-0.3 L7,-0.1 L7,0.7 L5.4,0.6 Z", GRAY, sw(0.3))] }, "", C(6.4, -0.1, 0.42, WHITE, sw(0.3)) + L(10, 0.6, 10, -5, sw(0.4)) + P("M10,-5 L12,-4.3 L10,-3.6 Z", RED, NONE)],
+    ["Boxes", { aa: 1.4, ab: 1.1, anim: { legs: 0, arms: [12, 12], dur: 0.4 }, scene: { bob: 0.4, dur: 0.35 }, armProps: [glove(1.4, RED), glove(1.1, RED)] }, "", ""],
+    ["Lifts a trophy", { aa: 2.95, ab: -2.95, anim: { legs: 0, arms: 0 }, scene: { bounce: 0.9, dur: 0.8 } }, "", R(-1.2, -15.6, 2.4, 0.6, GOLD, sw(0.3)) + L(0, -16.6, 0, -15.6, col(GOLD) + " " + sw(0.8)) +
+      P("M-2.2,-20 L2.2,-20 L1.5,-16.6 L-1.5,-16.6 Z", GOLD, sw(0.4)) + P("M-2.2,-19.4 Q-3.6,-18.8 -2,-17.6 M2.2,-19.4 Q3.6,-18.8 2,-17.6", null, col(GOLD) + " " + sw(0.6)) + twinkle([sparkle(3.6, -19.6, 0.6), sparkle(-3.8, -17, 0.5)], 0.9)],
+    ["Rows a boat", { dy: 2.6, nolegs: true, legPath: "M0,-6.6 L3.4,-6 L3.8,-3.2", aa: 1.2, ab: 1, noground: true, anim: { arms: [20, 20], sync: true, dur: 1.4 }, scene: null,
+      armProps: [L(4.3, -8.7, 9.2, -1.2, col(WOOD) + " " + sw(0.7))], fixed: slide(P("M-12,1.4 q2,-1 4,0 t4,0 t4,0 t4,0 t4,0 t4,0", null, col(TEAL2) + " " + sw(0.7)), "0 0;-1.5 0;0 0", 1.6) },
+      P("M-7,-2.4 L7,-2.4 Q5.2,0.8 0,0.8 Q-5.2,0.8 -7,-2.4 Z", WOOD, sw(0.5)), ""],
+    ["Rides a bike", { dy: -0.6, nolegs: true, legMorph: ["M0,-6.6 L2.6,-4.4 L1.6,-2 M0,-6.6 L-0.8,-4 L-0.8,-2", "M0,-6.6 L-0.8,-4 L-0.8,-2 M0,-6.6 L2.6,-4.4 L1.6,-2", 0.8], aa: 1.1, ab: 1, anim: { arms: 0 }, scene: null },
+      spin(C(-3.6, -2.2, 2.2, null, sw(0.8)) + L(-3.6, -4.4, -3.6, 0, sw(0.35)) + L(-5.8, -2.2, -1.4, -2.2, sw(0.35)), -3.6, -2.2, 0.8) + spin(C(3.8, -2.2, 2.2, null, sw(0.8)) + L(3.8, -4.4, 3.8, 0, sw(0.35)) + L(1.6, -2.2, 6, -2.2, sw(0.35)), 3.8, -2.2, 0.8) +
+      P("M-3.6,-2.2 L-0.6,-7.2 L2.6,-7.6 L3.8,-2.2 L0.4,-2.6 Z M-0.6,-7.2 L0.4,-2.6 M2.6,-7.6 L3.4,-8.6 M-1.4,-7.3 L0.2,-7.3", null, sw(0.6)), ""],
+    ["Rides a scooter", { dy: -1.2, la: 0.15, lb: -0.6, aa: 1.35, ab: 1.25, anim: { legs: [0, 20], arms: 0, dur: 0.8 }, scene: { x: 1, dur: 1.6 } }, "",
+      R(-2, -1.2, 6, 0.7, RED, 'rx="0.3" ' + sw(0.4)) + spin(C(-2.4, -0.5, 0.7, INK, NONE) + L(-2.4, -1.1, -2.4, 0.1, col(WHITE) + " " + sw(0.3)), -2.4, -0.5, 0.5) + spin(C(4.2, -0.5, 0.7, INK, NONE) + L(4.2, -1.1, 4.2, 0.1, col(WHITE) + " " + sw(0.3)), 4.2, -0.5, 0.5) +
+      L(4, -1.2, 6.2, -10.2, sw(0.8)) + L(5, -10.4, 7.4, -10.4, sw(0.8))],
+    ["Rides a stick horse", { la: 0.5, lb: -0.5, aa: 1, ab: 0.8, anim: { legs: [20, 20], arms: 0, dur: 0.45 }, scene: { bounce: 0.8, dur: 0.45 } }, L(3.2, -10.6, -1.8, 2, col(WOOD) + " " + sw(0.8)),
+      P("M2.4,-9 L2.8,-12.6 L5.4,-13.2 L6.2,-11.4 L5,-10.6 L3.6,-10.6 Z", WOOD, sw(0.5)) + C(4.6, -12, 0.3, INK, NONE) + P("M2.8,-12.6 L2.2,-13.6 M3.4,-12.8 L3,-14 M4,-13 L3.8,-14.2", null, col(DARKWOOD) + " " + sw(0.6))],
+    ["Rides a broom", { dy: 0.3, la: 0.35, lb: 0.1, aa: 1.2, ab: 1, noground: true, anim: { legs: [5, 5], arms: 0, dur: 1.4 }, scene: { bob: 0.9, dur: 1.4 } }, "",
+      L(-6, -5.4, 5.6, -7.4, col(WOOD) + " " + sw(0.9)) + P("M-6,-5.4 L-9.6,-3.8 M-6,-5.4 L-9.8,-5 M-6,-5.4 L-9.6,-6.4 M-6,-5.4 L-9.4,-7.4", null, col(SAND) + " " + sw(0.6)) + L(-6.4, -6.4, -6, -4.4, col(RED) + " " + sw(0.6)) +
+      twinkle([sparkle(-9.8, -9.6, 0.6), sparkle(-10.6, -2, 0.5), sparkle(-8, -11, 0.4)], 1.2)],
+    ["Ice skates", { la: 0.45, lb: -0.5, aa: 1.4, ab: -1.2, legProps: [blade(0.45), blade(-0.5)], anim: { legs: [8, 8], arms: [6, 6], dur: 1.6 }, scene: { x: 2, dur: 2 },
+      fixed: L(-10, 0.9, 10, 0.9, col(SKY) + " " + sw(0.6)) + L(-6, 1.6, -2, 1.6, col(SKY) + " " + sw(0.4)) + L(3, 1.6, 8, 1.6, col(SKY) + " " + sw(0.4)) }, "", ""],
+    ["Swims", { rot: 90, rc: 0, dx: -7, dy: -3, la: 0.15, lb: -0.15, aa: 2.9, ab: -0.4, noground: true, anim: { legs: [12, 12], arms: "windmill", dur: 1.2 }, scene: null,
+      over: R(-12, -1.4, 24, 4.4, "rgba(83,183,192,0.35)", NONE) + slide(P("M-13,-1.4 q2,-0.9 4,0 t4,0 t4,0 t4,0 t4,0 t4,0 t4,0", null, col(TEAL2) + " " + sw(0.7)), "0 0;-2 0;0 0", 1.6) }, "", ""],
+    ["Climbs a rope", { la: 0.35, lb: -0.2, aa: 2.85, ab: -2.85, anim: { legs: [12, 12], arms: [10, 10], dur: 1 }, scene: { bob: 0.4, dur: 1 }, fixed: L(0, -21, 0, 2, col(WOOD) + " " + sw(0.8)) }, "", ""],
+    ["Rings a bell", { aa: 1.3, anim: { legs: 0, arms: [8, 0], dur: 0.7 }, scene: null }, "", sway(P("M4.6,-14 Q4.6,-17.8 6.4,-17.8 Q8.2,-17.8 8.2,-14 L8.6,-13.2 L4.2,-13.2 Z", GOLD, sw(0.4)) + C(6.4, -13.3, 0.42, INK, NONE), 6.4, -18, 18, 0.7) +
+      L(6.4, -13.2, 4.4, -9.2, sw(0.4)) + fade(P("M9.6,-17.4 Q10.6,-15.6 9.6,-13.8 M3.2,-17.4 Q2.2,-15.6 3.2,-13.8", null, sw(0.4)), "1;0;1", 0.7)],
+    ["Blows bubbles", { aa: 2, anim: S0, scene: null }, "", L(2.6, -12.6, 4.6, -13.4, sw(0.5)) + C(5.1, -13.6, 0.6, null, sw(0.4)) +
+      [[6.6, -14.6, 0.7], [8, -13.2, 0.5], [7.4, -16.4, 0.9]].map(function (b, i) { return slide(fade(C(b[0], b[1], b[2], "rgba(83,183,192,0.25)", col(TEAL2) + " " + sw(0.3)), "0;1;1;0", 2.4, -i * 0.8, ""), "0 0;1 -3.5", 2.4, -i * 0.8, ""); }).join("")],
+    ["Throws a paper plane", { aa: 2.3, anim: { legs: 0, arms: [12, 0], dur: 1.8 }, scene: null }, "", motion(fade(P("M4,-14 L9.2,-15.6 L6.6,-12.6 Z", WHITE, sw(0.4)) + L(4, -14, 6.6, -12.6, sw(0.3)), "1;1;0", 1.8, 0, 'keyTimes="0;0.7;1"'), "M0,0 Q2,-2 4,-1 T8,0.5", 1.8)],
+    ["Plays violin", { aa: -1.3, ab: -2, anim: { legs: 0, arms: [12, 0], dur: 0.9 }, scene: null, armProps: [L(-5.6, -8.8, -1.4, -13.4, sw(0.5))] }, "",
+      '<ellipse cx="-2.6" cy="-10.4" rx="1.4" ry="2" fill="' + WOOD + '" ' + sw(0.4) + ' transform="rotate(-35 -2.6 -10.4)"/>' + L(-2.8, -10.4, -6.2, -13.2, col(DARKWOOD) + " " + sw(0.8)) + fade(note(-7.5, -15.4, 2.2), "0;1;0", 1.2)],
+    ["Plays trumpet", { aa: 1.9, ab: 2.1, anim: { legs: [0, 6], arms: 0, dur: 0.5 }, scene: null }, "", L(1.4, -12.2, 5.4, -12.2, col(GOLD) + " " + sw(1.2)) + P("M5.4,-13.3 L7.8,-14.4 L7.8,-10 L5.4,-11.1 Z", GOLD, sw(0.4)) +
+      P("M3,-12.8 L3,-13.8 M3.8,-12.8 L3.8,-13.8 M4.6,-12.8 L4.6,-13.8", null, col(GOLD) + " " + sw(0.5)) + rising([note(9.4, -13.6, 2), note(10.4, -15.2, 1.6)], 1.2)],
+    ["Plays piano", { aa: 1.35, ab: 1.15, anim: { legs: 0, arms: [6, 6], dur: 0.3 }, scene: null, fixed: R(2.4, -7.4, 9.2, 2.2, WHITE, sw(0.5)) + [3.3, 4.5, 6.6, 7.8, 9, 11].map(function (x) { return R(x, -7.4, 0.7, 1.3, INK, NONE); }).join("") + L(2.4, -7.4, 2.2, 0.4, sw(0.5)) + L(11.6, -7.4, 11.8, 0.4, sw(0.5)) }, "",
+      rising([note(6.5, -11, 2), note(9, -12.6, 1.7)], 1.4)],
+    ["Sings", { aa: 1.6, ab: -2.3, anim: { legs: 0, arms: [0, 10], dur: 1 }, scene: { bob: 0.3, dur: 0.5 } }, "", L(5, -9.6, 5, 0.4, sw(0.6)) + L(3.4, 0.4, 6.6, 0.4, sw(0.6)) + C(5, -10.6, 1, INK, NONE) +
+      rising([note(7.6, -13, 2.2), note(9.2, -15.4, 1.8)], 1.4)],
+    ["DJs", { aa: 1.3, ab: 1.1, anim: { legs: 0, arms: [6, 2], dur: 0.25 }, scene: { bob: 0.3, dur: 0.4 }, fixed: R(1, -6, 10.4, 1.2, INK, NONE) + L(2, -4.8, 1.8, 0.4, sw(0.5)) + L(10.6, -4.8, 10.8, 0.4, sw(0.5)) +
+      spin(C(4, -6.8, 1.9, GRAY, sw(0.5)) + C(4, -6.8, 0.45, INK, NONE) + L(4, -8.5, 4, -7.6, col(WHITE) + " " + sw(0.3)), 4, -6.8, 1.2) + spin(C(8.4, -6.8, 1.9, GRAY, sw(0.5)) + C(8.4, -6.8, 0.45, INK, NONE) + L(8.4, -8.5, 8.4, -7.6, col(WHITE) + " " + sw(0.3)), 8.4, -6.8, 1.6) }, "",
+      P("M-2.7,-12.7 A2.7,2.7 0 0 1 2.7,-12.7", null, sw(0.9)) + R(-3.2, -13.5, 1.1, 1.7, INK, 'rx="0.4" ' + NONE) + R(2.1, -13.5, 1.1, 1.7, INK, 'rx="0.4" ' + NONE)],
+    ["Conducts", { aa: 2.2, ab: 1.8, anim: { legs: 0, arms: [25, 10], dur: 0.7 }, scene: null, armProps: [L(3.7, -13.1, 6.4, -15.6, sw(0.5))],
+      fixed: L(9.4, 0.4, 9.4, -9, sw(0.5)) + P("M8,-9 L11,-9 L10.8,-12.6 L7.8,-12.6 Z", WHITE, sw(0.4)) + L(8.4, -10.6, 10.2, -10.8, sw(0.25)) + L(8.4, -11.4, 10.2, -11.6, sw(0.25)) }, "", ""],
+    ["Types on a laptop", { aa: 1.2, ab: 1, anim: { legs: 0, arms: [3, 3], dur: 0.2 }, scene: null, fixed: R(2, -6.8, 9.6, 0.6, DARKWOOD, NONE) + L(2.8, -6.2, 2.6, 0.4, sw(0.5)) + L(10.8, -6.2, 11, 0.4, sw(0.5)) +
+      R(3, -7.4, 5.6, 0.6, GRAY, sw(0.3)) + P("M3.4,-7.4 L3.9,-12.6 L9.2,-12.6 L8.7,-7.4 Z", GRAY, sw(0.4)) + fade(P("M4.1,-7.9 L4.5,-12.1 L8.7,-12.1 L8.3,-7.9 Z", SKY, NONE), "1;0.7;1", 1.2) }, "", ""],
+    ["Takes a selfie", { aa: 2.2, ab: -2.4, anim: { legs: 0, arms: [3, 6], dur: 2 }, scene: null }, "", eyes() + smile() + L(3.7, -13.1, 8, -17.4, sw(0.6)) +
+      '<rect x="7.3" y="-19.6" width="1.9" height="3" rx="0.3" fill="' + INK + '" stroke="none" transform="rotate(-30 8.2 -18)"/>' + fade(C(8.2, -18, 1.6, "rgba(255,255,255,0.9)", NONE), "0;1;0", 2.4, 0, 'calcMode="discrete" keyTimes="0;0.86;0.94"') +
+      P("M-3.6,-13.4 L-4.4,-15.2 M-3.4,-13.6 L-3.2,-15.4", null, sw(0.6))],
+    ["Shovels snow", { la: 0.4, lb: -0.3, aa: 1.1, ab: 0.8, anim: { legs: 0, arms: [14, 14], sync: true, dur: 1.2 }, scene: null,
+      armProps: [L(3.8, -7.6, 8.4, -1.4, col(WOOD) + " " + sw(0.8)) + P("M7.6,-2.4 L10.4,-1 L9.2,1.2 L6.6,-0.2 Z", GRAY, sw(0.4))], fixed: P("M-9.5,0.6 Q-5,-2.8 -0.6,0.6 Z", WHITE, col(SKY) + " " + sw(0.6)) }, "",
+      fade(C(9.4, -3.6, 0.3, SKY, NONE) + C(10.6, -4.6, 0.25, SKY, NONE) + C(8.6, -5, 0.2, SKY, NONE), "0;1;0", 1.2, 0, 'keyTimes="0;0.3;0.6"')],
+    ["Hammers a nail", { aa: 1.9, ab: 0.9, anim: { legs: 0, arms: [28, 0], dur: 0.5 }, scene: null, armProps: [L(4.3, -11.9, 6.6, -14.2, col(WOOD) + " " + sw(0.7)) + '<rect x="5.8" y="-15.4" width="2.2" height="1.1" fill="' + GRAY + '" ' + sw(0.3) + ' transform="rotate(-45 6.9 -14.85)"/>'] }, "",
+      R(6.4, -9.6, 4.4, 1.2, WOOD, sw(0.4)) + L(8.4, -9.6, 8.4, -11.6, sw(0.5)) + L(8, -11.6, 8.8, -11.6, sw(0.5)) + fade(sparkle(9.6, -12.6, 0.5), "0;1;0", 0.5, 0, 'calcMode="discrete" keyTimes="0;0.5;0.7"')],
+    ["Saws a plank", { aa: 1.55, ab: 1.2, anim: { legs: 0, arms: [4, 0], dur: 0.5 }, scene: null, fixed: R(2, -6.4, 9.8, 1, WOOD, sw(0.4)) + P("M3.4,-5.4 L2.4,0.4 M4.6,-5.4 L5.6,0.4 M9,-5.4 L8,0.4 M10.2,-5.4 L11.2,0.4", null, sw(0.5)) }, "",
+      slide(P("M4.6,-9.8 L9.8,-9.4 L9.8,-7.6 L4.8,-7.6 Z", GRAY, sw(0.4)) + P("M5,-7.6 L5.5,-6.9 L6,-7.6 L6.5,-6.9 L7,-7.6 L7.5,-6.9 L8,-7.6 L8.5,-6.9 L9,-7.6 L9.5,-6.9", null, sw(0.3)) + R(3.2, -10.6, 1.6, 1.8, DARKWOOD, 'rx="0.4" ' + sw(0.3)), "0 0;1.4 0;0 0", 0.5)],
+    ["Rolls paint on a wall", { aa: 1.8, ab: -0.3, anim: { legs: 0, arms: [14, 0], dur: 1.1 }, scene: null, armProps: [L(4.5, -11.4, 7, -14.6, sw(0.6)) + R(6.4, -16.4, 1.6, 3.2, SKY, 'rx="0.7" ' + sw(0.4))],
+      fixed: R(8.6, -21, 3.4, 21.6, "#EEF2F4", NONE) + R(8.6, -13, 3.4, 13.6, SKY, NONE) + L(8.6, -21, 8.6, 0.6, sw(0.4)) }, "", ""],
+    ["Flips a pancake", { aa: 1.5, anim: { legs: 0, arms: [6, 0], dur: 1.2 }, scene: null }, "", L(4.6, -10.1, 7, -10.6, sw(0.6)) + E(8.4, -10.8, 1.9, 0.6, INK, NONE) +
+      slide(E(8.4, -11.4, 1.3, 0.4, GOLD, sw(0.3)), "0 0;0 -5.5;0 0", 1.2, 0, JUMP)],
+    ["Grills", { aa: 1.6, anim: { legs: 0, arms: [6, 0], dur: 1 }, scene: null, armProps: [L(4.6, -10.5, 6.6, -8.4, sw(0.5)) + R(6.2, -8.6, 1.6, 0.9, GRAY, sw(0.3))],
+      fixed: R(3, -7, 7.6, 1.4, INK, NONE) + L(4, -5.6, 3.4, 0.4, sw(0.5)) + L(9.6, -5.6, 10.2, 0.4, sw(0.5)) + P("M4,-7 L4,-5.9 M5.4,-7 L5.4,-5.9 M6.8,-7 L6.8,-5.9 M8.2,-7 L8.2,-5.9 M9.6,-7 L9.6,-5.9", null, col(GRAY) + " " + sw(0.3)) }, "",
+      C(5.4, -7.6, 0.9, "#B55A3C", sw(0.3)) + E(8.2, -7.6, 1.3, 0.5, "#C96A3C", sw(0.3)) + rising([P("M5.2,-9 q0.5,-0.7 0,-1.4", null, col(GRAY) + " " + sw(0.4)), P("M8,-9 q0.5,-0.7 0,-1.4", null, col(GRAY) + " " + sw(0.4))], 1.8)],
+    ["Pushes a wheelbarrow", { aa: 1.35, ab: 1.25, anim: { arms: 0, legs: [14, 14] }, scene: { bob: 0.25, dur: 0.4 } }, "", L(4, -8, 2.3, -8.8, sw(0.6)) + P("M4,-8 L11,-8 L10,-3.8 L5.4,-3.8 Z", GREEN, sw(0.5)) +
+      P("M4.6,-8 Q7.5,-10.4 10.4,-8 Z", BROWN, NONE) + L(7.4, -9.2, 7.4, -11.2, col(GREEN) + " " + sw(0.5)) + C(7.4, -11.6, 0.6, CORAL, NONE) + L(5.6, -3.8, 5, -0.4, sw(0.5)) +
+      spin(C(10.6, -1.4, 1.3, null, sw(0.8)) + L(10.6, -2.7, 10.6, -0.1, sw(0.35)) + L(9.3, -1.4, 11.9, -1.4, sw(0.35)), 10.6, -1.4, 0.8)],
+    ["Flies a drone", { aa: 1.45, ab: 1.3, anim: S0, scene: null }, "", R(3.6, -10.6, 2.4, 1.4, GRAY, 'rx="0.3" ' + sw(0.4)) + L(5.6, -10.6, 6.2, -12.4, sw(0.35)) +
+      slide(R(-2, -18.6, 4, 1, INK, 'rx="0.4" ' + NONE) + L(-2, -18.1, -4.4, -19, sw(0.5)) + L(2, -18.1, 4.4, -19, sw(0.5)) + grow(E(-4.4, -19.2, 1.4, 0.35, GRAY, sw(0.3)), -4.4, -19.2, "1 1;0.2 1;1 1", 0.2) + grow(E(4.4, -19.2, 1.4, 0.35, GRAY, sw(0.3)), 4.4, -19.2, "1 1;0.2 1;1 1", 0.2, -0.1), "0 0;1.2 -0.8;0 0", 1.6)],
+    ["Knits", { aa: 1.2, ab: 1, anim: { legs: 0, arms: [5, 5], dur: 0.35 }, scene: null, armProps: [L(4.3, -8.7, 7.6, -12.4, sw(0.5)), L(3.9, -7.9, 7.8, -10.4, sw(0.5))],
+      fixed: C(-5.6, -1.4, 1.4, CORAL, sw(0.3)) + P("M-4.4,-2.4 Q0,-6.2 4,-8.4", null, col(CORAL) + " " + sw(0.4)) }, "", R(3.6, -7.6, 3, 2.4, CORAL, 'rx="0.3" ' + sw(0.3)) + L(3.6, -6.4, 6.6, -6.4, col(WHITE) + " " + sw(0.25))],
+    ["Writes", { aa: 1.25, ab: 0.9, anim: { legs: 0, arms: [4, 0], dur: 0.6 }, scene: null, armProps: [L(4.4, -9, 6.6, -7.6, col(GOLD) + " " + sw(0.7)) + L(6.6, -7.6, 7, -7.3, sw(0.5))],
+      fixed: R(2.4, -7.2, 9.2, 0.6, DARKWOOD, NONE) + L(3.2, -6.6, 3, 0.4, sw(0.5)) + L(10.8, -6.6, 11, 0.4, sw(0.5)) + P("M3.8,-7.2 L8.6,-7.2 L9.2,-9 L4.4,-9 Z", WHITE, sw(0.3)) + L(5, -8.4, 7.6, -8.4, sw(0.2)) + L(5.2, -7.8, 7.4, -7.8, sw(0.2)) }, "", ""],
+    ["Walks a tightrope", { la: 0.3, lb: -0.1, aa: 1.5, ab: -1.5, noground: true, anim: { legs: [8, 8], arms: 0, dur: 1.6 }, scene: { rock: 4, cx: 0, cy: 0, dur: 1.6 }, fixed: L(-12, -0.2, 12, -0.2, sw(0.6)) }, "",
+      sway(L(-7, -9.4, 7, -9.4, sw(0.7)), 0, -9.4, 3, 1.6, -0.8)],
+    ["Plays yo-yo", { aa: 1, anim: { legs: 0, arms: [4, 0], dur: 1.2 }, scene: null }, "", '<line x1="3.9" y1="-7.9" x2="3.9" y2="-2.2" ' + sw(0.35) + ">" + attrAnim("y2", "-2.2;-7.3;-2.2", 1.2, 0, JUMP) + "</line>" +
+      '<g><animateTransform attributeName="transform" type="translate" values="0 0;0 -5.6;0 0" dur="1.2s" repeatCount="indefinite" ' + JUMP + "/>" + C(3.9, -1.4, 1, RED, sw(0.4)) + C(3.9, -1.4, 0.3, WHITE, NONE) + "</g>"],
+    ["Builds a sandcastle", { dy: 2.6, nolegs: true, legPath: "M0,-6.6 L2.8,-5.4 L2.4,-2.6 L0.2,-2.6 M0,-6.6 L-2.4,-5.8 L-2.6,-2.6 L-0.4,-2.6", aa: 1.3, ab: 1, noground: true, anim: { arms: [10, 0], dur: 0.6 }, scene: null,
+      armProps: [null, L(4.1, -5.7, 6, -4.4, sw(0.5)) + P("M6,-4.4 L7,-3.6 L6.2,-2.8 Z", GRAY, sw(0.3))], fixed: R(-12, 0.6, 24, 2.4, "#F3E6C8", NONE) }, "",
+      R(5.4, -3.6, 5, 4.2, SAND, sw(0.4)) + R(5.8, -6.4, 1.4, 2.8, SAND, sw(0.4)) + R(8.6, -6.4, 1.4, 2.8, SAND, sw(0.4)) + P("M5.8,-6.4 L5.8,-7.2 L6.3,-7.2 L6.3,-6.4 M6.7,-6.4 L6.7,-7.2 L7.2,-7.2 L7.2,-6.4 M8.6,-6.4 L8.6,-7.2 L9.1,-7.2 L9.1,-6.4 M9.5,-6.4 L9.5,-7.2 L10,-7.2 L10,-6.4", null, sw(0.3)) +
+      L(9.3, -7.2, 9.3, -9.4, sw(0.3)) + sway(P("M9.3,-9.4 L11,-8.9 L9.3,-8.4 Z", RED, NONE), 9.3, -9.4, 8, 0.8)],
+    ["Blows out candles", { aa: 0.1, ab: -0.1, anim: S0, scene: null, fixed: E(6.4, -3, 3.8, 0.55, WHITE, sw(0.3)) + R(3.4, -6.2, 6, 3.2, PINK, 'rx="0.4" ' + sw(0.4)) + P("M3.4,-5.4 Q4.6,-4.4 5.6,-5.4 Q6.6,-4.4 7.6,-5.4 Q8.6,-4.4 9.4,-5.4", null, col(WHITE) + " " + sw(0.6)) +
+      L(4.8, -6.2, 4.8, -8, col(SKY) + " " + sw(0.5)) + L(6.4, -6.2, 6.4, -8, col(SKY) + " " + sw(0.5)) + L(8, -6.2, 8, -8, col(SKY) + " " + sw(0.5)) }, "",
+      fade([4.8, 6.4, 8].map(function (x, i) { return grow(P("M" + (x - 0.4) + ",-8 Q" + x + ",-9.6 " + (x + 0.4) + ",-8 Z", ORANGE, NONE), x, -8, "1 1;1.1 1.25;1 1", 0.25, -i * 0.08); }).join(""), "1;1;0;0;1", 3, 0, 'calcMode="discrete" keyTimes="0;0.5;0.56;0.9;1"') +
+      fade(P("M2.2,-12.3 q1.4,-0.5 2.6,0.3 M2.4,-11.6 q1.2,-0.1 2.2,0.5", null, sw(0.4)), "0;1;0;0", 3, 0, 'calcMode="discrete" keyTimes="0;0.42;0.58;1"')],
+    ["Hangs laundry", { aa: 2.75, ab: -0.3, anim: { legs: 0, arms: [4, 0], dur: 1.4 }, scene: null, fixed: L(-12, -14.2, 12, -14.6, sw(0.45)) + R(-8.2, -2.6, 4.2, 3, WOOD, 'rx="0.4" ' + sw(0.4)) + L(-8.2, -1.6, -4, -1.6, sw(0.3)) },
+      sway(P("M-9,-14.3 L-5.2,-14.3 L-5.6,-9.6 L-8.6,-9.6 Z", SKY, sw(0.4)) + L(-7.1, -14.3, -7.1, -12.6, sw(0.25)), -7.1, -14.3, 5, 2) +
+      sway(P("M6.4,-14.5 L7.6,-14.5 L7.6,-11.4 L8.8,-11.4 L8.8,-10.2 L6.4,-10.2 Z", RED, sw(0.3)) + L(6.4, -12.6, 7.6, -12.6, col(WHITE) + " " + sw(0.4)), 7, -14.5, 6, 2, -0.7) +
+      sway(P("M9.6,-14.6 L10.8,-14.6 L10.8,-11.5 L12,-11.5 L12,-10.3 L9.6,-10.3 Z", RED, sw(0.3)) + L(9.6, -12.7, 10.8, -12.7, col(WHITE) + " " + sw(0.4)), 10.2, -14.6, 6, 2, -1.2), ""],
+    // what they can do
+    ["Breathes fire", { aa: 0.6, ab: -0.6, anim: S0, scene: null }, "", grow(fade(P("M1.8,-12.4 Q5,-14.6 8.6,-12.8 Q6.4,-11.8 9,-10.6 Q5,-10.4 1.8,-11.6 Z", ORANGE, NONE) + P("M1.8,-12.2 Q4.4,-13.4 6.6,-12.2 Q4.6,-11.4 1.8,-11.8 Z", YEL, NONE), "1;0.8;1", 0.25), 1.8, -12, "1 1;1.15 1;1 1", 0.25)],
+    ["Laser eyes", { anim: S0, scene: null }, "", fade(L(0.7, -13.1, 12, -11.2, col(RED) + " " + sw(0.7)) + L(-0.5, -13.1, 12, -11.6, col(RED) + " " + sw(0.7)), "1;0.4;1", 0.2) + C(-0.5, -13.1, 0.35, RED, NONE) + C(0.7, -13.1, 0.35, RED, NONE)],
+    ["Freezes things", { aa: 1.5, ab: -1.5, anim: S0, scene: null }, "", twinkle([flake(6.2, -9.4, 0.8), flake(7.6, -11.4, 0.6), flake(-6.2, -9.4, 0.8), flake(-7.6, -11.4, 0.6)], 1) +
+      fade(R(7, -5, 3.4, 3.4, "rgba(185,223,245,0.7)", col(TEAL2) + " " + sw(0.5)) + C(8.7, -3.3, 0.55, CORAL, NONE), "0.7;1;0.7", 1.2) + fade(R(-10.4, -5, 3.4, 3.4, "rgba(185,223,245,0.7)", col(TEAL2) + " " + sw(0.5)) + C(-8.7, -3.3, 0.55, GOLD, NONE), "1;0.7;1", 1.2)],
+    ["Runs fast", { rot: 10, rc: 0, la: 0.9, lb: -0.7, aa: -0.8, ab: 0.9, anim: { legs: [28, 28], arms: [25, 25], dur: 0.3 }, scene: { bob: 0.3, dur: 0.15 }, fixed: fade(L(-5, -10, -9.4, -10, sw(0.5)) + L(-4.6, -7, -9, -7, sw(0.5)) + L(-5, -4, -9.4, -4, sw(0.5)), "1;0.2;1", 0.3) }, "", ""],
+    ["Walks on the ceiling", { rot: 180, dy: -5.4, noground: true, fixed: L(-9, -20.6, 9, -20.6, col("#D5DFE3") + " " + sw(0.5)) }, "", ""],
+    ["Glows", { anim: { dur: 1.2 }, scene: { bob: 0.3, dur: 0.6 } }, grow(fade(C(0, -7.3, 7.8, "rgba(242,201,76,0.35)", NONE) + C(0, -7.3, 5.2, "rgba(242,201,76,0.35)", NONE), "0.6;1;0.6", 1.6), 0, -7.3, "1;1.08;1", 1.6), ""],
+    ["X-ray", { headFill: INK }, "", fade(L(-1.2, -9.8, 1.2, -9.8, sw(0.5)) + L(-1.3, -8.8, 1.3, -8.8, sw(0.5)) + L(-1.2, -7.8, 1.2, -7.8, sw(0.5)) + C(-0.65, -13.1, 0.4, WHITE, NONE) + C(0.65, -13.1, 0.4, WHITE, NONE) + L(-0.8, -11.6, 0.8, -11.6, col(WHITE) + " " + sw(0.5)), "1;0.4;1", 1.5)],
+    ["Super jump", { aa: 2.6, ab: -2.6, anim: { legs: [10, 10], arms: 0, dur: 1.4 }, scene: { bounce: 5.5, dur: 1.4 }, fixed: fade(L(-3, 0.4, -4.2, 1.6, sw(0.4)) + L(3, 0.4, 4.2, 1.6, sw(0.4)), "1;0;0;1", 1.4, 0, 'keyTimes="0;0.2;0.8;1"') }, "", ""],
+    ["Grows and shrinks", { wrap: function (m) { return grow(m, 0, 0, "0.6;1.3;0.6", 2.4); } }, "", ""],
+    ["Rainbow trail", { la: 0.6, lb: -0.6, aa: -0.6, ab: 0.7, anim: { legs: [24, 24], arms: [20, 20], dur: 0.35 }, scene: { bob: 0.3, dur: 0.18 } },
+      slide([[RED, -8.2], [ORANGE, -7.4], [YEL, -6.6], [LIME, -5.8], [TEAL2, -5], [PURPLE, -4.2]].map(function (b) { return P("M-0.6," + b[1] + " Q-6," + (b[1] + 0.4) + " -11.8," + (b[1] + 4.6), null, col(b[0]) + " " + sw(0.85)); }).join(""), "0 0;-0.8 0.2;0 0", 0.35), ""]
+  ];
+
+  var FIRST = PILOTS.length;   // 100
+  var ALL = PILOTS.concat(PILOTS2);
+
   function boxSvg(v) {
-    var pose = v[1] || {}, behind = v[2] || "", front = v[3] || "";
-    var figs = pose.figs ? pose.figs.map(figure).join("") : figure(pose);
+    var pose = v[1] || {}, behind = v[2] || "", front = v[3] || "", an = pose.anim || {};
+    var figs = pose.figs ? pose.figs.map(function (p) { var m = figure(p); return p.wrap ? p.wrap(m) : m; }).join("") : figure(pose);
+    if (pose.wrap) figs = pose.wrap(figs);
+    var walking = !pose.figs && !pose.nolegs && an.legs !== 0 && an.legs !== null;
+    var sc = pose.scene;
+    if (sc === undefined) sc = walking ? { bob: 0.35, dur: (an.dur || 0.8) / 2 } : null;
+    var scene = behind + figs + front;
+    if (sc) {
+      if (sc.bob) scene = slide(scene, "0 0;0 " + (-sc.bob) + ";0 0", sc.dur || 0.4);
+      else if (sc.x) scene = slide(scene, (-sc.x) + " 0;" + sc.x + " 0;" + (-sc.x) + " 0", sc.dur || 2);
+      else if (sc.rock) scene = sway(scene, sc.cx || 0, sc.cy || 0, sc.rock, sc.dur || 1.6);
+      else if (sc.bounce) scene = slide(scene, "0 0;0 " + (-sc.bounce) + ";0 0", sc.dur || 0.7, 0, JUMP);
+      else if (sc.shake) scene = slide(scene, "0 0;" + sc.shake + " " + (-sc.shake) + ";0 0;" + (-sc.shake) + " " + sc.shake + ";0 0", sc.dur || 0.25, 0, "");
+    }
     var ground = pose.noground ? "" : L(-8.5, 0.62, 8.5, 0.62, 'stroke="#D5DFE3" ' + sw(0.5));
-    return '<svg viewBox="-12 -21 24 24" aria-hidden="true"><g fill="none" stroke="' + INK + '" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">' +
-      ground + behind + figs + front + "</g></svg>";
+    return '<svg viewBox="-12 -21 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="' + INK + '" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">' +
+      ground + (pose.fixed || "") + scene + (pose.over || "") + "</g></svg>";
   }
 
   /* ---------- the sheet and the picks ---------- */
   var PICKS_KEY = "ditto.testpilot.picks";
-  var grid = document.getElementById("grid"), count = document.getElementById("pickCount");
-  var copyBtn = document.getElementById("copyPicks"), clearBtn = document.getElementById("clearPicks");
+  var grids = [document.getElementById("grid1"), document.getElementById("grid2")], count = document.getElementById("pickCount");
+  var copyBtn = document.getElementById("copyPicks"), clearBtn = document.getElementById("clearPicks"), stillBtn = document.getElementById("stillBtn");
   var picks = [];
   try { picks = JSON.parse(localStorage.getItem(PICKS_KEY) || "[]"); } catch (e) { picks = []; }
   if (!Array.isArray(picks)) picks = [];
@@ -419,15 +732,16 @@
     copyBtn.textContent = "Copy picks";
   }
 
-  var html = "";
-  PILOTS.forEach(function (v, i) {
+  ALL.forEach(function (v, i) {
     var n = i + 1, on = picks.indexOf(n) >= 0;
-    html += '<figure class="cell" role="listitem"><button type="button" class="box' + (on ? " on" : "") + '" data-n="' + n + '" aria-pressed="' + on + '" aria-label="' + n + ', ' + v[0].replace(/"/g, "&quot;") + '">' +
-      boxSvg(v) + '<span class="tick" aria-hidden="true">✓</span></button><figcaption><b>' + n + "</b>" + v[0] + "</figcaption></figure>";
+    var cell = document.createElement("figure");
+    cell.className = "cell"; cell.setAttribute("role", "listitem");
+    cell.innerHTML = '<button type="button" class="box' + (on ? " on" : "") + '" data-n="' + n + '" aria-pressed="' + on + '" aria-label="' + n + ', ' + v[0].replace(/"/g, "&quot;") + '">' +
+      boxSvg(v) + '<span class="tick" aria-hidden="true">✓</span></button><figcaption><b>' + n + "</b>" + v[0] + "</figcaption>";
+    grids[i < FIRST ? 0 : 1].appendChild(cell);
   });
-  grid.innerHTML = html;
 
-  grid.addEventListener("click", function (e) {
+  document.addEventListener("click", function (e) {
     var btn = e.target.closest(".box");
     if (!btn) return;
     var n = parseInt(btn.dataset.n, 10), i = picks.indexOf(n);
@@ -440,7 +754,7 @@
   clearBtn.addEventListener("click", function () {
     picks = [];
     save();
-    Array.prototype.forEach.call(grid.querySelectorAll(".box.on"), function (b) { b.classList.remove("on"); b.setAttribute("aria-pressed", "false"); });
+    Array.prototype.forEach.call(document.querySelectorAll(".box.on"), function (b) { b.classList.remove("on"); b.setAttribute("aria-pressed", "false"); });
     showPicks();
   });
   copyBtn.addEventListener("click", function () {
@@ -450,6 +764,27 @@
     else done(false);
   });
   showPicks();
+
+  /* ---------- motion: only the boxes in view move, and a button holds them all still ---------- */
+  var svgs = Array.prototype.slice.call(document.querySelectorAll(".box svg"));
+  var still = !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
+  function setMoving(svg, on) { try { if (on && !still) svg.unpauseAnimations(); else svg.pauseAnimations(); } catch (e) {} }
+  svgs.forEach(function (s) { s.pauseAnimations(); });
+  if (window.IntersectionObserver) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) { en.target.dataset.vis = en.isIntersecting ? "1" : ""; setMoving(en.target, en.isIntersecting); });
+    }, { rootMargin: "120px" });
+    svgs.forEach(function (s) { io.observe(s); });
+  } else {
+    svgs.forEach(function (s) { s.dataset.vis = "1"; setMoving(s, true); });
+  }
+  function showStill() { stillBtn.textContent = still ? "Let them move" : "Hold still"; stillBtn.setAttribute("aria-pressed", String(still)); }
+  stillBtn.addEventListener("click", function () {
+    still = !still;
+    svgs.forEach(function (s) { setMoving(s, s.dataset.vis === "1"); });
+    showStill();
+  });
+  showStill();
 })();
 </script>
 </body>
