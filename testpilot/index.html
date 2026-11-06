@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ditto Test Pilots</title>
+<meta name="description" content="One hundred Dittos, each with one thing of their own.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#F2F5F6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F1518" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="../icon-180.png">
+<link rel="apple-touch-icon" href="../icon-180.png">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #F2F5F6;
+    --card: #FFFFFF;
+    --ink: #16262E;
+    --muted: #4F6A75;
+    --line: #D5DFE3;
+    --accent: #0E7C86;
+    --accent-ink: #FFFFFF;
+    --shadow: 0 1px 2px rgba(22, 38, 46, 0.06), 0 4px 14px rgba(22, 38, 46, 0.07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0F1518;
+      --card: #1A2429;
+      --ink: #E6EDEF;
+      --muted: #8FA5AE;
+      --line: #2C3A41;
+      --accent: #53B7C0;
+      --accent-ink: #08262A;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 14px rgba(0, 0, 0, 0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0F1518;
+    --card: #1A2429;
+    --ink: #E6EDEF;
+    --muted: #8FA5AE;
+    --line: #2C3A41;
+    --accent: #53B7C0;
+    --accent-ink: #08262A;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 14px rgba(0, 0, 0, 0.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px 60px; }
+  .top { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; }
+  .wordmark { font-weight: 700; font-size: 24px; letter-spacing: -0.03em; color: var(--ink); text-decoration: none; }
+  .top nav { display: flex; gap: 20px; font-size: 15px; }
+  .top nav a { color: var(--muted); text-decoration: none; }
+  .top nav a:hover { color: var(--ink); }
+  .hero { padding: 18px 0 6px; }
+  .eyebrow { margin: 0 0 6px; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+  h1 { margin: 0 0 8px; font-size: 40px; line-height: 1.05; letter-spacing: -0.03em; }
+  .lede { margin: 0; max-width: 560px; font-size: 17px; color: var(--muted); }
+  @media (max-width: 480px) { h1 { font-size: 32px; } .lede { font-size: 16px; } }
+
+  /* the picks bar: what has been tapped so far */
+  .picks {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    margin: 18px 0 6px; padding: 12px 14px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow);
+    font-size: 15px;
+  }
+  .picks .count { flex: 1; min-width: 200px; color: var(--muted); }
+  .picks .count b { color: var(--ink); }
+  .btn {
+    font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px;
+    background: var(--card); color: var(--ink);
+  }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+  .btn:disabled { opacity: 0.45; cursor: default; }
+
+  /* the sheet: one-inch boxes, nine to a row on a laptop, three on a phone */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 1in);
+    gap: 20px 12px;
+    justify-content: center;
+    margin: 22px 0 10px;
+  }
+  .cell { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  .box {
+    position: relative;
+    width: 1in; height: 1in; padding: 0;
+    border: 1px solid var(--line); border-radius: 12px;
+    background: #FFFFFF;                 /* always paper-white, whatever the theme: the ink is drawn dark */
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.12s ease-out;
+  }
+  .box:hover { transform: translateY(-1px); }
+  .box:active { transform: scale(0.96); }
+  .box:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 3px; }
+  .box svg { width: 100%; height: 100%; display: block; border-radius: 11px; }
+  .box.on { outline: 2.5px solid var(--accent); outline-offset: 2px; }
+  .box .tick {
+    position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; border-radius: 50%;
+    background: var(--accent); color: var(--accent-ink);
+    display: none; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; line-height: 1;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  }
+  .box.on .tick { display: flex; }
+  .cell figcaption {
+    width: 1.14in; margin: 0 -0.07in;
+    font-size: 11.5px; line-height: 1.25; text-align: center; color: var(--muted);
+  }
+  .cell figcaption b { color: var(--ink); font-weight: 700; margin-right: 4px; }
+  .foot { margin: 30px 0 0; font-size: 13px; color: var(--muted); text-align: center; }
+  .foot a { color: var(--muted); }
+  @media (prefers-reduced-motion: reduce) { .box, .box:hover, .box:active { transition: none; transform: none; } }
+  @media print {
+    body { background: #FFFFFF; }
+    .top, .picks, .lede, .foot { display: none; }
+    .grid { gap: 10px 8px; }
+    .box { box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="top">
+    <a class="wordmark" href="../about/" aria-label="About Ditto">Ditto</a>
+    <nav aria-label="Site">
+      <a href="../about/">About</a>
+      <a href="../support/">Support</a>
+      <a href="../">Web app</a>
+    </nav>
+  </div>
+
+  <main>
+    <div class="hero">
+      <p class="eyebrow">Test pilots</p>
+      <h1>One hundred Dittos</h1>
+      <p class="lede">Each one has a thing of their own, written under their box. Tap the ones you like; your picks stay here, in this browser.</p>
+    </div>
+
+    <div class="picks" id="picks">
+      <span class="count" id="pickCount">Tap a box to pick a Ditto.</span>
+      <button type="button" class="btn" id="clearPicks" disabled>Clear</button>
+      <button type="button" class="btn primary" id="copyPicks" disabled>Copy picks</button>
+    </div>
+
+    <div class="grid" id="grid" role="list"></div>
+
+    <p class="foot">Drawn the way the walkers on the <a href="../">web app</a> are drawn. Numbers are the names.</p>
+  </main>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- the pen: the same stick figure as figures.js, in SVG ----------
+     Feet at the origin, hip at -6.6, shoulders at -10.4, head at -12.7 (radius 1.95).
+     Limb angles: 0 points down, positive swings toward +x (the way the figure faces). */
+  var INK = "#16262E", RED = "#D62828", TEAL = "#0E7C86", TEAL2 = "#53B7C0", GOLD = "#E3B23C", NAVY = "#1F3D69";
+  var WOOD = "#A66A2E", DARKWOOD = "#6B4423", PINK = "#F48FB1", ORANGE = "#F2994A", YEL = "#F2C94C", GRAY = "#8A8F98";
+  var WHITE = "#FFFFFF", SKY = "#B9DFF5", GREEN = "#2E7D4F", PURPLE = "#3B2A7A", SAND = "#C9A97A", CORAL = "#F25F5C";
+
+  function f(n) { return Math.round(n * 100) / 100; }
+  function hand(a, al) { al = al || 4.6; return [f(al * Math.sin(a)), f(-10.4 + al * Math.cos(a))]; }
+  function sw(w) { return 'stroke-width="' + w + '"'; }
+  function P(d, fill, extra) { return '<path d="' + d + '"' + (fill ? ' fill="' + fill + '"' : "") + (extra ? " " + extra : "") + "/>"; }
+  function L(x1, y1, x2, y2, extra) { return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '"' + (extra ? " " + extra : "") + "/>"; }
+  function C(cx, cy, r, fill, extra) { return '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '"' + (fill ? ' fill="' + fill + '"' : "") + (extra ? " " + extra : "") + "/>"; }
+  function E(cx, cy, rx, ry, fill, extra) { return '<ellipse cx="' + cx + '" cy="' + cy + '" rx="' + rx + '" ry="' + ry + '"' + (fill ? ' fill="' + fill + '"' : "") + (extra ? " " + extra : "") + "/>"; }
+  function R(x, y, w, h, fill, extra) { return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '"' + (fill ? ' fill="' + fill + '"' : "") + (extra ? " " + extra : "") + "/>"; }
+  function T(x, y, s, size) { return '<text x="' + x + '" y="' + y + '" font-size="' + size + '" fill="' + INK + '" stroke="none" text-anchor="middle" font-family="-apple-system, Segoe UI, Roboto, sans-serif" font-weight="600">' + s + "</text>"; }
+  function sparkle(x, y, r, extra) { return L(x - r, y, x + r, y, extra || sw(0.5)) + L(x, y - r, x, y + r, extra || sw(0.5)); }
+  function flake(x, y, r) {
+    var e = 'stroke="' + TEAL2 + '" ' + sw(0.45);
+    return L(x - r, y, x + r, y, e) + L(x - r * 0.5, y - r * 0.87, x + r * 0.5, y + r * 0.87, e) + L(x - r * 0.5, y + r * 0.87, x + r * 0.5, y - r * 0.87, e);
+  }
+  var NONE = 'stroke="none"';
+
+  // One stick figure. o: la/lb leg angles, aa/ab arm angles (or legs:[..], arms:[..]), legPath/armPath extra
+  // strokes, nolegs/nobody/nohead, hr head radius, dx/dy, rot (about (0, rc)), sc, op, dash.
+  function figure(o) {
+    o = o || {};
+    var legs = o.legs || [o.la == null ? 0.14 : o.la, o.lb == null ? -0.14 : o.lb];
+    var arms = o.arms || [o.aa == null ? 0.22 : o.aa, o.ab == null ? -0.22 : o.ab];
+    var ll = o.ll || 6.6, al = o.al || 4.6, hr = o.hr || 1.95;
+    var hy = o.hy != null ? o.hy : (hr === 1.95 ? -12.7 : -11 - hr + 0.25);
+    var d = "";
+    if (!o.nolegs) legs.forEach(function (a) { d += "M0,-6.6 L" + f(ll * Math.sin(a)) + "," + f(-6.6 + ll * Math.cos(a)); });
+    if (o.legPath) d += o.legPath;
+    if (!o.nobody) d += "M0,-6.6 L0,-11";
+    arms.forEach(function (a) { d += "M0,-10.4 L" + f(al * Math.sin(a)) + "," + f(-10.4 + al * Math.cos(a)); });
+    if (o.armPath) d += o.armPath;
+    var head = o.nohead ? "" : C(0, f(hy), hr);
+    var tr = [];
+    if (o.dx || o.dy) tr.push("translate(" + (o.dx || 0) + " " + (o.dy || 0) + ")");
+    if (o.rot) tr.push("rotate(" + o.rot + " 0 " + (o.rc == null ? -7.3 : o.rc) + ")");
+    if (o.sc) tr.push("scale(" + o.sc + ")");
+    var attrs = (tr.length ? ' transform="' + tr.join(" ") + '"' : "") + (o.op ? ' opacity="' + o.op + '"' : "") + (o.dash ? ' stroke-dasharray="' + o.dash + '"' : "");
+    return "<g" + attrs + ">" + (o.inner || "") + P(d) + head + (o.innerFront || "") + "</g>";
+  }
+
+  // The site's dog, standing, facing +x, at (x, y) with its feet on y.
+  function dog(x, y) {
+    var a = 0.2, d = "M-2.6,-4.4 L1.6,-4.7";
+    [[1.5, -4.7, a, 4.4], [0.9, -4.7, -a, 4.4], [-2.5, -4.4, -a, 4.2], [-1.9, -4.4, a, 4.2]].forEach(function (l) {
+      d += "M" + l[0] + "," + l[1] + " L" + f(l[0] + Math.sin(l[2]) * l[3]) + "," + f(l[1] + Math.cos(l[2]) * l[3]);
+    });
+    d += "M1.6,-4.7 L2.3,-6 M-2.6,-4.4 L-3.64,-6.65 M2,-8.9 L1.3,-7.4";
+    return '<g transform="translate(' + x + " " + y + ')">' + P(d) + C(2.9, -7.3, 1.85) + C(3.6, -7.6, 0.45, INK, NONE) + L(1.9, -5.2, 2.9, -5.6, 'stroke="' + RED + '" ' + sw(0.6)) + "</g>";
+  }
+
+  var dome = function (r, fill) { return P("M-" + r + ",-13.9 A" + r + "," + r + " 0 0 1 " + r + ",-13.9 Z", fill, sw(0.6)); };
+
+  /* ---------- the hundred ----------
+     [label, pose, behind the figure, in front of the figure]  (behind/front in world units) */
+  var H = hand;
+  var PILOTS = [
+    // hats and headwear
+    ["Striped top hat", {}, "", '<g transform="translate(0.2 0) rotate(-5 0 -14.2)">' +
+      [0, 1, 2, 3].map(function (i) { return R(-1.7, f(-14.2 - (i + 1) * 1.45), 3.4, 1.5, i % 2 ? WHITE : RED, NONE); }).join("") +
+      R(-1.7, -20, 3.4, 5.8, null, sw(0.7)) + L(-2.8, -14.2, 2.8, -14.2) + "</g>"],
+    ["Cowboy hat", {}, "", P("M-2.4,-14.3 L-2.4,-16.8 Q-1.2,-17.7 0,-16.9 Q1.2,-17.7 2.4,-16.8 L2.4,-14.3 Z", WOOD, sw(0.6)) +
+      L(-2.4, -15.3, 2.4, -15.3, 'stroke="' + DARKWOOD + '" ' + sw(0.6)) + P("M-5,-15.6 Q0,-13.5 5,-15.6", null, 'stroke="' + WOOD + '" ' + sw(1.2))],
+    ["Crown", {}, "", P("M-2.5,-14.4 L-2.5,-17.7 L-1.25,-16.1 L0,-18.1 L1.25,-16.1 L2.5,-17.7 L2.5,-14.4 Z", GOLD, sw(0.6)) +
+      C(-1.25, -16.3, 0.3, RED, NONE) + C(1.25, -16.3, 0.3, TEAL, NONE) + C(0, -18.1, 0.32, RED, NONE)],
+    ["Propeller beanie", {}, "", dome(2.1, RED) + L(0, -16, 0, -17.2, sw(0.7)) +
+      P("M-2.8,-17.2 Q0,-18.3 2.8,-17.2 Q0,-16.1 -2.8,-17.2 Z", TEAL, sw(0.4)) + C(0, -17.2, 0.35, INK, NONE)],
+    ["Wizard hat", {}, "", E(0, -14.2, 4, 0.85, PURPLE, sw(0.6)) + P("M-3.3,-14.2 L3.3,-14.2 L0.7,-20.8 Z", PURPLE, sw(0.6)) +
+      C(0.4, -17.2, 0.35, WHITE, NONE) + C(-0.9, -15.4, 0.3, WHITE, NONE) + C(1.5, -15.7, 0.25, WHITE, NONE)],
+    ["Chef's hat", {}, "", C(-1.4, -17.4, 1.35, WHITE, sw(0.6)) + C(1.4, -17.4, 1.35, WHITE, sw(0.6)) + C(0, -18.3, 1.4, WHITE, sw(0.6)) +
+      R(-2.1, -17.2, 4.2, 3, WHITE, sw(0.6))],
+    ["Hard hat", {}, "", dome(3.3, YEL) + L(-4.2, -13.9, 4.2, -13.9, sw(0.9)) + L(0, -17.2, 0, -14.6, sw(0.5))],
+    ["Party hat", {}, "", P("M-2.2,-14.2 L2.2,-14.2 L0,-20 Z", CORAL, sw(0.6)) + C(-0.5, -15.6, 0.35, WHITE, NONE) +
+      C(0.7, -17.2, 0.3, WHITE, NONE) + C(-0.2, -18.5, 0.25, WHITE, NONE) + C(0, -20.1, 0.7, TEAL, sw(0.4))],
+    ["Beret", {}, "", E(0.5, -14.8, 2.9, 1.15, NAVY, sw(0.5)) + L(0.5, -15.9, 0.8, -16.6, sw(0.6))],
+    ["Halo", {}, "", E(0, -16.6, 2.6, 0.75, null, 'stroke="' + GOLD + '" ' + sw(0.8))],
+    ["Viking helmet", {}, "", dome(2.5, GRAY) + L(-2.7, -13.9, 2.7, -13.9, sw(0.8)) +
+      P("M-2.2,-14.7 Q-4.5,-15.6 -4.1,-18.6 Q-2.6,-16.6 -2.2,-14.7 Z", WHITE, sw(0.6)) + P("M2.2,-14.7 Q4.5,-15.6 4.1,-18.6 Q2.6,-16.6 2.2,-14.7 Z", WHITE, sw(0.6))],
+    ["Graduation cap", {}, "", dome(2, INK) + P("M-3.7,-15.3 L0,-16.8 L3.7,-15.3 L0,-13.9 Z", INK, sw(0.5)) +
+      L(2.3, -15.6, 3.3, -13.1, 'stroke="' + GOLD + '" ' + sw(0.6)) + C(3.4, -12.8, 0.4, GOLD, NONE)],
+    ["Headphones", {}, "", P("M-2.7,-12.7 A2.7,2.7 0 0 1 2.7,-12.7", null, sw(0.9)) +
+      R(-3.2, -13.5, 1.1, 1.7, TEAL, 'rx="0.4" ' + sw(0.5)) + R(2.1, -13.5, 1.1, 1.7, TEAL, 'rx="0.4" ' + sw(0.5))],
+    ["Sombrero", {}, "", E(0, -14.4, 6.2, 1.3, GOLD, sw(0.6)) + P("M-2.3,-14.4 L2.3,-14.4 L0,-18.3 Z", GOLD, sw(0.6)) +
+      L(-1.5, -15.7, 1.5, -15.7, 'stroke="' + RED + '" ' + sw(0.7))],
+    ["Pirate hat & hook", { aa: 0.9 }, "", P("M-4.6,-14.4 L-2.2,-17.6 Q0,-16.5 2.2,-17.6 L4.6,-14.4 Z", INK, sw(0.4)) +
+      C(0, -15.5, 0.45, WHITE, NONE) + P("M3.6,-7.5 Q5.2,-7.6 5.2,-6.2 Q5.2,-5.1 4.2,-5.3", null, sw(0.9))],
+    // faces
+    ["Sunglasses", {}, "", R(-2.2, -13.45, 1.8, 1.1, INK, 'rx="0.35" ' + NONE) + R(0.4, -13.45, 1.8, 1.1, INK, 'rx="0.35" ' + NONE) + L(-0.4, -12.9, 0.4, -12.9, sw(0.5))],
+    ["Monocle", {}, "", C(0.9, -12.9, 0.95, null, sw(0.6)) + P("M1.6,-12.3 Q2.9,-11.5 2.4,-9.7", null, sw(0.4))],
+    ["Mustache", {}, "", P("M-1.8,-11.8 Q-0.9,-12.8 0,-11.85 Q0.9,-12.8 1.8,-11.8 Q0.9,-11.1 0,-11.7 Q-0.9,-11.1 -1.8,-11.8 Z", INK, NONE)],
+    ["Beard", {}, "", P("M-1.9,-12.3 Q-1.7,-9 0,-8.7 Q1.7,-9 1.9,-12.3 Q0,-11 -1.9,-12.3 Z", INK, NONE)],
+    ["Eyepatch", {}, "", L(-1.9, -13.7, 1.9, -12.2, sw(0.5)) + C(0.7, -13, 0.72, INK, NONE)],
+    ["A face", {}, "", C(-0.65, -13.1, 0.3, INK, NONE) + C(0.65, -13.1, 0.3, INK, NONE) + P("M-0.9,-12.2 Q0,-11.3 0.9,-12.2", null, sw(0.5))],
+    ["Hero mask", {}, "", R(-2.3, -13.6, 4.6, 1.25, RED, 'rx="0.5" ' + NONE) + C(-0.7, -13, 0.32, WHITE, NONE) + C(0.7, -13, 0.32, WHITE, NONE)],
+    ["Clown nose", {}, C(-2.2, -13.3, 0.95, ORANGE, NONE) + C(2.2, -13.3, 0.95, ORANGE, NONE), C(0.2, -12.4, 0.68, RED, NONE)],
+    // what they wear
+    ["Cape", {}, P("M-0.4,-10.8 Q-4,-7 -6.4,-1.4 L-3.2,-2.7 L-1.4,-3.6 Q-0.8,-7 -0.4,-10.8 Z", RED, sw(0.5)), ""],
+    ["Scarf", {}, "", R(-1.6, -11.65, 3.2, 1.25, TEAL, 'rx="0.4" ' + sw(0.4)) + P("M-1.4,-11 L-4.7,-9.2 L-4,-8 L-1.2,-10.2 Z", TEAL, sw(0.4)) +
+      L(-4.4, -8.5, -4.9, -7.8, sw(0.4)) + L(-3.8, -8.1, -4.2, -7.4, sw(0.4))],
+    ["Bow tie", {}, "", P("M-1.5,-11.9 L-1.5,-10.3 L0,-11.1 Z", RED, sw(0.4)) + P("M1.5,-11.9 L1.5,-10.3 L0,-11.1 Z", RED, sw(0.4)) + C(0, -11.1, 0.36, RED, sw(0.4))],
+    ["Necktie", {}, "", P("M0,-11 L-0.6,-10.3 L0,-6.3 L0.6,-10.3 Z", NAVY, sw(0.4)) + C(0, -10.85, 0.42, NAVY, NONE)],
+    ["Tutu", { la: 0.3, lb: -0.75, aa: 2.9, ab: -2.9 }, "", P("M-1.5,-6.9 L-4.3,-4.5 Q-2.1,-3.5 0,-4.4 Q2.1,-3.5 4.3,-4.5 L1.5,-6.9 Z", PINK, sw(0.4) + ' opacity="0.92"')],
+    ["Big boots", {}, "", R(-2, -1.7, 2.7, 2, DARKWOOD, 'rx="0.6" ' + sw(0.5)) + R(0.2, -1.7, 2.9, 2, DARKWOOD, 'rx="0.6" ' + sw(0.5)) +
+      L(-1.3, -1.2, -0.5, -1.2, 'stroke="' + GOLD + '" ' + sw(0.3)) + L(1, -1.2, 1.9, -1.2, 'stroke="' + GOLD + '" ' + sw(0.3))],
+    ["Backpack", {}, R(-3, -10.5, 2.3, 3.9, GREEN, 'rx="0.6" ' + sw(0.5)) + R(-2.6, -8.3, 1.5, 1.3, null, 'rx="0.3" ' + sw(0.4)), P("M-0.8,-10.2 Q-1.7,-8.6 -0.8,-7", null, sw(0.5))],
+    ["Umbrella", { aa: 2.6 }, "", L(2.4, -14.3, 2.4, -15.8, sw(0.7)) + L(2.4, -19.8, 2.4, -20.6, sw(0.6)) +
+      P("M-1.6,-15.8 A4,4 0 0 1 6.4,-15.8 Q5.4,-14.8 4.4,-15.8 Q3.4,-14.8 2.4,-15.8 Q1.4,-14.8 0.4,-15.8 Q-0.6,-14.8 -1.6,-15.8 Z", TEAL, sw(0.6)) +
+      L(-4.8, -18.4, -5.4, -16.8, 'stroke="' + TEAL2 + '" ' + sw(0.5)) + L(-3.6, -13, -4.2, -11.4, 'stroke="' + TEAL2 + '" ' + sw(0.5)) + L(8.2, -17, 7.6, -15.4, 'stroke="' + TEAL2 + '" ' + sw(0.5)) + L(8.6, -12.6, 8, -11, 'stroke="' + TEAL2 + '" ' + sw(0.5))],
+    ["Angel wings", {}, P("M-0.6,-10.6 C-4,-14.8 -8.2,-12.6 -6.8,-7.6 C-5.2,-9.1 -3.1,-8.7 -0.8,-8.6 Z", WHITE, sw(0.5)) + P("M0.6,-10.6 C4,-14.8 8.2,-12.6 6.8,-7.6 C5.2,-9.1 3.1,-8.7 0.8,-8.6 Z", WHITE, sw(0.5)) +
+      L(-3.6, -11.6, -5.2, -9.2, sw(0.35)) + L(3.6, -11.6, 5.2, -9.2, sw(0.35)), ""],
+    ["Bat wings", {}, P("M-0.6,-10.4 L-5,-13.6 L-7.6,-10 L-6.3,-8.3 L-4.7,-9.6 L-3.3,-7.7 L-1.4,-8.4 Z", INK, NONE) + P("M0.6,-10.4 L5,-13.6 L7.6,-10 L6.3,-8.3 L4.7,-9.6 L3.3,-7.7 L1.4,-8.4 Z", INK, NONE), ""],
+    ["Cat ears & tail", {}, P("M-0.3,-6.4 C-3.5,-6.2 -4.9,-3 -3.3,-1.2 C-2.7,-0.6 -2.2,-1.2 -2.6,-1.9", null, sw(1)),
+      P("M-1.8,-13.6 L-2.5,-16.1 L-0.6,-14.5 Z", INK, sw(0.4)) + P("M1.8,-13.6 L2.5,-16.1 L0.6,-14.5 Z", INK, sw(0.4))],
+    ["Stethoscope", {}, "", P("M-1.2,-10.3 Q-1.4,-7.6 0.2,-7.4 Q1.4,-7.6 1.3,-10.3", null, 'stroke="' + TEAL + '" ' + sw(0.7)) + P("M0.2,-7.4 L2.2,-5.6", null, 'stroke="' + TEAL + '" ' + sw(0.7)) +
+      C(2.6, -5.2, 0.85, GRAY, 'stroke="' + TEAL + '" ' + sw(0.5)) + C(-1.2, -10.3, 0.3, INK, NONE) + C(1.3, -10.3, 0.3, INK, NONE)],
+    ["Ninja headband", {}, "", L(-2, -13.3, 2, -13.3, 'stroke="' + RED + '" ' + sw(0.8)) + P("M-1.9,-13.3 L-4.9,-12.3", null, 'stroke="' + RED + '" ' + sw(0.6)) + P("M-1.9,-13.3 L-4.7,-14.3", null, 'stroke="' + RED + '" ' + sw(0.6))],
+    ["Astronaut helmet", {}, "", C(0, -12.7, 3.3, "rgba(185,223,245,0.4)", sw(0.6)) + P("M-2.4,-13.4 Q-1.8,-15.5 0.4,-15.5", null, 'stroke="' + WHITE + '" ' + sw(0.7)) + L(-2.1, -9.6, 2.1, -9.6, sw(0.8))],
+    ["Snorkel & fins", {}, "", E(0.3, -13, 1.6, 1.05, "rgba(83,183,192,0.45)", sw(0.6)) + P("M1.6,-12.6 L2.7,-12.8 L2.7,-16.9", null, 'stroke="' + TEAL + '" ' + sw(0.9)) +
+      P("M0.9,0 L4.7,-0.3 L4.5,0.9 L0.6,0.8 Z", TEAL, sw(0.4)) + P("M-0.9,0 L2.9,-0.3 L2.7,0.9 L-1.2,0.8 Z", TEAL, sw(0.4))],
+    ["Knight's shield", { ab: -1.25 }, "", P("M-6.3,-11.5 L-2.6,-11.5 L-2.6,-8.2 Q-4.45,-5.5 -6.3,-8.2 Z", NAVY, sw(0.6)) +
+      L(-4.45, -11, -4.45, -6.7, 'stroke="' + GOLD + '" ' + sw(0.6)) + L(-5.7, -9.8, -3.2, -9.8, 'stroke="' + GOLD + '" ' + sw(0.6))],
+    ["Bubble shield", {}, "", C(0, -7.4, 8.3, "rgba(83,183,192,0.12)", 'stroke="' + TEAL2 + '" ' + sw(0.6)) + P("M-5.8,-11.9 Q-3.2,-14.8 0.6,-15.2", null, 'stroke="' + WHITE + '" ' + sw(0.9))],
+    // what they do
+    ["Juggles", { aa: 2.4, ab: -2.4 }, "", C(-3.2, -15.9, 0.85, RED, NONE) + C(0, -19.3, 0.85, TEAL, NONE) + C(3.2, -15.9, 0.85, GOLD, NONE)],
+    ["Skateboards", { dy: -1.6, la: 0.55, lb: -0.5, aa: 1.2, ab: -0.9 }, "", R(-5.2, -2.3, 10.4, 0.9, DARKWOOD, 'rx="0.45" ' + sw(0.5)) + C(-3.2, -0.8, 0.75, INK, NONE) + C(3.2, -0.8, 0.75, INK, NONE)],
+    ["Rides a unicycle", { dy: -2.2, la: 0.5, lb: -0.5, aa: 1.4, ab: -1.4 }, L(0, -8.8, 0, -3, sw(0.8)), C(0, -3, 3, null, sw(0.8)) + L(-3, -3, 3, -3, sw(0.4)) + L(0, -6, 0, 0, sw(0.4)) + L(2.6, -3, 3.8, -3, sw(0.7)) + L(-2.6, -3, -3.8, -3, sw(0.7))],
+    ["Balances a ball", { aa: 1.35, ab: -1.35 }, "", C(0, -16.4, 1.7, RED, sw(0.5)) + C(-0.5, -16.9, 0.4, WHITE, NONE)],
+    ["Handstand", { rot: 180, la: 0.35, lb: -0.25, aa: 2.9, ab: -2.9 }, "", ""],
+    ["Dances", { la: 0.45, lb: -1.1, aa: 2.5, ab: 1.3 }, "", T(4.8, -15.6, "♪", 2.8) + T(-4.6, -17.4, "♫", 2.8)],
+    ["Waves a flag", { aa: 2.6 }, "", L(2.4, -14.3, 2.4, -20.4, sw(0.6)) + P("M2.4,-20.4 L7.8,-19.2 L2.4,-18 Z", TEAL, sw(0.4))],
+    ["Holds a balloon", { aa: 2.9 }, "", P("M1.1,-14.9 Q1.6,-16.4 2.5,-17.2", null, sw(0.4)) + E(2.8, -19, 1.6, 1.9, RED, sw(0.4)) + P("M2.5,-17.2 L2.9,-17.4 L3.1,-17", INK, NONE)],
+    ["Floats on balloons", { sc: 0.85, dy: -2.4, la: 0.28, lb: -0.1, aa: 2.9, ab: -2.9 }, "",
+      L(0.94, -15.05, -2.4, -17.2, sw(0.4)) + L(0.94, -15.05, 0.3, -17.9, sw(0.4)) + L(-0.94, -15.05, 3, -17.2, sw(0.4)) +
+      C(-2.6, -18.6, 1.45, RED, sw(0.4)) + C(3, -18.6, 1.45, GOLD, sw(0.4)) + C(0.3, -19.3, 1.5, TEAL, sw(0.4))],
+    ["Carries a box", { aa: 1.35, ab: 1.1 }, "", R(2.4, -12, 4, 3.6, SAND, sw(0.6)) + L(4.4, -12, 4.4, -8.4, 'stroke="' + YEL + '" ' + sw(0.7))],
+    ["Pushes a cart", { aa: 1.45, ab: 1.25 }, "", L(4.5, -9.9, 6, -9.9, sw(0.7)) + P("M6,-9.9 L10.6,-9.9 L10,-5.4 L6.6,-5.4 Z", null, sw(0.6)) +
+      L(7.1, -9.9, 7.4, -5.4, sw(0.3)) + L(8.3, -9.9, 8.4, -5.4, sw(0.3)) + L(9.5, -9.9, 9.3, -5.4, sw(0.3)) + L(6.3, -8.4, 10.3, -8.4, sw(0.3)) + L(6.5, -6.9, 10.2, -6.9, sw(0.3)) +
+      L(6.8, -5.4, 6.6, -1.2, sw(0.5)) + L(9.9, -5.4, 10, -1.2, sw(0.5)) + C(6.6, -0.7, 0.7, INK, NONE) + C(10, -0.7, 0.7, INK, NONE)],
+    ["Fishes", { aa: 1.9, ab: 1.6, noground: true }, "", L(4.3, -11.9, 10.2, -17.6, sw(0.6)) + L(10.2, -17.6, 10.2, -2.4, sw(0.3)) +
+      P("M5.4,-2 q1,-0.9 2,0 q1,0.9 2,0 q1,-0.9 2,0", null, 'stroke="' + TEAL2 + '" ' + sw(0.7)) +
+      P("M9.2,-0.8 Q10.1,-1.7 11,-0.8 Q10.1,0.1 9.2,-0.8 Z M11,-0.8 L11.7,-1.4 L11.7,-0.2 Z", ORANGE, sw(0.3))],
+    ["Reads a book", { aa: 1.05, ab: 0.85 }, "", P("M2.6,-9.6 L5.4,-9 L5.4,-6.2 L2.6,-6.8 Z", WHITE, sw(0.5)) + P("M5.4,-9 L8.2,-9.6 L8.2,-6.8 L5.4,-6.2 Z", WHITE, sw(0.5)) +
+      L(3.2, -8.6, 4.8, -8.3, sw(0.3)) + L(3.2, -7.8, 4.8, -7.5, sw(0.3)) + L(6, -8.3, 7.6, -8.6, sw(0.3)) + L(6, -7.5, 7.6, -7.8, sw(0.3))],
+    ["Plays guitar", { aa: 1.0, ab: 2.05 }, L(-1, -10.6, 1.8, -9.4, sw(0.5)), E(2.6, -7.4, 2, 2.5, WOOD, sw(0.5)) + C(2.8, -7.6, 0.6, INK, NONE) +
+      L(4, -9.4, 8, -13.6, 'stroke="' + DARKWOOD + '" ' + sw(1.1)) + R(7.5, -14.7, 1.3, 1.5, DARKWOOD, 'rx="0.3" ' + sw(0.3)) + L(3, -8, 8, -13.4, 'stroke="' + WHITE + '" ' + sw(0.25))],
+    ["Drums", { aa: 1.3, ab: 0.95 }, "", E(5.2, -2.8, 2.4, 0.8, RED, sw(0.5)) + R(2.8, -6.4, 4.8, 3.6, RED, sw(0.5)) + E(5.2, -6.4, 2.4, 0.8, "#F2F5F6", sw(0.5)) +
+      L(4.4, -9.2, 6.4, -7, sw(0.6)) + L(3.7, -7.7, 4.6, -6.7, sw(0.6)) + L(6.8, -8.6, 7.4, -9.4, sw(0.4)) + L(7.6, -7.8, 8.5, -8.1, sw(0.4))],
+    ["Kicks a ball", { la: 1.45, lb: -0.25, aa: -0.7, ab: -1 }, "", C(8.9, -4.4, 1.5, WHITE, sw(0.5)) + P("M8.9,-5.2 L9.6,-4.7 L9.3,-3.9 L8.5,-3.9 L8.2,-4.7 Z", INK, NONE) +
+      L(6.6, -2.6, 5.4, -1.8, sw(0.4)) + L(7.2, -1.9, 6.2, -1, sw(0.4))],
+    ["Magnifying glass", { aa: 1.9 }, "", L(4.3, -11.9, 6.4, -13.8, sw(0.9)) + C(7.9, -15.2, 2, "rgba(185,223,245,0.35)", sw(0.8)) + P("M6.8,-16.2 Q7.2,-16.8 7.9,-16.9", null, 'stroke="' + WHITE + '" ' + sw(0.6))],
+    ["Paints", { aa: 1.75, ab: -1.5 }, "", E(-6, -10.2, 2.1, 1.5, WHITE, sw(0.5)) + C(-6.7, -10.5, 0.35, null, sw(0.3)) + C(-5.2, -10.9, 0.4, RED, NONE) + C(-6.2, -9.4, 0.4, TEAL, NONE) + C(-4.9, -9.7, 0.4, GOLD, NONE) +
+      L(4.5, -11.2, 7.4, -14.3, 'stroke="' + DARKWOOD + '" ' + sw(0.6)) + P("M7.4,-14.3 L8.3,-15.3", null, 'stroke="' + RED + '" ' + sw(0.9))],
+    ["Carries a torch", { aa: 2.7 }, "", L(2, -14.6, 2.7, -17.2, 'stroke="' + DARKWOOD + '" ' + sw(0.9)) + P("M1.5,-17.2 Q2.7,-20.7 3.9,-17.2 Z", ORANGE, NONE) + P("M2.1,-17.2 Q2.7,-19.2 3.3,-17.2 Z", YEL, NONE)],
+    ["Waters a flower", { aa: 1.1 }, "", R(3.6, -9.2, 2.6, 2, TEAL, 'rx="0.3" ' + sw(0.5)) + L(6.2, -8.6, 8, -9.8, 'stroke="' + TEAL + '" ' + sw(0.8)) +
+      C(8.3, -8.2, 0.3, TEAL2, NONE) + C(8.6, -6.4, 0.3, TEAL2, NONE) + C(8.4, -4.6, 0.3, TEAL2, NONE) +
+      L(8.6, 0, 8.6, -2.8, 'stroke="' + GREEN + '" ' + sw(0.6)) + P("M8.6,-1.4 Q10,-2.3 9.6,-0.8 Z", GREEN, NONE) + C(8.6, -3.4, 0.95, CORAL, sw(0.3)) + C(8.6, -3.4, 0.35, GOLD, NONE)],
+    ["Walks a dog", { aa: 1.3 }, "", P("M4.4,-9.2 Q6.5,-6.8 8.3,-5.8", null, sw(0.4)) + dog(6.2, 0)],
+    ["Flies a kite", { aa: 2.5 }, "", L(2.8, -14.1, 8.2, -18.4, sw(0.3)) + P("M8.2,-20.6 L10.2,-18.4 L8.2,-16.2 L6.2,-18.4 Z", GOLD, sw(0.5)) + L(8.2, -20.6, 8.2, -16.2, sw(0.3)) + L(6.2, -18.4, 10.2, -18.4, sw(0.3)) +
+      P("M8.2,-16.2 Q7.2,-15 8,-13.8 Q8.8,-12.8 7.6,-11.6", null, sw(0.4)) + P("M7.2,-14.9 L8.2,-14.3 L7.2,-13.7 Z", RED, NONE) + P("M8.1,-12.9 L9.1,-12.3 L8.1,-11.7 Z", RED, NONE)],
+    ["Surfs", { dy: -2, la: 0.55, lb: -0.55, aa: 1.5, ab: -1.3, noground: true }, "",
+      P("M-6.4,-1.2 Q0,-3 6.6,-1.2 Q0,0.4 -6.4,-1.2 Z", YEL, sw(0.5)) + L(-4, -1.3, 4, -1.3, 'stroke="' + RED + '" ' + sw(0.4)) +
+      P("M-11,1 Q-8,-1.4 -5,1 T1,1 T7,1 T13,1", null, 'stroke="' + TEAL2 + '" ' + sw(0.9))],
+    ["Skis", { la: 0.35, lb: 0.15, aa: 0.95, ab: 0.6, noground: true }, "", P("M-3.6,0.4 L6.6,0.4 Q7.6,0.4 7.6,-0.6", null, 'stroke="' + RED + '" ' + sw(0.8)) + P("M-2.6,1.6 L7.6,1.6 Q8.6,1.6 8.6,0.6", null, 'stroke="' + RED + '" ' + sw(0.8)) +
+      L(3.7, -7.7, 1.6, 1.2, sw(0.5)) + L(2.6, -6.6, 0.2, 2.2, sw(0.5)) + C(1.6, 1.2, 0.4, null, sw(0.4)) + C(0.2, 2.2, 0.4, null, sw(0.4))],
+    ["Pogo stick", { dy: -3.5, la: 0.06, lb: -0.06, aa: 0.5, ab: 0.5 }, "", L(2.2, -9.9, 2.2, 0.2, sw(0.9)) + L(0.6, -9.9, 3.8, -9.9, sw(0.9)) + L(-1, -3.5, 3.4, -3.5, sw(0.9)) +
+      P("M2.2,-3.4 L3,-2.8 L1.4,-2.2 L3,-1.6 L1.4,-1 L3,-0.4 L2.2,0.2", null, sw(0.6)) + L(-1.6, 1.4, -2.6, 2.4, sw(0.4)) + L(5.8, 1.4, 6.8, 2.4, sw(0.4))],
+    ["Hula hoop", { aa: 1.5, ab: -1.5 }, P("M-5.2,-6.2 A5.2,1.35 0 0 1 5.2,-6.2", null, 'stroke="' + CORAL + '" ' + sw(0.9)), P("M-5.2,-6.2 A5.2,1.35 0 0 0 5.2,-6.2", null, 'stroke="' + CORAL + '" ' + sw(0.9))],
+    ["Jumps rope", { dy: -1.8, la: 0.22, lb: 0.05, aa: 1.15, ab: -1.15 }, P("M-4.2,-10.3 C-7,-22 7,-22 4.2,-10.3", null, 'stroke="' + RED + '" ' + sw(0.55)), P("M-4.2,-10.3 C-6.5,1.6 6.5,1.6 4.2,-10.3", null, 'stroke="' + RED + '" ' + sw(0.55))],
+    ["Fences", { dy: 1.2, la: 0.7, lb: -0.4, aa: 1.55, ab: -1.9 }, "", L(4.6, -9.1, 10.8, -9.9, sw(0.6)) + L(5.2, -10.2, 5.6, -8.2, sw(0.6)) +
+      E(0.2, -11.5, 2.3, 2.5, "rgba(22,38,46,0.12)", sw(0.5)) + L(-1.6, -12.4, 2, -12.4, sw(0.25)) + L(-1.7, -11.2, 2.1, -11.2, sw(0.25)) + L(-1.2, -10.1, 1.6, -10.1, sw(0.25))],
+    ["Archer", { aa: 1.57, ab: 1.3 }, "", P("M4.2,-15.2 Q9,-10.4 4.2,-5.6", null, 'stroke="' + DARKWOOD + '" ' + sw(0.9)) + L(4.2, -15.2, 4.2, -5.6, sw(0.35)) +
+      L(1.2, -10.4, 8.4, -10.4, sw(0.5)) + P("M8.4,-10.4 L7.5,-10.9 L7.5,-9.9 Z", INK, NONE) + L(1.2, -10.4, 0.6, -11, sw(0.4)) + L(1.2, -10.4, 0.6, -9.8, sw(0.4))],
+    ["Takes photos", { aa: 1.9, ab: 1.65 }, "", R(2.6, -13.1, 3.8, 2.6, INK, 'rx="0.4" ' + NONE) + C(4.5, -11.8, 0.9, WHITE, sw(0.4)) + C(4.5, -11.8, 0.4, INK, NONE) +
+      L(7.2, -14.2, 7.8, -14.9, sw(0.5)) + L(7.6, -13.3, 8.5, -13.4, sw(0.5)) + L(6.9, -14.9, 6.9, -15.8, sw(0.5))],
+    ["Coffee", { aa: 1.75 }, "", R(3.6, -12.6, 2.4, 2.4, WHITE, 'rx="0.3" ' + sw(0.5)) + P("M6,-12 Q7.2,-11.6 6,-10.8", null, sw(0.5)) + P("M4.3,-13.2 q0.5,-0.7 0,-1.4 M5.3,-13.2 q0.5,-0.7 0,-1.4", null, sw(0.4) + ' opacity="0.7"')],
+    ["Pizza slice", { aa: 1.6 }, "", P("M4.2,-10.9 L8.8,-9.6 L5.6,-6.4 Z", YEL, 'stroke="' + RED + '" ' + sw(0.5)) + P("M4.2,-10.9 L8.8,-9.6", null, 'stroke="' + SAND + '" ' + sw(1)) +
+      C(5.8, -9.4, 0.42, RED, NONE) + C(6.8, -8.4, 0.42, RED, NONE) + C(5.3, -8.2, 0.35, RED, NONE)],
+    ["Ice cream", { aa: 1.45 }, "", P("M3.7,-11.9 L5.5,-11.9 L4.6,-9.7 Z", SAND, sw(0.4)) + C(4.6, -12.6, 1, PINK, sw(0.3)) + C(4.6, -14.2, 0.9, TEAL2, sw(0.3)) + C(4.6, -15.3, 0.35, RED, NONE)],
+    ["Sleeps", { rot: 90, rc: 0, dx: -7.6, dy: -1.6, la: 0.1, lb: -0.1, aa: 0.3, ab: -0.1, noground: true }, R(4.6, -3.2, 5.2, 2.4, WHITE, 'rx="0.8" ' + sw(0.5)),
+      P("M-8.4,-3.4 L1.4,-3.4 L1.4,0.4 L-8.4,0.4 Z", TEAL2, sw(0.5) + ' opacity="0.6"') + T(9.6, -5.2, "z", 2) + T(11, -7.6, "Z", 2.6)],
+    ["Meditates", { nolegs: true, legPath: "M0,-6.6 C3.8,-6.2 4.8,-2.4 0,-2.2 C-4.8,-2.4 -3.8,-6.2 0,-6.6", dy: 2.2, aa: 1.15, ab: -1.15 }, "",
+      C(4.2, -6.3, 0.35, null, sw(0.5)) + C(-4.2, -6.3, 0.35, null, sw(0.5)) + sparkle(-6.5, -13, 0.8) + sparkle(6.5, -13, 0.8) + sparkle(0, -17.5, 0.6)],
+    ["Tree pose", { legs: [0.04], legPath: "M0,-6.6 L2.8,-4.6 L0.5,-2.6", aa: 2.95, ab: -2.95 }, "", ""],
+    ["Thinks", { arms: [-0.3], armPath: "M0,-10.4 L2.8,-8.6 L1.2,-11.1" }, "", C(2.4, -15.2, 0.4, null, sw(0.4)) + C(3.5, -17, 0.6, null, sw(0.4)) + E(6.2, -19, 3, 1.7, WHITE, sw(0.5)) + T(6.2, -18.2, "?", 2.4)],
+    ["Shrugs", { arms: [], armPath: "M0,-10.4 L2.9,-9.4 L4.4,-11.6 M0,-10.4 L-2.9,-9.4 L-4.4,-11.6" }, "", ""],
+    ["Cartwheel", { rot: 90, dy: 2.1, la: 0.9, lb: -0.9, aa: 2.3, ab: -2.3 }, "", P("M-8,-15 Q0,-19.5 8,-15", null, sw(0.4) + ' stroke-dasharray="1 1"')],
+    ["Trapeze", { dy: -2.6, rot: 12, rc: -15, la: 0.55, lb: 0.35, aa: 2.93, ab: -2.93, noground: true }, L(-4.2, -17.6, 4.2, -17.6, sw(0.9)) + L(-4.2, -17.6, -4.6, -21, sw(0.5)) + L(4.2, -17.6, 4.6, -21, sw(0.5)), ""],
+    // what they can do
+    ["Jetpack", { dy: -3.6, la: 0.32, lb: 0.12, aa: 0.45, ab: -0.25 }, R(-2.8, -14.4, 2.2, 4.4, GRAY, 'rx="0.6" ' + sw(0.5)) + R(-2.3, -10, 1.2, 0.8, INK, NONE) +
+      P("M-2.5,-9.2 Q-1.7,-4.6 -0.9,-9.2 Z", ORANGE, NONE) + P("M-2.1,-9.2 Q-1.7,-6.8 -1.3,-9.2 Z", YEL, NONE) + L(-6, -4, -8, -4, sw(0.4)) + L(-5.5, -7, -7.5, -7, sw(0.4)), ""],
+    ["Invisible", { dash: "0.1 2", op: 0.55 }, "", ""],
+    ["Ghost", { nolegs: true, nobody: true, dy: -1.6, op: 0.85, aa: 1.3, ab: -1.3 }, P("M-2.3,-14 L-2.6,-3 Q-1.7,-4.2 -0.9,-3 Q0,-4.2 0.9,-3 Q1.7,-4.2 2.6,-3 L2.3,-14", WHITE, sw(0.6)),
+      C(-0.6, -14.6, 0.3, INK, NONE) + C(0.6, -14.6, 0.3, INK, NONE) + C(0, -13.4, 0.3, null, sw(0.4))],
+    ["Robot", { nohead: true, la: 0.12, lb: -0.12 }, "", R(-1.95, -14.7, 3.9, 3.9, null, 'rx="0.5"') + L(0, -14.7, 0, -16.4, sw(0.7)) + C(0, -16.8, 0.45, RED, NONE) +
+      R(-1.2, -13.6, 0.8, 0.8, INK, NONE) + R(0.4, -13.6, 0.8, 0.8, INK, NONE) + L(-0.8, -11.8, 0.8, -11.8, sw(0.5)) + R(-1.1, -10.2, 2.2, 3, null, sw(0.5)) + C(-0.4, -9.2, 0.25, TEAL, NONE) +
+      P("M1,-5.9 L1.6,-5 M1,-5.9 L0.4,-5 M-1,-5.9 L-1.6,-5 M-1,-5.9 L-0.4,-5", null, sw(0.7))],
+    ["Giant", { sc: 1.35 }, "", ""],
+    ["Tiny", { sc: 0.5 }, E(0, 0.5, 2.2, 0.4, "rgba(22,38,46,0.15)", NONE), ""],
+    ["Twins", { figs: [{ dx: -3.2, aa: 1.25, ab: -0.3 }, { dx: 3.2, aa: 0.3, ab: -1.25 }] }, "", L(-1.2, -8.95, 1.2, -8.95, sw(0.8))],
+    ["Lightning", {}, "", P("M-4.6,-18.4 L-2,-14.6 L-3.6,-14.6 L-1.4,-10.6 L-5.2,-15 L-3.6,-15 Z", YEL, sw(0.35)) + L(-1.2, -14.5, -1.8, -16, sw(0.5)) + L(0, -14.65, 0, -16.3, sw(0.5)) + L(1.2, -14.5, 1.8, -16, sw(0.5))],
+    ["Flame hair", {}, "", P("M-1.9,-14 Q-1.8,-17.4 -0.7,-15.6 Q-0.1,-19.4 0.9,-15.8 Q1.6,-18.2 1.9,-14 Z", ORANGE, NONE) + P("M-0.9,-14.2 Q-0.5,-16.6 0.1,-15.4 Q0.5,-17.2 0.9,-14.2 Z", YEL, NONE)],
+    ["Makes it snow", { aa: 2.3, ab: -2.3 }, "", flake(-6.5, -8, 0.9) + flake(7, -9, 0.9) + flake(2.5, -19.4, 0.8) + flake(-3, -19, 0.8) + flake(8, -16, 0.9) + flake(-8, -14.5, 0.9) +
+      P("M-9,0.6 Q0,-1 9,0.6", null, 'stroke="' + SKY + '" ' + sw(0.9))],
+    ["Magnet hand", { aa: 2.2 }, "", P("M4.2,-16.4 L4.2,-13.4 A1.3,1.3 0 0 0 6.8,-13.4 L6.8,-16.4", null, 'stroke="' + RED + '" ' + sw(1.2)) +
+      L(4.2, -16.4, 4.2, -15.6, 'stroke="' + GRAY + '" ' + sw(1.2)) + L(6.8, -16.4, 6.8, -15.6, 'stroke="' + GRAY + '" ' + sw(1.2)) +
+      L(4.6, -19.2, 4.8, -17.9, sw(0.5)) + L(6.9, -19.8, 6.7, -18.4, sw(0.5)) + C(5.6, -18.9, 0.3, INK, NONE)],
+    ["Rides a rocket", { sc: 0.85, dy: -5.6, la: 0.75, lb: -0.75, aa: 2.4, ab: -2.4, noground: true },
+      R(-1.7, -5.6, 3.4, 6.6, GRAY, 'rx="0.8" ' + sw(0.5)) + P("M-1.7,-5.6 L0,-8.4 L1.7,-5.6 Z", RED, sw(0.5)) + C(0, -3.4, 0.7, SKY, sw(0.4)) +
+      P("M-1.7,-1 L-3.4,1 L-1.7,1 Z", RED, sw(0.4)) + P("M1.7,-1 L3.4,1 L1.7,1 Z", RED, sw(0.4)) + P("M-1.1,1 Q0,4 1.1,1 Z", ORANGE, NONE) + L(-5, -4, -7, -2.4, sw(0.4)) + L(5, -4, 7, -2.4, sw(0.4)), ""],
+    ["Teleports", { figs: [{ op: 0.55 }, { dx: 5.6, op: 0.22, dash: "0.6 1" }] }, "", sparkle(-4, -16, 0.9) + sparkle(5, -18.5, 0.9) + sparkle(-5.5, -6, 0.7) + sparkle(9, -9, 0.8) + sparkle(3, -3, 0.6)],
+    ["Stretchy arms", { arms: [], armPath: "M0,-10.4 C3,-12.6 6,-8 10.4,-10.4 M0,-10.4 C-3,-12.6 -6,-8 -10.4,-10.4" }, "", C(10.4, -10.4, 0.5, null, sw(0.5)) + C(-10.4, -10.4, 0.5, null, sw(0.5))],
+    ["Big head", { hr: 3.6 }, "", ""],
+    ["Three arms", { arms: [0.35, -0.35, 2] }, "", ""],
+    ["Wheel feet", { dy: -2.1, la: 0.08, lb: -0.08 }, "", C(-1.2, -1.05, 1.05, null, sw(0.8)) + C(1.2, -1.05, 1.05, null, sw(0.8)) + C(-1.2, -1.05, 0.25, INK, NONE) + C(1.2, -1.05, 0.25, INK, NONE) +
+      L(-4, -3, -6.4, -3, sw(0.4)) + L(-4.4, -5, -6.2, -5, sw(0.4))],
+    ["Spring legs", { nolegs: true, legPath: "M0,-6.6 L1.3,-5.9 L-1.3,-5.1 L1.3,-4.3 L-1.3,-3.5 L1.3,-2.7 L-1.3,-1.9 L1.3,-1.1 L0,-0.4 L0,0 M-1.8,0 L1.8,0", dy: -1.6, aa: 2.2, ab: -2.2 }, "",
+      L(-3, 0.4, -4, 1.4, sw(0.4)) + L(3, 0.4, 4, 1.4, sw(0.4))],
+    ["Levitates", { dy: -3.4, la: 0.2, lb: 0.06, aa: 0.95, ab: -0.95, noground: true }, E(0, 0.6, 3.2, 0.55, "rgba(22,38,46,0.18)", NONE), L(-5, -9, -5.8, -9.8, sw(0.4)) + L(5.4, -12, 6.2, -12.8, sw(0.4))],
+    ["Lifts a barbell", { la: 0.3, lb: -0.3, aa: 2.99, ab: -2.99 }, "", L(-6.2, -15, 6.2, -15, sw(0.9)) + R(-7.6, -17.6, 1.4, 5.2, INK, 'rx="0.3" ' + NONE) + R(-6.2, -16.9, 0.9, 3.8, INK, 'rx="0.3" ' + NONE) +
+      R(6.2, -17.6, 1.4, 5.2, INK, 'rx="0.3" ' + NONE) + R(5.3, -16.9, 0.9, 3.8, INK, 'rx="0.3" ' + NONE)]
+  ];
+
+  function boxSvg(v) {
+    var pose = v[1] || {}, behind = v[2] || "", front = v[3] || "";
+    var figs = pose.figs ? pose.figs.map(figure).join("") : figure(pose);
+    var ground = pose.noground ? "" : L(-8.5, 0.62, 8.5, 0.62, 'stroke="#D5DFE3" ' + sw(0.5));
+    return '<svg viewBox="-12 -21 24 24" aria-hidden="true"><g fill="none" stroke="' + INK + '" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">' +
+      ground + behind + figs + front + "</g></svg>";
+  }
+
+  /* ---------- the sheet and the picks ---------- */
+  var PICKS_KEY = "ditto.testpilot.picks";
+  var grid = document.getElementById("grid"), count = document.getElementById("pickCount");
+  var copyBtn = document.getElementById("copyPicks"), clearBtn = document.getElementById("clearPicks");
+  var picks = [];
+  try { picks = JSON.parse(localStorage.getItem(PICKS_KEY) || "[]"); } catch (e) { picks = []; }
+  if (!Array.isArray(picks)) picks = [];
+
+  function save() { try { localStorage.setItem(PICKS_KEY, JSON.stringify(picks)); } catch (e) {} }
+  function picksText() { return picks.slice().sort(function (a, b) { return a - b; }).join(", "); }
+  function showPicks() {
+    var n = picks.length;
+    count.innerHTML = n ? "<b>" + n + " picked:</b> " + picksText() : "Tap a box to pick a Ditto.";
+    copyBtn.disabled = !n;
+    clearBtn.disabled = !n;
+    copyBtn.textContent = "Copy picks";
+  }
+
+  var html = "";
+  PILOTS.forEach(function (v, i) {
+    var n = i + 1, on = picks.indexOf(n) >= 0;
+    html += '<figure class="cell" role="listitem"><button type="button" class="box' + (on ? " on" : "") + '" data-n="' + n + '" aria-pressed="' + on + '" aria-label="' + n + ', ' + v[0].replace(/"/g, "&quot;") + '">' +
+      boxSvg(v) + '<span class="tick" aria-hidden="true">✓</span></button><figcaption><b>' + n + "</b>" + v[0] + "</figcaption></figure>";
+  });
+  grid.innerHTML = html;
+
+  grid.addEventListener("click", function (e) {
+    var btn = e.target.closest(".box");
+    if (!btn) return;
+    var n = parseInt(btn.dataset.n, 10), i = picks.indexOf(n);
+    if (i >= 0) picks.splice(i, 1); else picks.push(n);
+    btn.classList.toggle("on", i < 0);
+    btn.setAttribute("aria-pressed", String(i < 0));
+    save();
+    showPicks();
+  });
+  clearBtn.addEventListener("click", function () {
+    picks = [];
+    save();
+    Array.prototype.forEach.call(grid.querySelectorAll(".box.on"), function (b) { b.classList.remove("on"); b.setAttribute("aria-pressed", "false"); });
+    showPicks();
+  });
+  copyBtn.addEventListener("click", function () {
+    var text = "Test pilots I like: " + picksText();
+    function done(ok) { copyBtn.textContent = ok ? "Copied" : "Couldn't copy"; setTimeout(showPicks, 1600); }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(false); });
+    else done(false);
+  });
+  showPicks();
+})();
+</script>
+</body>
+</html>
