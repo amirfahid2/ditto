@@ -32,10 +32,10 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
 const phoneBlank = (sq) => !sq.isFolder && !sq.name && !sq.text;
 
 // ---------- the phone's board <-> the web app's squares ----------
-// The web app knows text squares, "…" blanks and folders of texts one level deep, each with the
-// same looks as on the phone (color, border, emoji or picture, name shown or not). What it
-// doesn't show (folders inside folders, blanks inside folders) is kept from the phone's copy,
-// matched by id, when the board goes back.
+// The web app knows text squares, "…" blanks and folders, with folders inside folders as on the
+// phone, each with the same looks (color, border, emoji or picture, name shown or not). What it
+// doesn't show (blanks inside folders) is kept from the phone's copy, matched by id, when the
+// board goes back.
 export const LOOKS = ["color", "border", "image", "showName"];
 
 function withLooks(out, sq) {
@@ -51,8 +51,8 @@ function webSquare(sq) {
   return withLooks({ id: sq.id, name: sq.name || "", text: sq.text || "" }, sq);
 }
 
-// A folder on the web app holds texts only: blanks and folders inside it stay on the phone.
-const shownInFolder = (sq) => !sq.isFolder && !phoneBlank(sq);
+// A folder on the web app holds texts and folders; blanks inside it stay on the phone.
+const shownInFolder = (sq) => !phoneBlank(sq);
 
 export function toWeb(board) {
   const originals = new Map();
@@ -105,8 +105,7 @@ function phoneSquare(sq, originals) {
   return out;
 }
 
-// The folder's texts in the web app's order, with what it doesn't show (blanks, folders inside
-// the folder) left where they were.
+// The folder's entries in the web app's order, with what it doesn't show (blanks) left where they were.
 function mergeItems(shown, before) {
   const out = [], queue = shown.slice();
   for (const sq of before) {

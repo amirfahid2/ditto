@@ -600,6 +600,26 @@
     top: 3px; right: 3px; width: 15px; height: 15px; font-size: 10px; padding-bottom: 4px;
   }
   .folder-panel .sq { border-radius: 16px; }
+  .folder-panel .sq.folder { background: var(--card); }   /* a folder inside a folder: the panel is already folder-blue */
+  .folder-panel .sq.folder.colored { background: var(--c-navy); }
+  /* inside a folder within a folder: "‹ Work › Letters" goes one folder back up */
+  .folder-panel .panel-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    max-width: 100%;
+    margin: 0 0 8px;
+    padding: 2px 8px 2px 4px;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: var(--ink);
+    font: 600 13px/1.4 "IBM Plex Sans", sans-serif;
+    cursor: pointer;
+  }
+  .folder-panel .panel-back .chev { font-size: 20px; line-height: 1; margin-top: -2px; }
+  .folder-panel .panel-back bdi { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .folder-panel .panel-back:hover { background: rgba(0, 0, 0, 0.07); }
 
   /* copied: a tint over the square, so a colored or photo square keeps its own background */
   @keyframes copyflash {
@@ -902,6 +922,20 @@
   }
   .btn-quiet:disabled { opacity: 0.5; cursor: default; }
   .check-row { display: flex; gap: 8px; align-items: center; font-size: 14px; margin: 12px 2px 0; cursor: pointer; }
+  .move-row { margin-top: 14px; }
+  .move-select {
+    width: 100%;
+    margin-top: 6px;
+    padding: 9px 10px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--field);
+    color: var(--ink);
+    font: inherit;
+    font-size: 14px;
+  }
+  .move-row .btn-quiet { margin-top: 10px; }
+  .move-note { margin: 8px 2px 0; font-size: 12.5px; color: var(--muted); }
   .danger-row {
     display: flex;
     gap: 10px;
@@ -1157,6 +1191,14 @@
     </div>
     <label class="check-row" id="showNameRow"><input type="checkbox" id="showNameToggle"> Show the name with the picture</label>
   </div>
+  <div class="move-row" id="moveRow" hidden>
+    <div id="moveInRow">
+      <label for="moveSelect">Move into a folder</label>
+      <select id="moveSelect" class="move-select" aria-label="Move into a folder"><option value="">Choose a folder…</option></select>
+    </div>
+    <button type="button" class="btn-quiet" id="moveOutBtn">Move out to the main board</button>
+    <p class="move-note">Moving also saves the changes above.</p>
+  </div>
   <div class="danger-row" id="dangerRow">
     <button id="clearBtn">Clear to "&hellip;"</button>
     <button class="btn-delete" id="deleteBtn">Delete square</button>
@@ -1274,7 +1316,7 @@
 
   // A saved board that's been damaged (an older version, a bad write) must still show, rather than
   // leave the page blank for good: every entry is an object with an id, a folder has its list of
-  // texts, and names and texts are strings.
+  // items (texts, and folders inside it), and names and texts are strings.
   function normalize(board) {
     if (!board.options || typeof board.options !== "object") board.options = { combineTaps: false };
     function fix(sq) {
@@ -1284,11 +1326,15 @@
       if (sq.text != null && typeof sq.text !== "string") sq.text = String(sq.text);
       return sq;
     }
+    function fixList(list) {
+      list.forEach(function (sq) {
+        if (sq.type !== "folder") return;
+        sq.items = (Array.isArray(sq.items) ? sq.items : []).filter(function (it) { return it && typeof it === "object"; }).map(fix);
+        fixList(sq.items);   // folders inside folders, as on the iPhone
+      });
+    }
     board.squares = board.squares.map(fix);
-    board.squares.forEach(function (sq) {
-      if (sq.type !== "folder") return;
-      sq.items = (Array.isArray(sq.items) ? sq.items : []).filter(function (it) { return it && typeof it === "object"; }).map(fix);
-    });
+    fixList(board.squares);
     return board;
   }
 
@@ -1305,7 +1351,113 @@
   var grid = document.getElementById("grid");
   var toastEl = document.getElementById("toast");
   var toastTimer = null;
-  var openFolderId = null;
+  var openFolderId = null;      // the folder on the board whose panel is open
+  var subFolderIds = [];        // folders opened inside that panel, outermost first (folders nest, as on the iPhone)
+
+  function closeFolders() { openFolderId = null; subFolderIds = []; }
+  function toggleTopFolder(id) { openFolderId = (openFolderId === id) ? null : id; subFolderIds = []; }
+
+  /* ---------- the board as a tree: paths are index lists, [] = the board, [i] = the folder at i, [i, j] = the folder at j inside it ---------- */
+
+  function listAt(path) {
+    var list = state.squares;
+    for (var k = 0; k < path.length; k++) {
+      var sq = list[path[k]];
+      if (!sq || !isFolder(sq)) return null;
+      if (!Array.isArray(sq.items)) sq.items = [];
+      list = sq.items;
+    }
+    return list;
+  }
+  function nodeAt(path) {
+    if (!path.length) return null;
+    var list = listAt(path.slice(0, -1));
+    return list ? list[path[path.length - 1]] || null : null;
+  }
+  // The index path of the open folder chain. A folder that's gone closes what was open below it.
+  function openPath() {
+    if (openFolderId === null) return null;
+    var ids = [openFolderId].concat(subFolderIds), path = [], list = state.squares;
+    for (var k = 0; k < ids.length; k++) {
+      var idx = -1;
+      for (var i = 0; i < list.length; i++) if (list[i].id === ids[k] && isFolder(list[i])) { idx = i; break; }
+      if (idx < 0) {
+        if (k === 0) { closeFolders(); return null; }
+        subFolderIds = subFolderIds.slice(0, k - 1);
+        break;
+      }
+      path.push(idx);
+      list = list[idx].items || [];
+    }
+    return path;
+  }
+  // Texts in a folder, counting those in the folders inside it (the "3 texts" line, as on the iPhone).
+  function textCount(sq) {
+    return (sq.items || []).reduce(function (n, it) { return n + (isFolder(it) ? textCount(it) : 1); }, 0);
+  }
+  function textsLabel(sq) { var n = textCount(sq); return n + (n === 1 ? " text" : " texts"); }
+  // The names along a path: "Work › Letters"
+  function breadcrumb(path) {
+    var names = [], list = state.squares;
+    for (var k = 0; k < path.length; k++) {
+      var sq = list[path[k]];
+      if (!sq) break;
+      names.push(sq.name || "Folder");
+      list = sq.items || [];
+    }
+    return names.join(" › ");
+  }
+  // Every folder, depth-first, with its breadcrumb label, leaving one subtree out (a folder can't go inside itself).
+  function allFolders(excludeId) {
+    var out = [];
+    (function walk(list, path, names) {
+      list.forEach(function (sq, i) {
+        if (!isFolder(sq) || sq.id === excludeId) return;
+        var p = path.concat(i), n = names.concat(sq.name || "Folder");
+        out.push({ id: sq.id, path: p, label: n.join(" › ") });
+        walk(sq.items || [], p, n);
+      });
+    })(state.squares, [], []);
+    return out;
+  }
+  function pathOfFolder(id) {
+    var hit = null;
+    allFolders(null).forEach(function (f) { if (!hit && f.id === id) hit = f.path; });
+    return hit;
+  }
+  // Takes an entry out of the tree. A board left empty gets one "…" slot back, as on the iPhone.
+  function removeAt(path) {
+    var list = listAt(path.slice(0, -1));
+    if (!list) return null;
+    var removed = list.splice(path[path.length - 1], 1)[0] || null;
+    if (path.length === 1 && state.squares.length === 0) state.squares.push({ id: uid() });
+    return removed;
+  }
+  // Puts an entry into the folder with this id (at the end, or at `at`); false if that folder is gone.
+  function putInFolder(entry, folderId, at) {
+    var path = pathOfFolder(folderId);
+    if (!path) return false;
+    var folder = nodeAt(path);
+    if (at == null || at > folder.items.length) folder.items.push(entry); else folder.items.splice(at, 0, entry);
+    return true;
+  }
+  // Puts a square on the main board: the first empty "…" slot, else the end (as on the iPhone).
+  function placeOnBoard(entry) {
+    for (var i = 0; i < state.squares.length; i++) {
+      if (!isSet(state.squares[i])) { state.squares[i] = entry; return i; }
+    }
+    state.squares.push(entry);
+    return state.squares.length - 1;
+  }
+  // Opens the panel on a folder, wherever it sits.
+  function showFolder(folderId) {
+    var path = pathOfFolder(folderId);
+    if (!path) return;
+    var ids = [], list = state.squares;
+    path.forEach(function (i) { ids.push(list[i].id); list = list[i].items || []; });
+    openFolderId = ids[0];
+    subFolderIds = ids.slice(1);
+  }
 
   function showToast(msg) {
     toastEl.textContent = msg;
@@ -1316,13 +1468,16 @@
 
   /* ---------- sanitizing (shared by restore + import) ---------- */
 
-  function cleanEntry(sq) {
+  function cleanEntry(sq, depth) {
+    depth = depth || 1;
     if (!sq || typeof sq !== "object") return { id: uid() };
     if (sq.type === "folder") {
       var f = cleanLooks(sq, { id: uid(), type: "folder", name: (typeof sq.name === "string" && sq.name) ? sq.name : "Folder", items: [] });
-      if (Array.isArray(sq.items)) {
+      // folders inside folders come along; a folder 16 deep is kept but empty, as in a shared link
+      if (Array.isArray(sq.items) && depth < 16) {
         sq.items.forEach(function (it) {
           if (!it || typeof it !== "object") return;
+          if (it.type === "folder") { f.items.push(cleanEntry(it, depth + 1)); return; }
           var iname = (typeof it.name === "string") ? it.name : "";
           var itext = (typeof it.text === "string") ? it.text : "";
           if (!iname && !itext) return;
@@ -1495,7 +1650,7 @@
     });
   });
 
-  // In Arrange mode, a "…" in the corner of a filled square (or folder, or folder text) opens it
+  // In Arrange mode, a "…" in the corner of a filled square (or folder, or anything in a folder) opens it
   // for editing, as on the iPhone. It doesn't start a drag.
   function editBadge(el, target, name) {
     var e = document.createElement("span");
@@ -1521,10 +1676,9 @@
         b.appendChild(labelDiv(sq));
         var cap = document.createElement("div");
         cap.className = "fcap";
-        var n = sq.items.length;
-        cap.textContent = n + (n === 1 ? " text " : " texts ") + (openFolderId === sq.id ? "▴" : "▾");
+        cap.textContent = textsLabel(sq) + " " + (openFolderId === sq.id ? "▴" : "▾");
         b.appendChild(cap);
-        b.setAttribute("aria-label", "Folder " + (sq.name || "") + ", " + n + " texts");
+        b.setAttribute("aria-label", "Folder " + (sq.name || "") + ", " + textsLabel(sq));
       } else if (isSet(sq)) {
         b.className = "sq";
         b.appendChild(labelDiv(sq));
@@ -1538,10 +1692,12 @@
         b.setAttribute("aria-label", "Empty square — tap to set up");
       }
       decorate(b, sq);
-      if (isSet(sq)) editBadge(b, { kind: "square", index: i }, sq.name);
-      attachPressEvents(b, { kind: "top", index: i },
+      b.dataset.path = String(i);
+      var topRef = { parent: [], item: i };
+      if (isSet(sq)) editBadge(b, topRef, sq.name);
+      attachPressEvents(b, topRef,
         function (el) { onSquareTap(i, el); },
-        function () { openEditor({ kind: "square", index: i }); });
+        function () { openEditor(topRef); });
       grid.appendChild(b);
     });
 
@@ -1553,7 +1709,7 @@
     plus.addEventListener("click", function () {
       state.squares.push({ id: uid() });
       render();
-      openEditor({ kind: "square", index: state.squares.length - 1, isNew: true });
+      openEditor({ parent: [], item: state.squares.length - 1, isNew: true });
     });
     grid.appendChild(plus);
 
@@ -1565,44 +1721,78 @@
     about.addEventListener("click", openIntroBox);
     grid.appendChild(about);
 
-    if (openFolderId !== null) {
-      var fIdx = -1;
-      state.squares.forEach(function (sq, i) { if (sq.id === openFolderId) fIdx = i; });
-      if (fIdx < 0 || !isFolder(state.squares[fIdx])) { openFolderId = null; return; }
-      var panel = buildFolderPanel(fIdx);
-      var after = grid.children[Math.floor(fIdx / cols) * cols + cols] || null;   // after the folder's row
+    var path = openPath();
+    if (path) {
+      var panel = buildFolderPanel(path);
+      var after = grid.children[Math.floor(path[0] / cols) * cols + cols] || null;   // after the folder's row
       grid.insertBefore(panel, after);
     }
   }
 
-  function buildFolderPanel(fIdx) {
-    var folder = state.squares[fIdx];
+  // The open folder's panel under its row. A folder inside it opens in the same panel, with a
+  // "‹ Work › Letters" line at the top that goes one folder back up, as on the iPhone.
+  function buildFolderPanel(path) {
+    var folder = nodeAt(path);
     var panel = document.createElement("div");
     panel.className = "folder-panel";
+    panel.setAttribute("role", "region");
+    panel.setAttribute("aria-label", "Folder " + breadcrumb(path));
+    if (path.length > 1) {
+      var back = document.createElement("button");
+      back.type = "button";
+      back.className = "panel-back";
+      back.setAttribute("aria-label", "Back to " + breadcrumb(path.slice(0, -1)));
+      var chev = document.createElement("span");
+      chev.className = "chev";
+      chev.setAttribute("aria-hidden", "true");
+      chev.textContent = "‹";
+      var crumb = document.createElement("bdi");
+      crumb.textContent = breadcrumb(path);
+      back.appendChild(chev);
+      back.appendChild(crumb);
+      back.addEventListener("click", function () { subFolderIds.pop(); render(); });
+      panel.appendChild(back);
+    }
     var inner = document.createElement("div");
     inner.className = "folder-grid";
     folder.items.forEach(function (item, j) {
       var t = document.createElement("button");
       t.type = "button";
-      t.className = "sq";
-      t.appendChild(labelDiv(item));
-      t.setAttribute("aria-label", "Copy " + (item.name || ""));
-      t.dataset.folder = fIdx;
+      var ref = { parent: path, item: j };
       t.dataset.item = j;
-      decorate(t, item);
-      editBadge(t, { kind: "item", folder: fIdx, item: j }, item.name);
-      attachPressEvents(t, { kind: "item", folder: fIdx, item: j },
-        function (el) { copySquare(item, el); },
-        function () { openEditor({ kind: "item", folder: fIdx, item: j }); });
+      t.dataset.path = path.concat(j).join(".");
+      if (isFolder(item)) {
+        t.className = "sq folder";
+        t.appendChild(labelDiv(item));
+        var cap = document.createElement("div");
+        cap.className = "fcap";
+        cap.textContent = textsLabel(item) + " ▾";
+        t.appendChild(cap);
+        t.setAttribute("aria-label", "Folder " + (item.name || "") + ", " + textsLabel(item));
+        decorate(t, item);
+        editBadge(t, ref, item.name);
+        attachPressEvents(t, ref,
+          function () { subFolderIds.push(item.id); render(); },
+          function () { openEditor(ref); });
+      } else {
+        t.className = "sq";
+        t.appendChild(labelDiv(item));
+        t.setAttribute("aria-label", "Copy " + (item.name || ""));
+        decorate(t, item);
+        editBadge(t, ref, item.name);
+        attachPressEvents(t, ref,
+          function (el) { copySquare(item, el); },
+          function () { openEditor(ref); });
+      }
       inner.appendChild(t);
     });
     var add = document.createElement("button");
     add.type = "button";
     add.className = "sq plus";
-    add.setAttribute("aria-label", "Add a text to this folder");
-    add.innerHTML = '<div class="plus-sign">+</div><div class="plus-label">Add text</div>';
+    add.setAttribute("aria-label", "Add a text or a folder to this folder");
+    add.innerHTML = '<div class="plus-sign">+</div><div class="plus-label">Add</div>';
     add.addEventListener("click", function () {
-      openEditor({ kind: "item", folder: fIdx, item: -1 });
+      openEditor({ parent: path, item: -1 });
     });
     inner.appendChild(add);
     panel.appendChild(inner);
@@ -1612,12 +1802,12 @@
   function onSquareTap(index, el) {
     var sq = state.squares[index];
     if (isFolder(sq)) {
-      openFolderId = (openFolderId === sq.id) ? null : sq.id;
+      toggleTopFolder(sq.id);
       render();
     } else if (isSet(sq)) {
       copySquare(sq, el);
     } else {
-      openEditor({ kind: "square", index: index });
+      openEditor({ parent: [], item: index });
     }
   }
 
@@ -1723,10 +1913,10 @@
   var arrangeDone = document.getElementById("arrangeDone");
   var mainHint = document.getElementById("mainHint");
   var HINT_TAP = mainHint.textContent;
-  var HINT_ARRANGE = "Drag squares to move them. Drop one on the middle of a folder to put it inside. Tap a folder to open it and drag its texts out.";
+  var HINT_ARRANGE = "Drag squares to move them. Drop one on the middle of a folder to put it inside, folders too. Tap a folder to open it and drag things out.";
   function setArranging(on) {
     arranging = on;
-    if (arranging) openFolderId = null;
+    if (arranging) closeFolders();
     grid.classList.toggle("arranging", arranging);
     settingsBtn.hidden = arranging;
     document.getElementById("aboutLink").hidden = arranging;
@@ -1765,9 +1955,9 @@
     function onUp() {
       stop();
       if (drag) { drag.drop(); return; }
-      var sq = ref.kind === "top" ? state.squares[ref.index] : null;
+      var sq = (listAt(ref.parent) || [])[ref.item];
       if (isFolder(sq)) {
-        openFolderId = (openFolderId === sq.id) ? null : sq.id;
+        if (ref.parent.length) subFolderIds.push(sq.id); else toggleTopFolder(sq.id);
         render();
       }
     }
@@ -1785,15 +1975,20 @@
     return -1;
   }
 
-  // ref = { kind: "top", index } for a board square, { kind: "item", folder, item } for a text in a folder.
+  // ref = { parent: path, item }: parent [] is the board, else the folder whose items hold the dragged one.
   function beginDrag(el, ref, sx, sy) {
     var rect = el.getBoundingClientRect();
     var offX = sx - rect.left, offY = sy - rect.top;
-    var fromIndex = ref.kind === "top" ? ref.index : -1;
-    var dragged = ref.kind === "top" ? state.squares[ref.index] : state.squares[ref.folder].items[ref.item];
-    var srcFolderId = ref.kind === "item" ? state.squares[ref.folder].id : null;
-    // folders hold texts only (no folders inside folders, no empty "…" slots)
-    var fitsInFolder = ref.kind === "item" || (isSet(dragged) && !isFolder(dragged));
+    var fromTop = ref.parent.length === 0;
+    var fromIndex = fromTop ? ref.item : -1;
+    var dragged = (listAt(ref.parent) || [])[ref.item];
+    if (!dragged) return { move: function () {}, drop: function () { render(); }, cancel: function () { render(); } };
+    var srcFolder = fromTop ? null : nodeAt(ref.parent);
+    var srcFolderId = srcFolder ? srcFolder.id : null;
+    // texts and folders can go into a folder (folders inside folders, as on the iPhone); empty "…" slots can't
+    var fitsInFolder = isSet(dragged);
+    var inDragged = {};   // a folder can't go inside itself or anything in it
+    (function mark(sq) { if (!isFolder(sq)) return; inDragged[sq.id] = true; (sq.items || []).forEach(mark); })(dragged);
     var drop = null;          // { into: folderId, at: index|null } or { out: boardIndex }
     var edgeTimer = null, edgeIndex = -1;
 
@@ -1807,9 +2002,7 @@
     markSource();
 
     function markSource() {
-      var src = ref.kind === "top"
-        ? grid.querySelector('.sq[data-index="' + fromIndex + '"]')
-        : grid.querySelector('.sq[data-folder="' + ref.folder + '"][data-item="' + ref.item + '"]');
+      var src = grid.querySelector('.sq[data-path="' + (fromTop ? String(fromIndex) : ref.parent.concat(ref.item).join(".")) + '"]');
       if (src) src.classList.add("drag-src");
     }
     function clearMarks() {
@@ -1824,6 +2017,12 @@
       fromIndex = toIndex;
       render();
       markSource();
+    }
+    function canDropInto(folder) { return !!folder && isFolder(folder) && fitsInFolder && !inDragged[folder.id]; }
+    function inMiddle(tile, ev) {
+      var r = tile.getBoundingClientRect();
+      var fx = (ev.clientX - r.left) / r.width, fy = (ev.clientY - r.top) / r.height;
+      return fx > 0.18 && fx < 0.82 && fy > 0.18 && fy < 0.82;
     }
 
     function move(ev) {
@@ -1842,15 +2041,14 @@
 
       if (!isNaN(top)) {
         var target = state.squares[top];
-        if (isFolder(target) && fitsInFolder && top !== fromIndex) {
-          var r = tile.getBoundingClientRect();
-          var fx = (ev.clientX - r.left) / r.width, fy = (ev.clientY - r.top) / r.height;
-          if (fx > 0.18 && fx < 0.82 && fy > 0.18 && fy < 0.82) {
+        // something from the open folder hovering that folder's own square: a plain slot, never "into"
+        if (canDropInto(target) && top !== fromIndex && !(!fromTop && target.id === openFolderId)) {
+          if (inMiddle(tile, ev)) {
             clearEdge();
             if (target.id !== srcFolderId) { tile.classList.add("drop-into"); ghost.classList.add("over-target"); drop = { into: target.id, at: null }; }
             return;
           }
-          if (ref.kind === "top") {
+          if (fromTop) {
             if (edgeIndex !== top) {
               clearEdge();
               edgeIndex = top;
@@ -1863,25 +2061,35 @@
           }
         }
         clearEdge();
-        if (ref.kind === "top") { if (top !== fromIndex) reorderTo(top); return; }
-        // a text dragged out of its folder lands in front of this square
+        if (fromTop) { if (top !== fromIndex) reorderTo(top); return; }
+        // something dragged out of its folder lands in front of this square
         tile.classList.add("drop-before");
         drop = { out: top };
         return;
       }
       clearEdge();
       if (panel) {
+        var openFolder = nodeAt(openPath() || []);
+        if (!openFolder) return;
         var at = tile && tile.dataset.item !== undefined ? parseInt(tile.dataset.item, 10) : null;
-        if (ref.kind === "top") {
-          if (fitsInFolder) { panel.classList.add("drop-into"); drop = { into: openFolderId, at: at }; }
+        var inner = at !== null ? openFolder.items[at] : null;
+        if (inner && canDropInto(inner) && inner.id !== srcFolderId && inMiddle(tile, ev)) {
+          // the middle of a folder inside the panel: it goes in there
+          tile.classList.add("drop-into");
+          ghost.classList.add("over-target");
+          drop = { into: inner.id, at: null };
+          return;
+        }
+        if (openFolder.id !== srcFolderId) {
+          if (canDropInto(openFolder)) { panel.classList.add("drop-into"); drop = { into: openFolder.id, at: at }; }
         } else if (at !== ref.item) {
           if (tile && at !== null) tile.classList.add("drop-before");
-          drop = { into: openFolderId, at: at };
+          drop = { into: openFolder.id, at: at };
         }
         return;
       }
-      // empty space on the board, e.g. the "Add square" row: a text goes to the end
-      if (ref.kind === "item") drop = { out: state.squares.length };
+      // empty space on the board, e.g. the "Add square" row: something from a folder goes to the end
+      if (!fromTop) drop = { out: state.squares.length };
     }
 
     function finish() {
@@ -1892,26 +2100,26 @@
     function dropHere() {
       finish();
       if (drop && drop.into != null) {
-        var folder = state.squares[indexById(drop.into)];
-        if (!folder) { render(); return; }
-        var entry, at = drop.at;
-        if (ref.kind === "top") {
-          var sq = state.squares.splice(fromIndex, 1)[0];
-          entry = copyLooks(sq, { id: sq.id, name: sq.name || (sq.text || "").slice(0, 12), text: sq.text || "" });
-        } else {
-          var src = state.squares[ref.folder];
-          entry = src.items.splice(ref.item, 1)[0];
-          if (src === folder && at !== null && at > ref.item) at -= 1;
+        var at = drop.at;
+        var sameFolder = drop.into === srcFolderId;
+        if (sameFolder && at !== null && at > ref.item) at -= 1;
+        var entry = removeAt(ref.parent.concat(ref.item));
+        if (!entry) { render(); return; }
+        if (!isFolder(entry) && !entry.name) entry.name = (entry.text || "").slice(0, 12);
+        if (!putInFolder(entry, drop.into, at)) {       // that folder is gone: back where it was
+          var back = listAt(ref.parent);
+          if (back) back.splice(ref.item, 0, entry); else placeOnBoard(entry);
+          render();
+          return;
         }
-        if (at === null || at > folder.items.length) folder.items.push(entry);
-        else folder.items.splice(at, 0, entry);
-        if (folder.id !== srcFolderId) showToast("Moved into “" + (folder.name || "Folder") + "”");
-        openFolderId = folder.id;
+        if (!sameFolder) showToast("Moved into “" + (nodeAt(pathOfFolder(drop.into)).name || "Folder") + "”");
+        showFolder(drop.into);
       } else if (drop && drop.out != null) {
-        var from = state.squares[ref.folder];
-        var it = from.items.splice(ref.item, 1)[0];
-        state.squares.splice(drop.out, 0, copyLooks(it, { id: it.id, name: it.name, text: it.text }));
-        showToast("Moved out of “" + (from.name || "Folder") + "”");
+        var it = removeAt(ref.parent.concat(ref.item));
+        if (it) {
+          state.squares.splice(Math.min(drop.out, state.squares.length), 0, it);
+          showToast("Moved out of “" + ((srcFolder && srcFolder.name) || "Folder") + "”");
+        }
       }
       save();
       render();
@@ -1942,8 +2150,13 @@
   var typeSeg = document.getElementById("typeSeg");
   var segText = document.getElementById("segText");
   var segFolder = document.getElementById("segFolder");
-  var editTarget = null;
+  var editTarget = null;    // { parent: path, item } — item -1 = a new entry inside that folder; isNew = a square just added to the board
   var editType = "text";
+  var editBase = "";        // the box's title before the type chooser changes it
+  var moveRow = document.getElementById("moveRow");
+  var moveInRow = document.getElementById("moveInRow");
+  var moveSelect = document.getElementById("moveSelect");
+  var moveOutBtn = document.getElementById("moveOutBtn");
   var deleteArmed = false;
   var look = {};            // the looks being chosen in the box; applied to the square on Done
   var lookPreview = document.getElementById("lookPreview");
@@ -1980,15 +2193,17 @@
   // Cancel (the button, a click outside the box, Esc): a square that was being added is dropped.
   function cancelSheets() {
     if (editSheet.classList.contains("open") && editTarget && editTarget.isNew) {
-      var sq = state.squares[editTarget.index];
-      if (sq && !isSet(sq)) { state.squares.splice(editTarget.index, 1); render(); }
+      var sq = state.squares[editTarget.item];
+      if (sq && !isSet(sq)) { state.squares.splice(editTarget.item, 1); render(); }
     }
     editTarget = null;
     closeSheets();
   }
   scrim.addEventListener("click", cancelSheets);
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape" && scrim.classList.contains("open")) cancelSheets();
+    if (e.key !== "Escape") return;
+    if (scrim.classList.contains("open")) cancelSheets();
+    else if (subFolderIds.length) { subFolderIds.pop(); render(); }   // out of a folder inside a folder, one level at a time
   });
 
   function disarmDelete() {
@@ -1998,7 +2213,7 @@
 
   function editingFolder() {
     var sq = getEditSquare();
-    if (editTarget && editTarget.kind === "square" && sq && !isSet(sq)) return editType === "folder";
+    if (editTarget && (editTarget.item < 0 || (!editTarget.parent.length && sq && !isSet(sq)))) return editType === "folder";
     return !!(sq && isFolder(sq));
   }
 
@@ -2379,6 +2594,8 @@
     segFolder.classList.toggle("on", t === "folder");
     segFolder.setAttribute("aria-checked", String(t === "folder"));
     textField.hidden = (t === "folder");
+    // a new entry becomes "New folder" once Folder is chosen; an empty "…" slot stays "Set up square", as on the iPhone
+    if (!typeSeg.hidden && editBase) editTitle.textContent = (t === "folder" && editBase !== "Set up square") ? "New folder" : editBase;
     buildSwatches();
     showLooks();
     fitTextBox();
@@ -2449,51 +2666,76 @@
   }
 
   function getEditSquare() {
-    if (!editTarget) return null;
-    if (editTarget.kind === "square") return state.squares[editTarget.index];
-    var folder = state.squares[editTarget.folder];
-    if (!folder || !isFolder(folder)) return null;
-    return editTarget.item >= 0 ? folder.items[editTarget.item] : null;
+    if (!editTarget || editTarget.item < 0) return null;
+    var list = listAt(editTarget.parent);
+    return list ? list[editTarget.item] || null : null;
+  }
+
+  // "Move into a folder" and "Move out to the main board", as in the iPhone's editor: every folder
+  // but the one it's in (and, for a folder, itself and what's inside it).
+  function showMoveOptions(sq, target) {
+    var isTop = target.parent.length === 0;
+    var existing = target.item >= 0 && !!sq && !target.isNew && (!isTop || isSet(sq));
+    moveSelect.innerHTML = "";
+    var first = document.createElement("option");
+    first.value = "";
+    first.textContent = "Choose a folder…";
+    moveSelect.appendChild(first);
+    var dests = [];
+    if (existing) {
+      var parentId = isTop ? null : nodeAt(target.parent).id;
+      dests = allFolders(sq.id).filter(function (f) { return f.id !== parentId; });
+      dests.forEach(function (f) {
+        var o = document.createElement("option");
+        o.value = f.id;
+        o.textContent = f.label;
+        moveSelect.appendChild(o);
+      });
+    }
+    moveInRow.hidden = !existing || !dests.length;
+    moveOutBtn.hidden = !existing || isTop;
+    moveRow.hidden = moveInRow.hidden && moveOutBtn.hidden;
   }
 
   function openEditor(target) {
     editTarget = target;
     disarmDelete();
     var sq = getEditSquare();
-    var isNewItem = target.kind === "item" && target.item < 0;
+    var isTop = target.parent.length === 0;
+    var isNewItem = target.item < 0;          // Add inside a folder: nothing is added until Done
 
     typeSeg.hidden = true;
     textField.hidden = false;
     clearBtn.hidden = false;
     dangerRow.hidden = false;
+    editBase = "";
 
-    if (target.kind === "square") {
-      if (!isSet(sq)) {
-        editTitle.textContent = "Set up square";
-        typeSeg.hidden = false;
-        setEditType("text");
-        drawTypeEdges();
-        startTypeCue();
-        clearBtn.textContent = 'Clear to "…"';
-        deleteBtn.textContent = "Delete square";
-      } else if (isFolder(sq)) {
-        editTitle.textContent = "Edit folder";
-        textField.hidden = true;
-        clearBtn.hidden = true;
-        deleteBtn.textContent = "Delete folder";
-      } else {
-        editTitle.textContent = "Edit square";
-        clearBtn.textContent = 'Clear to "…"';
-        deleteBtn.textContent = "Delete square";
-      }
-    } else {
-      editTitle.textContent = isNewItem ? "Add text" : "Edit text";
-      clearBtn.hidden = true;
-      deleteBtn.textContent = "Delete text";
+    if (isNewItem || (isTop && !isSet(sq))) {
+      // a new entry, or an empty "…" slot: Text square or Folder, as on the iPhone
+      editBase = isNewItem ? "Add text" : target.isNew ? "Add square" : "Set up square";
+      typeSeg.hidden = false;
+      setEditType("text");
+      drawTypeEdges();
+      startTypeCue();
+      clearBtn.textContent = 'Clear to "…"';
+      clearBtn.hidden = isNewItem;
+      deleteBtn.textContent = "Delete square";
       if (isNewItem) dangerRow.hidden = true;
+    } else if (isFolder(sq)) {
+      editBase = "Edit folder";
+      textField.hidden = true;
+      clearBtn.hidden = true;
+      deleteBtn.textContent = "Delete folder";
+    } else {
+      editBase = isTop ? "Edit square" : "Edit text";
+      clearBtn.textContent = 'Clear to "…"';
+      clearBtn.hidden = !isTop;               // only a square on the board clears to "…"; a text in a folder is deleted
+      deleteBtn.textContent = isTop ? "Delete square" : "Delete text";
     }
+    editTitle.textContent = editBase;
 
     if (target.isNew) dangerRow.hidden = true;   // a square being added: Cancel is the way out
+    showMoveOptions(sq, target);
     nameInput.value = (sq && sq.name) || "";
     textInput.value = (sq && sq.text) || "";
     // an empty name or text shows one of the 60 example notes, as on the iPhone
@@ -2506,58 +2748,88 @@
     setEmojiPicker(false);
     openSheet(editSheet);
     fitTextBox();
-    if ((target.kind === "square" && !isSet(sq)) || isNewItem) {
+    if (isNewItem || (isTop && !isSet(sq))) {
       setTimeout(function () { nameInput.focus(); }, 280);
     }
   }
 
   document.getElementById("editCancel").addEventListener("click", cancelSheets);
 
-  document.getElementById("editSave").addEventListener("click", function () {
-    if (!editTarget) return;
+  // Writes the box into the tree. Returns false when nothing could be saved (a folder with no name),
+  // "removed" when an emptied text in a folder went away, else true.
+  function commitEdits() {
     var name = nameInput.value.trim();
     var text = textInput.value.trim();
-
-    if (editTarget.kind === "square") {
-      var sq = state.squares[editTarget.index];
-      if (!isSet(sq) && editType === "folder") {
-        if (name) {
-          sq.name = name;
-          sq.type = "folder";
-          sq.items = [];
-        }
-      } else if (isFolder(sq)) {
-        if (name) sq.name = name;
-      } else if (!name && !text) {
-        delete sq.name; delete sq.text;
-      } else {
-        sq.name = name || text.slice(0, 12);
-        sq.text = text;
+    var list = listAt(editTarget.parent);
+    if (!list) return false;
+    if (editTarget.item < 0) {                    // Add inside a folder
+      if (editType === "folder") {
+        if (!name) { showToast("Give the folder a name first"); return false; }
+        list.push(copyLooks(look, { id: uid(), type: "folder", name: name, items: [] }));
+      } else if (name || text) {
+        list.push(copyLooks(look, { id: uid(), name: name || text.slice(0, 12), text: text }));
       }
-      copyLooks(isSet(sq) ? look : {}, sq);
-    } else {
-      var folder = state.squares[editTarget.folder];
-      if (folder && isFolder(folder)) {
-        if (editTarget.item < 0) {
-          if (name || text) folder.items.push(copyLooks(look, { id: uid(), name: name || text.slice(0, 12), text: text }));
-        } else if (!name && !text) {
-          folder.items.splice(editTarget.item, 1);
-        } else {
-          var it = folder.items[editTarget.item];
-          it.name = name || text.slice(0, 12);
-          it.text = text;
-          copyLooks(look, it);
-        }
-      }
+      return true;                                // nothing typed: nothing added, as on the iPhone
     }
+    var sq = list[editTarget.item];
+    if (!sq) return false;
+    var isTop = editTarget.parent.length === 0;
+    if (isTop && !isSet(sq) && editType === "folder") {
+      if (!name) { showToast("Give the folder a name first"); return false; }
+      sq.name = name;
+      sq.type = "folder";
+      sq.items = [];
+    } else if (isFolder(sq)) {
+      if (name) sq.name = name;
+    } else if (!name && !text) {
+      if (isTop) { delete sq.name; delete sq.text; }
+      else { list.splice(editTarget.item, 1); return "removed"; }   // an emptied text in a folder goes away
+    } else {
+      sq.name = name || text.slice(0, 12);
+      sq.text = text;
+    }
+    copyLooks(isSet(sq) ? look : {}, sq);
+    return true;
+  }
+
+  document.getElementById("editSave").addEventListener("click", function () {
+    if (!editTarget) return;
+    if (!commitEdits()) return;
+    save();
+    render();
+    closeSheets();
+  });
+
+  // Moving saves the changes above first, as on the iPhone.
+  moveSelect.addEventListener("change", function () {
+    var id = moveSelect.value;
+    if (!id || !editTarget) return;
+    if (commitEdits() !== true) { moveSelect.value = ""; return; }
+    var entry = removeAt(editTarget.parent.concat(editTarget.item));
+    if (entry && putInFolder(entry, id, null)) {
+      showToast("Moved into “" + (nodeAt(pathOfFolder(id)).name || "Folder") + "”");
+      showFolder(id);
+    } else if (entry) {
+      placeOnBoard(entry);
+    }
+    save();
+    render();
+    closeSheets();
+  });
+  moveOutBtn.addEventListener("click", function () {
+    if (!editTarget || !editTarget.parent.length) return;
+    if (commitEdits() !== true) return;
+    var entry = removeAt(editTarget.parent.concat(editTarget.item));
+    if (entry) { placeOnBoard(entry); showToast("Moved to the main board"); }
     save();
     render();
     closeSheets();
   });
 
   clearBtn.addEventListener("click", function () {
-    if (!editTarget || editTarget.kind !== "square") return;
-    var sq = state.squares[editTarget.index];
+    if (!editTarget || editTarget.parent.length || editTarget.item < 0) return;
+    var sq = state.squares[editTarget.item];
+    if (!sq) return;
     delete sq.name; delete sq.text; delete sq.type; delete sq.items;
     copyLooks({}, sq);
     save();
@@ -2573,15 +2845,7 @@
       deleteBtn.textContent = "Tap again to delete";
       return;
     }
-    if (editTarget.kind === "square") {
-      var sq = state.squares[editTarget.index];
-      if (sq && isFolder(sq) && sq.id === openFolderId) openFolderId = null;
-      state.squares.splice(editTarget.index, 1);
-      if (state.squares.length === 0) state.squares.push({ id: uid() });
-    } else if (editTarget.item >= 0) {
-      var folder = state.squares[editTarget.folder];
-      if (folder && isFolder(folder)) folder.items.splice(editTarget.item, 1);
-    }
+    if (editTarget.item >= 0) removeAt(editTarget.parent.concat(editTarget.item));   // a folder goes with everything in it
     save();
     render();
     closeSheets();
@@ -2638,7 +2902,7 @@
       showToast("Couldn't read that shared link");
       return;
     }
-    pendingImport = payload.squares.map(cleanEntry).filter(isSet);
+    pendingImport = payload.squares.map(function (sq) { return cleanEntry(sq); }).filter(isSet);
     if (!pendingImport.length) { showToast("That shared list was empty"); return; }
     var nf = pendingImport.filter(isFolder).length;
     var ns = pendingImport.length - nf;
@@ -2675,7 +2939,7 @@
     }
     state.squares = pendingImport.slice();
     pendingImport = null;
-    openFolderId = null;
+    closeFolders();
     save();
     render();
     closeSheets();
@@ -2827,7 +3091,7 @@
     showLinkCard();
     chain = { ids: [], texts: [], last: 0 };   // quick taps don't join across the two boards
     state = phone ? { squares: squares, options: local.options } : local;
-    if (openFolderId !== null && indexById(openFolderId) < 0) openFolderId = null;
+    if (openFolderId !== null && indexById(openFolderId) < 0) closeFolders();
     restoreBtn.hidden = !!phone;
     render();
   }
@@ -2885,7 +3149,7 @@
         }
       } else {
         phone = res;
-        openFolderId = null;
+        closeFolders();
         useSquares(phone.squares);
         phoneNote();
         if (location.hash === "#linked") {   // just paired at dittotap.com/link
@@ -2917,7 +3181,7 @@
       }
       phone = null;
       phoneConflict.hidden = true;
-      openFolderId = null;
+      closeFolders();
       useSquares(null);
       phoneNote();
     });
@@ -2990,9 +3254,9 @@
       showToast("That doesn't look like a Ditto backup");
       return;
     }
-    state.squares = parsed.squares.map(cleanEntry);
+    state.squares = parsed.squares.map(function (sq) { return cleanEntry(sq); });
     if (state.squares.length === 0) state.squares = freshState().squares;
-    openFolderId = null;
+    closeFolders();
     save();
     render();
     closeSheets();
